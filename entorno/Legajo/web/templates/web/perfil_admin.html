@@ -1,0 +1,95 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Dashboard Administrador</title>
+    <link rel="stylesheet" href="{% static 'web/css/dashboard.css' %}"/>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">    
+</head>
+<body>
+    <script>
+        // Guard cliente: validar token y rol ADMIN antes de mostrar la página
+        (async function() {
+            try {
+                const token = localStorage.getItem('jwtToken');
+                if (!token) { window.location.href = '/login.html'; return; }
+                const resp = await fetch('/api/auth/me', { method: 'GET', headers: { Authorization: 'Bearer ' + token } });
+                if (!resp.ok) { localStorage.removeItem('jwtToken'); window.location.href = '/login.html'; return; }
+                const user = await resp.json();
+                // El rol ahora viene como un objeto con propiedad "rol"
+                const roleName = (user.rol && user.rol.rol) ? user.rol.rol.toString().toLowerCase() : '';
+                if (!(roleName.includes('admin') || roleName === 'administrador')) {
+                    // No es admin, redirigir al dashboard del usuario
+                    window.location.href = "{% url 'web/dashboard_usuario' %}";
+                    return;
+                }
+                // Si pasa las comprobaciones, continuar y mostrar la página
+            } catch (e) {
+                console.error('Error validando token/rol en perfil_admin:', e);
+                localStorage.removeItem('jwtToken');
+                window.location.href = "{% url 'web/login' %}";
+            }
+        })();
+    </script>
+    <button id="toggleModo" class="modo-toggle">🌙 Modo Claro</button>
+    <!-- Sidebar -->
+    <nav class="sidebar">
+        <div class="logo">
+            <i class="fas fa-user-shield"></i>
+            <span>AdminDash</span>
+        </div>
+        <ul class="nav-links">
+            <a href="{% url 'dashboard_admin' %}"><li><i class="fas fa-home"></i><span>Inicio</span></li></a>
+            <a href="{% url 'novedades_usuarios' %}"><li><i class="fas fa-user"></i><span>Novedades de usuarios</span></li></a>
+            <a href="{% url 'reporte_libros' %}"><li><i class="fas fa-book"></i><span>Reporte de libros</span></li></a>
+            <a href="{% url 'inventario_admi' %}"><li><i class="fas fa-box"></i><span>Inventario</span></li></a>
+            <a href="{% url 'perfil_admin' %}"><li class="active"><i class="fas fa-user-circle"></i><span>Perfil</span></li></a>
+        </ul>
+    </nav>
+
+    <!-- Contenido Principal -->
+    <main class="main-content">
+        <header>
+            <div class="header-left">
+                <h1>Tu perfil</h1>
+            </div>
+            <div class="header-right">
+                <div class="user-profile">
+                    <img src="{% static 'web/imgs/profile.png' %}" alt="Admin" />
+                    <span>Administrador</span>
+                </div>
+            </div>
+        </header>
+
+        <section class="perfil-usuario">
+            
+            <!-- Contenedor de la imagen de perfil -->
+            <div class="contenedor-imagen">
+                <img src="{% static 'web/imgs/profile.png' %}" alt="Foto de perfil" class="foto-perfil">
+                <h2 class="nombre-perfil">Santiago Durán Pulido</h2>
+                    <!-- Botón de cerrar sesión -->
+                    <a href="{% url 'index' %}" class="boton-editar boton-cerrar">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Cerrar sesión
+                    </a>
+            </div>
+
+            <!-- Contenedor de información del usuario (más largo verticalmente) -->
+            <div class="contenedor-info">
+                <p><strong>Correo:</strong> duransantiago003@gmail.com</p>
+                <p><strong>Ubicación:</strong> Bogotá, barrio Mandalay</p>
+                <p><strong>Ciudad:</strong> Bogotá</p>
+                <p><strong>Dirección:</strong> Calle 15 #12-34</p>
+                
+
+                <!-- Botón de editar -->
+                <button class="boton-editar"><i class="fa-solid fa-pen"></i> Editar información</button>
+            </div>
+
+        </section>
+    </main>
+    <script src="{% static 'web/js/script.js' %}"></script>
+</html>

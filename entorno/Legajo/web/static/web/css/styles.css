@@ -1,0 +1,478 @@
+:root{
+    --fondo-principal: #091326;
+    --color-texto: #FFFFFF;
+    --color-secundario: #8C6249;
+    --logo: url(../imgs/logo_oscuro1.jpg) center / cover no-repeat;
+
+    --color-acento: #F2AE2E;
+    --color-acento-sec: #BF5B04;
+}
+
+.modo-claro {
+    --fondo-principal: #FFFFFF;
+    --color-texto: #091326;
+    --color-secundario: #D9B596;
+    --logo: url(../imgs/logo_claro1.jpg) center / cover no-repeat;
+
+    --color-acento: #BF5B04;
+    --color-acento-sec: #F2AE2E;
+}
+
+*{
+    margin: 0;
+    padding: 0;
+    color: var(--color-texto);
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+body {
+    background-color: var(--fondo-principal);
+    color: var(--color-texto);
+    transition: all 0.3s ease;
+}
+
+html{
+    scroll-behavior: smooth;
+}
+
+h2{
+    text-align: center;
+    padding: 8vh;
+    font-size: 2.5rem;
+}
+
+
+/* HEADER */
+
+header{
+    background-color: var(--fondo-principal);
+    position: fixed;
+    top: 0;
+    width: 100%;
+    transition: top 0.4s;
+    z-index: 1000;
+}
+
+.sidebar{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.contenedor{
+    max-width: 85vw;
+    margin: auto;
+}
+
+
+header ul{
+    display: flex;
+    align-items: center;
+}
+
+header li{
+    margin-right: 50px;
+    list-style: none;
+}
+
+header a{
+    text-decoration: none;
+    font-size: 1.2rem;
+}
+
+header a:hover{
+    color: #a9a;
+}
+
+header .logo{
+    min-height: 100px;
+    min-width: 100px;
+    background: var(--logo);
+}
+
+hr{
+    background-color: var(--color-texto);
+    color: var(--color-texto);
+    min-height: 0.5px;
+}
+
+/* INICIO */
+
+#inicio{
+    background: url(../imgs/bibliotecas.jpg) center / cover no-repeat fixed;
+    min-height: 100vh;
+}
+
+.fondo_inicio{
+    min-height: 100vh;
+    background: linear-gradient(to top, #000f, #0000);
+}
+
+.fondo_inicio h1, .fondo_inicio p{
+    font-size: 7rem;
+    text-align: center;
+    color: #FFFFFF;
+}
+
+.fondo_inicio p{
+    padding-top: 30vh;
+}
+
+/* SOBRE ESTA PAGINA */
+
+#about{
+    min-height: 100vh;
+    background-color: var(--fondo-principal);
+}
+
+.contenedor_about{
+    display: flex;
+}
+
+#about img{
+    height: 400px;
+}
+
+#about .texto{
+    margin-left: 50px;
+}
+
+#about p{
+    font-size: 1.2rem;
+    letter-spacing: 1px;
+    line-height: 1.5;
+}
+
+/* AYUDA */
+
+#ayuda{
+    min-height: 100vh;
+    background: url(../imgs/fondo_ayuda.jpg) center / cover no-repeat fixed;
+}
+
+.fondo_ayuda{
+    min-height: 100vh;
+    background: linear-gradient(to top, #000c, #0007);
+}
+
+#ayuda p, #ayuda h3{
+    text-align: center;
+    font-size: 1.5rem;
+}
+
+#ayuda h2{
+    color: #FFFFFF;
+}
+
+#ayuda h3{
+    color: #FFFFFF;
+}
+
+.contenedor_ayuda{
+    display: flex;
+}
+
+.targetas{
+    background-color: var(--fondo-principal);
+    margin: 100px 30px;
+    padding: 20px;
+    text-align: center;
+    width: 300px;
+    border-radius: 10px;
+}
+
+.targetas img{
+    height: 100px;
+    margin-bottom: 30px;
+}
+
+/* FOOTER */
+
+footer{
+    justify-content: space-between;
+    min-height: 15vh;
+    background-color: var(--fondo-principal);
+    text-align: center;
+    box-sizing: border-box;
+    padding: 40px;
+}
+
+footer .contenedor{
+    max-width: 1000px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.errores a{
+    margin-right: 30px;
+}
+
+/* MODO CLARO */
+
+.modo-toggle {
+    position: fixed;
+    bottom: 30px;
+    left: 30px;
+    z-index: 1000;
+    background-color: var(--fondo-principal);
+    color: var(--color-texto);
+    padding: 8px 12px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.modo-toggle:hover {
+    background-color: var(--color-texto);
+    color: var(--fondo-principal);
+}
+
+/* ================
+    FORMULARIOS
+================ */
+
+.formulario {
+    min-height: 100vh;
+    background-color: var(--color-secundario);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.formulario form {
+    background-color: var(--fondo-principal);
+    padding: 40px;
+    border-radius: 10px;
+    box-shadow: 0 0 10px #0009;
+    width: 100%;
+    max-width: 400px;
+}
+
+.formulario h2 {
+    margin-bottom: 20px;
+    font-size: 2rem;
+    margin-top: 10px;   
+    margin-bottom: 30px;
+    padding: 0;   
+}
+
+.formulario input {
+    width: 96%;
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 2px solid #ccc;
+    border-radius: 5px;
+    font-size: 1rem;
+    color: #000;
+    background-color: #fff;
+    transition: border-color 0.3s ease;
+}
+
+.formulario input:focus, #genero:focus {
+    outline: none;
+    border-color: var(--color-acento);
+}
+
+.formulario button {
+    width: 102%;
+    padding: 12px;
+    font-size: 1rem;
+    background-color: var(--color-texto);
+    color: var(--fondo-principal);
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.formulario button:hover {
+    background-color: var(--color-secundario);
+    color: var(--color-texto);
+}
+
+form a{
+    text-decoration: underline;
+    color: var(--color-primario);
+    font-weight: bold;
+    transition: 0.3s;
+}
+
+form a:hover {
+    color: var(--color-secundario);
+    text-decoration: underline dotted;
+}
+
+/* FORMULARIO DE CREAR CUENTA */
+.form-crear {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+.formulario-crear form.form-crear {
+    max-width: 700px;
+}
+
+/* El título ocupa dos columnas */
+.form-crear h2 {
+    grid-column: span 2;
+    text-align: center;
+}
+.formulario-crear h2 {
+    margin-top: auto;   
+    margin-bottom: 20px;
+    padding: 0;        
+}
+
+/* Inputs normales */
+.form-crear input {
+    width: 95%;
+}
+
+/* Botón ocupa dos columnas */
+.form-crear button {
+    grid-column: span 2;
+    width: 101%;
+}
+
+/* Estilo uniforme del select */
+.formulario select {
+    width: 102%;
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 2px solid #ccc;
+    border-radius: 5px;
+    font-size: 1rem;
+    background-color: #fff;
+    color: #000;
+    cursor: pointer;
+    transition: border-color 0.3s ease;
+}
+
+.formulario select:focus {
+    outline: none;
+    border-color: var(--color-acento);
+}
+
+/* Opciones dentro del desplegable */
+.formulario select option {
+    background-color: #fff;   /* fondo blanco */
+    color: #000;              /* texto negro */
+}
+
+/* Placeholder "Seleccione un género" en gris */
+.formulario select option[value=""] {
+    color: #777;
+}
+
+/* SINOPSIS textarea */
+.formulario textarea {
+    width: 96%;
+    padding: 10px;
+    margin-bottom: 15px;
+    border: 2px solid #ccc;
+    border-radius: 5px;
+    font-size: 1rem;
+    resize: vertical; /* permite agrandar solo en vertical */
+    color: #000;
+    background-color: #fff;
+    transition: border-color 0.3s ease;
+}
+
+.formulario textarea:focus {
+    outline: none;
+    border-color: var(--color-acento);
+}
+
+
+/*INPUT FILE PORTADA */
+/* Ocultar el input por defecto */
+.form-grupo input[type="file"] {
+    display: none;
+}
+
+/* Estilo del botón personalizado */
+.label-file {
+    display: inline-block;  
+    padding: 12px 15px;
+    width: 95%;
+    background-color: var(--color-texto);
+    color: var(--fondo-principal);
+    border-radius: 5px;
+    cursor: pointer;
+    transition: 0.3s;
+    margin-bottom: 20px;    
+}
+
+.label-file:hover {
+    background-color: var(--color-secundario);
+    color: var(--color-texto);
+}
+
+/* Ocultamos el input original */
+.form-grupo input[type="file"] {
+    display: none;
+}
+
+/*logo crear cuenta y login*/
+.logo-form {
+    background: var(--logo);
+    width: 140px;
+    height: 120px;
+    margin: 0 auto 0 auto;
+    background-size: cover;
+    background-position: center;
+    border-radius: 10px;
+}
+
+.logo-crear {
+    background: var(--logo);
+    width: 140px;
+    height: 120px;
+    margin: 0 auto 0 auto;
+    background-size: cover;
+    background-position: center;
+    border-radius: 10px;
+    grid-column: span 2;
+}
+
+/*flecha para salir*/
+.btn-volver {
+    position: absolute;
+    top: 30px;
+    left: 30px;
+    font-size: 1.2rem;
+    text-decoration: none;
+    color: var(--color-texto);
+    background-color: var(--fondo-principal);
+    padding: 4px 6px;
+    border-radius: 8px;
+    transition: 0.3s ease;
+    z-index: 2000;
+}
+
+.btn-volver:hover {
+    background-color: var(--color-texto);
+    color: var(--fondo-principal);
+}
+
+/*ojo contraseñas*/
+.input-pass {
+    position: relative;
+    width: 100%;
+}
+
+.toggle-pass {
+    position: absolute;
+    right: 25px;
+    top: 36%;
+    transform: translateY(-50%);
+    font-size: 1.2rem;
+    color: #555;
+    cursor: pointer;
+    user-select: none;
+}
+
+.toggle-pass:hover {
+    color: var(--color-acento);
+}

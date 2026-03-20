@@ -1,0 +1,100 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Admin</title>
+    <link rel="stylesheet" href="{% static 'web/css/dashboard.css' %}" />
+    <link rel="stylesheet"
+     href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+</head>
+
+<body>
+<button id="toggleModo" class="modo-toggle">🌙 Modo Claro</button>
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+    <div class="logo">
+        <i class="fas fa-user-shield"></i>
+        <span>Panel Admin</span>
+    </div>
+        <ul class="nav-links">
+            <a href="{% url 'dashboard_admin' %}"><li><i class="fas fa-home"></i><span>Inicio</span></li></a>
+            <a href="{% url 'novedades_usuarios' %}"><li><i class="fas fa-user"></i><span>Novedades de usuarios</span></li></a>
+            <a href="{% url 'reporte_libros' %}"><li><i class="fas fa-book"></i><span>Reporte de libros</span></li></a>
+            <a href="{% url 'inventario_admi' %}"><li class="active"><i class="fas fa-box"></i><span>Inventario</span></li></a>
+            <a href="{% url 'perfil_admin' %}"><li><i class="fas fa-user-circle"></i><span>Perfil</span></li></a>
+        </ul>
+</nav>
+
+<main class="main-content">
+
+    <header>
+        <div class="header-left">
+            <h1>Inventario General</h1>
+            <p>Libros que pertenecen a la aplicación</p>
+        </div>
+
+        <div class="header-right">
+            <div class="user-profile">
+                <img src="{% static 'web/imgs/profile.png' %}" alt="admin" />
+                <span>Administrador</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- FILTROS -->
+    <section class="filtros-admin">
+        <input type="text" id="buscarLibro" placeholder="🔍 Buscar libro o autor..." />
+
+        <select id="filtroGenero">
+            <option value="">📚 Género</option>
+            <option value="fantasia">Fantasía</option>
+            <option value="ficcion">Ficción</option>
+            <option value="romance">Romance</option>
+            <option value="misterio">Misterio</option>
+        </select>
+
+        <select id="filtroEstado">
+            <option value="">📌 Estado</option>
+            <option value="disponible">Disponible</option>
+            <option value="intercambiado">Intercambiado</option>
+            <option value="bloqueado">Bloqueado</option>
+        </select>
+    </section>
+
+    <!-- INVENTARIO ADMIN -->
+    <section class="inventario-admin">
+        <div class="grid-inventario-admin">
+
+            <!-- EJEMPLO -->
+            <div class="item-inventario-admin" data-genero="fantasia" data-estado="disponible">
+                <img src="{% static 'web/imgs/libro_de_la_selva.jpg' %}" />
+                <h3>El libro de la selva</h3>
+                <h4>Rudyard Kipling</h4>
+                <p>Dueño: <strong>Paola G.</strong></p>
+                <p class="estado">Estado: Disponible</p>
+                <div class="estrellas">★★★★☆</div>
+
+                <div class="acciones-admin">
+                    <button class="btn-azul"><i class="fas fa-eye"></i></button>
+                    <button class="btn-amarillo"><i class="fas fa-pen"></i></button>
+                    <button class="btn-rojo"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>
+
+            <!-- Duplica más items según necesites -->
+        </div>
+
+        <!-- Botón de acción (esquina inferior derecha) -->
+        <a href="{% url 'registrar_libro' %}"><button class="btn-agregar">+</button></a>
+    </section>
+</main>
+
+<script src="{% static 'web/js/script.js' %}"></script>
+<script src="{% static 'web/js/inventarioAdmin.js' %}"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+</body>
+</html>
