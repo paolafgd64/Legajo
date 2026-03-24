@@ -5,107 +5,132 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Crear Cuenta</title>
+
     <link rel="stylesheet" href="{% static 'web/css/styles.css' %}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
-<a href="{% url 'index' %}" class="btn-volver">←</a>
+
 <body>
-    <button id="toggleModo" class="modo-toggle">☀️ Modo Claro</button>
-    <section class="formulario formulario-crear">
-        <form class="form-crear" id="registroForm" action="{% url 'dashboard_usuario' %}">
-            <div class="logo-crear"></div>
-            <h2>Crear cuenta</h2>
-            <input type="text" id="primerNombre" name="primerNombre" placeholder="Primer nombre" required />
-            <input type="text" id="segundoNombre" name="segundoNombre" placeholder="Segundo nombre" />
-            <input type="text" id="primerApellido" name="primerApellido" placeholder="Primer apellido" required />
-            <input type="text" id="segundoApellido" name="segundoApellido" placeholder="Segundo apellido" />
-            <input type="email" id="correo" name="correo" placeholder="Correo electrónico" required />
-            <input type="text" id="direccion" name="direccion" placeholder="Dirección" />
-            <input type="text" id="ciudad" name="ciudad" placeholder="Ciudad" />
-            <input type="tel" id="telefono" name="telefono" placeholder="Teléfono" />
-            <div class="input-pass">
-                <input type="password" id="clave" name="clave" placeholder="Contraseña" required />
-                <i class="toggle-pass fas fa-eye" onclick="verClave('clave', this)"></i>
-            </div>
-            <div class="input-pass">
-                <input type="password" id="confirmClave" name="confirmClave" placeholder="Confirmar contraseña" required />
-                <i class="toggle-pass fas fa-eye" onclick="verClave('confirmClave', this)"></i>
-            </div>
-            <button type="submit">Registrar</button>
-        </form>
-        <div id="mensaje" style="margin-top:10px;color:red"></div>
-    </section>
 
-    
+<a href="{% url 'index' %}" class="btn-volver">←</a>
 
+<button id="toggleModo" class="modo-toggle">☀️ Modo Claro</button>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const form = document.getElementById('registroForm');
-            const mensaje = document.getElementById('mensaje');
-            const submitBtn = form.querySelector('button[type="submit"]');
+<section class="formulario formulario-crear">
 
-            form.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                mensaje.textContent = '';
+    <!-- 🔥 IMPORTANTE: SIN action -->
+    <form class="form-crear" id="registroForm">
+        
+        {% csrf_token %} <!-- 🔥 CLAVE EN DJANGO -->
 
-                const clave = document.getElementById('clave').value;
-                const confirm = document.getElementById('confirmClave').value;
-                if (clave !== confirm) {
-                    mensaje.textContent = 'Las contraseñas no coinciden.';
+        <div class="logo-crear"></div>
+        <h2>Crear cuenta</h2>
+
+        <input type="text" id="primerNombre" name="primerNombre" placeholder="Primer nombre" required />
+        <input type="text" id="segundoNombre" name="segundoNombre" placeholder="Segundo nombre" />
+        <input type="text" id="primerApellido" name="primerApellido" placeholder="Primer apellido" required />
+        <input type="text" id="segundoApellido" name="segundoApellido" placeholder="Segundo apellido" />
+        <input type="email" id="correo" name="correo" placeholder="Correo electrónico" required />
+        <input type="text" id="direccion" name="direccion" placeholder="Dirección" />
+        <input type="text" id="ciudad" name="ciudad" placeholder="Ciudad" />
+        <input type="tel" id="telefono" name="telefono" placeholder="Teléfono" />
+
+        <div class="input-pass">
+            <input type="password" id="clave" name="clave" placeholder="Contraseña" required />
+            <i class="toggle-pass fas fa-eye" onclick="verClave('clave', this)"></i>
+        </div>
+
+        <div class="input-pass">
+            <input type="password" id="confirmClave" name="confirmClave" placeholder="Confirmar contraseña" required />
+            <i class="toggle-pass fas fa-eye" onclick="verClave('confirmClave', this)"></i>
+        </div>
+
+        <button type="submit">Registrar</button>
+    </form>
+
+    <div id="mensaje" style="margin-top:10px;color:red"></div>
+</section>
+
+<!-- 🔥 SWEETALERT -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+
+        const form = document.getElementById('registroForm');
+        const mensaje = document.getElementById('mensaje');
+        const submitBtn = form.querySelector('button[type="submit"]');
+
+        // 🔥 FUNCIÓN CSRF
+        function getCSRFToken() {
+            return document.querySelector('[name=csrfmiddlewaretoken]').value;
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            mensaje.textContent = '';
+
+            const clave = document.getElementById('clave').value;
+            const confirm = document.getElementById('confirmClave').value;
+
+            if (clave !== confirm) {
+                mensaje.textContent = 'Las contraseñas no coinciden.';
+                return;
+            }
+
+            const payload = {
+                primerNombre: document.getElementById('primerNombre').value,
+                segundoNombre: document.getElementById('segundoNombre').value,
+                primerApellido: document.getElementById('primerApellido').value,
+                segundoApellido: document.getElementById('segundoApellido').value,
+                correo: document.getElementById('correo').value,
+                direccion: document.getElementById('direccion').value,
+                ciudad: document.getElementById('ciudad').value,
+                telefono: document.getElementById('telefono').value || null,
+                clave: clave
+            };
+
+            try {
+                if (submitBtn) submitBtn.disabled = true;
+
+                const res = await fetch('/api/usuarios/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCSRFToken() // 🔥 CLAVE
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!res.ok) {
+                    let errText = await res.text();
+                    mensaje.textContent = 'Error al registrar: ' + errText;
+                    submitBtn.disabled = false;
                     return;
                 }
 
-                const payload = {
-                    primerNombre: document.getElementById('primerNombre').value,
-                    segundoNombre: document.getElementById('segundoNombre').value,
-                    primerApellido: document.getElementById('primerApellido').value,
-                    segundoApellido: document.getElementById('segundoApellido').value,
-                    correo: document.getElementById('correo').value,
-                    direccion: document.getElementById('direccion').value,
-                    ciudad: document.getElementById('ciudad').value,
-                    telefono: document.getElementById('telefono').value || null,
-                    clave: clave
-                };
+                const data = await res.json();
 
-                try {
-                    if (submitBtn) submitBtn.disabled = true;
-                    const res = await fetch('/api/usuarios', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
+                Swal.fire({
+                    icon: "success",
+                    title: "Registro completado",
+                    text: data.mensaje,
+                    confirmButtonText: "Continuar"
+                }).then(() => {
+                    window.location.href = "{% url 'login' %}";
+                });
 
-                    if (!res.ok) {
-                        let errText = await res.text();
-                        try { errText = JSON.parse(errText).message || JSON.parse(errText); } catch(e){}
-                        mensaje.textContent = 'Error al registrar: ' + (errText || res.statusText);
-                        if (submitBtn) submitBtn.disabled = false;
-                        return;
-                    }
-
-                     Swal.fire({
-                        icon: "success",
-                        title: "Registro completado",
-                        text: "Serás redirigido al login",
-                        confirmButtonText: "Continuar"
-                    }).then(() => {
-                        window.location.href = "{% url 'login' %}";
-                    });
-
-                    } catch (err) {
-                        console.error(err);
-                        mensaje.textContent = 'Error de red: ' + err.message;
-                        if (submitBtn) submitBtn.disabled = false;
-                    }
-            
-            });
+            } catch (err) {
+                console.error(err);
+                mensaje.textContent = 'Error de red: ' + err.message;
+                submitBtn.disabled = false;
+            }
         });
-    </script>
+    });
+</script>
 
-    <script src="{% static 'web/js/script.js' %}"></script>
-    <script src="{% static 'web/js/validaciones.js' %}"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    
+<script src="{% static 'web/js/script.js' %}"></script>
+<script src="{% static 'web/js/validaciones.js' %}"></script>
+
 </body>
 </html>

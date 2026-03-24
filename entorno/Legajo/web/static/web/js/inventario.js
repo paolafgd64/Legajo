@@ -20,7 +20,7 @@ async function obtenerUsuarioActual() {
   try {
     const token = localStorage.getItem('jwtToken');
     if (!token) {
-      window.location.href = '/login.html';
+      window.location.href = '/login/';
       return null;
     }
     const res = await fetch('/api/auth/me', {
@@ -28,7 +28,7 @@ async function obtenerUsuarioActual() {
     });
     if (!res.ok) {
       localStorage.removeItem('jwtToken');
-      window.location.href = '/login.html';
+      window.location.href = '/login/';
       return null;
     }
     return await res.json();
@@ -70,7 +70,7 @@ async function cargarInventario() {
       
 
       item.innerHTML = `
-        <img src="${libro.urlImagen || '/imgs/libro_de_la_selva.jpg'}" alt="Libro">
+        <img src="${libro.urlImagen || '/static/web/imgs/libro_de_la_selva.jpg'}" alt="Libro">
         <h3>${libro.titulo || ''}</h3>
         <h4>${libro.autor || ''}</h4>
         <div class="estrellas" data-libro-id="${libroId}"></div>
@@ -170,7 +170,7 @@ async function verLibro(id) {
     const modalAutor = document.getElementById('modalAutor');
     const modalDescripcion = document.getElementById('modalDescripcion');
     
-    if (modalImg) modalImg.src = libro.urlImagen || '/imgs/default-book.jpg';
+    if (modalImg) modalImg.src = libro.urlImagen || '/static/web/imgs/default-book.jpg';
     if (modalTitulo) modalTitulo.textContent = libro.titulo || '';
     if (modalAutor) modalAutor.textContent = libro.autor || '';
     if (modalDescripcion) modalDescripcion.textContent = libro.sinopsis || '';

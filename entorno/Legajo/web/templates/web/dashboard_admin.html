@@ -5,7 +5,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Dashboard Administrador</title>
-    <link rel="stylesheet" href="{% static 'web/estilos/dashboard.css' %}"/>
+    <link rel="stylesheet" href="{% static 'web/css/dashboard.css' %}"/>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">    
 </head>
@@ -21,7 +21,7 @@
             <a href="{% url 'dashboard_admin' %}"><li class="active"><i class="fas fa-home"></i><span>Inicio</span></li></a>
             <a href="{% url 'novedades_usuarios' %}"><li><i class="fas fa-user"></i><span>Novedades de usuarios</span></li></a>
             <a href="{% url 'reporte_libros' %}"><li><i class="fas fa-book"></i><span>Reporte de libros</span></li></a>
-            <a href="{% url 'inventario_admin' %}"><li><i class="fas fa-box"></i><span>Inventario</span></li></a>
+            <a href="{% url 'inventario_admi' %}"><li><i class="fas fa-box"></i><span>Inventario</span></li></a>
             <a href="{% url 'perfil_admin' %}"><li><i class="fas fa-user-circle"></i><span>Perfil</span></li></a>
         </ul>
     </nav>
@@ -76,5 +76,6 @@
         </section>
     </main>
     <script src="{% static 'web/js/script.js' %}"></script>
+    
     
 </html>

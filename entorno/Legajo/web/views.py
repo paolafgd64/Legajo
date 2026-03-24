@@ -1,9 +1,32 @@
 from django.shortcuts import render
 from django.http import JsonResponse
+import json
+from django.http import JsonResponse
+import json
+from django.http import JsonResponse
+from django.http import JsonResponse
+
+
+
+
+
+
+
+
 
 # Create your views here.
 def index(request):
     return render(request, 'web/index.html')
+
+def api_usuarios(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
+
+        print(data)  # 👈 para ver en consola
+
+        return JsonResponse({
+            'mensaje': 'Usuario registrado correctamente'
+        })
 
 def chats(request):
     return render(request, 'web/chats.html')
@@ -53,4 +76,37 @@ def reset_password(request):
 def api_usuarios(request):
     if request.method == 'POST':
         return JsonResponse({'mensaje': 'Usuario registrado correctamente'})
+    
+def api_login(request):
+    if request.method == 'POST':
+        data = json.loads(request.body)
 
+        correo = data.get('correo')
+        clave = data.get('clave')
+
+        # 🔥 LOGIN SIMULADO (luego lo hacemos real)
+        if correo == 'admin@gmail.com' and clave == '123':
+            return JsonResponse({
+                'mensaje': 'Login exitoso',
+                'token': 'fake-jwt-token',
+                'role': 'admin'
+            })
+
+        elif correo == 'user@gmail.com' and clave == '123':
+            return JsonResponse({
+                'mensaje': 'Login exitoso',
+                'token': 'fake-jwt-token',
+                'role': 'usuario'
+            })
+
+        else:
+            return JsonResponse({
+                'error': 'Credenciales inválidas'
+            }, status=400)
+
+def api_me(request):
+    # Simulación por ahora
+    return JsonResponse({
+        'primerNombre': 'David',
+        'rol': 'admin'
+    })

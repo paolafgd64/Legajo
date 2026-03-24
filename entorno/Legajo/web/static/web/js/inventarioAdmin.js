@@ -22,7 +22,7 @@ async function cargarInventarioAdmin() {
       const item = document.createElement('div');
       item.className = 'item-inventario-admin';
       item.innerHTML = `
-        <img src="/imgs/libro_de_la_selva.jpg" />
+        <img src="static/web/imgs/libro_de_la_selva.jpg" />
         <h3>${libro.titulo || ''}</h3>
         <h4>${libro.autor || ''}</h4>
         <p>Dueño: <strong>${libro.usuario || ''}</strong></p>

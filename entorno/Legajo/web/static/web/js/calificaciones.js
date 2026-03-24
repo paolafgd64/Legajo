@@ -108,7 +108,7 @@ async function enviarCalificacion() {
     const token = localStorage.getItem('jwtToken');
     if (!token) {
         alert('Debes iniciar sesión para calificar');
-        window.location.href = '/login.html';
+        window.location.href = '/login.';
         return;
     }
 

@@ -77,14 +77,14 @@ function crearElementoLibro(libro) {
     div.dataset.titulo = libro.titulo || '';
     div.dataset.autor = libro.autor || '';
     div.dataset.descripcion = libro.descripcion || libro.sinopsis || 'Sin descripción disponible';
-    div.dataset.imagen = libro.urlImagen || '/imgs/libro_de_la_selva.jpg';
+    div.dataset.imagen = libro.urlImagen ||  '/static/web/imgs/libro_de_la_selva.jpg';
     div.dataset.usuario = libro.usuario || 
         (libro.usuarioPropietario ? libro.usuarioPropietario.nombre : 'Propietario desconocido');
     div.dataset.usuarioId = libro.usuarioPropietarioId || 
         (libro.usuarioPropietario && (libro.usuarioPropietario.idUsuario || libro.usuarioPropietario.id)) || '';
     
     div.innerHTML = `
-        <img src="${libro.urlImagen || '/imgs/libro_de_la_selva.jpg'}" alt="${libro.titulo || 'Libro'}">
+        <img src="${libro.urlImagen || '/static/web/imgs/libro_de_la_selva.jpg'}" alt="${libro.titulo || 'Libro'}">
         <h3>${libro.titulo || 'Sin título'}</h3>
         <p>${libro.autor || 'Autor desconocido'}</p>
         <div class="estrellas-display" data-libro-id="${libro.idLibro || libro.id}">⭐⭐⭐⭐⭐</div>
@@ -252,7 +252,7 @@ function attachVerLibroListeners() {
                 await cargarCalificacionEnModal(libroId);
 
                 // Extraer datos del libro desde el elemento (dataset)
-                const imagen = libroDiv.dataset.imagen || libroDiv.querySelector('img')?.src || '/imgs/libro_de_la_selva.jpg';
+                const imagen = libroDiv.dataset.imagen || libroDiv.querySelector('img')?.src || '/static/web/imgs/libro_de_la_selva.jpg';
                 const titulo = libroDiv.dataset.titulo || libroDiv.querySelector('h3')?.textContent || 'Sin título';
                 const autor = libroDiv.dataset.autor || libroDiv.querySelector('p')?.textContent || 'Autor desconocido';
                 const descripcion = libroDiv.dataset.descripcion || 'Sin descripción disponible';
@@ -344,7 +344,7 @@ function attachVerLibroListeners() {
                             title: 'Inicia sesión',
                             text: 'Debes iniciar sesión para solicitar un intercambio.'
                         }).then(() => {
-                            window.location.href = '/login.html';
+                            window.location.href = '/login/';
                         });
 
                     } else {

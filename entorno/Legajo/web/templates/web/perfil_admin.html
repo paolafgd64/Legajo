@@ -13,25 +13,34 @@
     <script>
         // Guard cliente: validar token y rol ADMIN antes de mostrar la página
         (async function() {
-            try {
-                const token = localStorage.getItem('jwtToken');
-                if (!token) { window.location.href = '/login.html'; return; }
-                const resp = await fetch('/api/auth/me', { method: 'GET', headers: { Authorization: 'Bearer ' + token } });
-                if (!resp.ok) { localStorage.removeItem('jwtToken'); window.location.href = '/login.html'; return; }
-                const user = await resp.json();
-                // El rol ahora viene como un objeto con propiedad "rol"
-                const roleName = (user.rol && user.rol.rol) ? user.rol.rol.toString().toLowerCase() : '';
-                if (!(roleName.includes('admin') || roleName === 'administrador')) {
-                    // No es admin, redirigir al dashboard del usuario
-                    window.location.href = "{% url 'web/dashboard_usuario' %}";
-                    return;
-                }
-                // Si pasa las comprobaciones, continuar y mostrar la página
-            } catch (e) {
-                console.error('Error validando token/rol en perfil_admin:', e);
-                localStorage.removeItem('jwtToken');
-                window.location.href = "{% url 'web/login' %}";
-            }
+    try {
+        const token = localStorage.getItem('jwtToken');
+
+        if (!token) {
+            window.location.href = "{% url 'login' %}";
+            return;
+        }
+
+        const resp = await fetch('/api/me/');
+
+        if (!resp.ok) {
+            window.location.href = "{% url 'login' %}";
+            return;
+        }
+
+        const user = await resp.json();
+
+        const roleName = (user.rol || '').toLowerCase();
+
+        if (!roleName.includes('admin')) {
+            window.location.href = "{% url 'dashboard_usuario' %}";
+            return;
+        }
+
+    } catch (e) {
+        console.error(e);
+        window.location.href = "{% url 'login' %}";
+    }
         })();
     </script>
     <button id="toggleModo" class="modo-toggle">🌙 Modo Claro</button>

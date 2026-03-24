@@ -5,7 +5,7 @@
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Dashboard Usuario</title>
-    <link rel="stylesheet" href="{% static 'web/estilos/dashboard.css' %}">
+    <link rel="stylesheet" href="{% static 'web/css/dashboard.css' %}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -17,7 +17,7 @@
                 const token = localStorage.getItem('jwtToken');
                 if (!token) {
                     // No hay token: volver al login
-                    window.location.href = '{% url "login" %}';
+                    window.location.href = '{% static "templates/web/login.html" %}';
                     return;
                 }
 
@@ -32,7 +32,7 @@
                 if (!resp.ok) {
                     // Token inválido o expirado: eliminar y forzar login
                     localStorage.removeItem('jwtToken');
-                    window.location.href = '{% url "login" %}';
+                    window.location.href = '/login.html';
                     return;
                 }
 
@@ -46,7 +46,7 @@
             } catch (e) {
                 console.error('Error validando token en dashboard:', e);
                 localStorage.removeItem('jwtToken');
-                window.location.href = '{% url "login" %}';
+                window.location.href = '/login.html';
             }
         })();
     </script>
@@ -98,6 +98,7 @@
                      <div class="modal-text">
                          <h2 id="modalTitulo"></h2>
                          <h4 id="modalAutor"></h4>
+                         <div id="modalCalificacion" class="rating-badge">⭐⭐⭐⭐⭐</div>
                          <h3>Sipnosis del libro</h3>
                          <p id="modalDescripcion"></p>
                          <!-- Contenedor de acciones (botón solicitar intercambio) -->
@@ -116,27 +117,27 @@
                 <div class="carrusel-libros" id="autores">
                 <div class="libro autor"
                     data-titulo="Hábitos Atómicos" data-autor="James Clear" data-descripcion="Un libro sobre cómo pequeños hábitos generan cambios gigantes." data-imagen="/imgs/libro_de_la_selva.jpg">
-                    <img src="{% static 'web/imgs/gabo.jpg' %}"><h3>James Clear</h3><p>Hábitos Atómicos</p><p>⭐⭐⭐⭐⭐</p><button class="ver-libro"><i class="fa fa-eye"></i> Ver</button>
+                    <img src="/imgs/gabo.jpg"><h3>James Clear</h3><p>Hábitos Atómicos</p><p>⭐⭐⭐⭐⭐</p><button class="ver-libro"><i class="fa fa-eye"></i> Ver</button>
                 </div>
                 <div class="libro autor"
                     data-titulo="It" data-autor="Stephen King" data-descripcion="Escritor estadounidense famoso por novelas de terror como It, El resplandor y Carrie." data-imagen="/imgs/gabo.jpg">
-                    <img src="{% static 'web/imgs/gabo.jpg' %}"><h3>Stephen King</h3><p>It</p><p>⭐⭐⭐⭐</p><button class="ver-libro"><i class="fa fa-eye"></i> Ver</button>
+                    <img src="/imgs/gabo.jpg"><h3>Stephen King</h3><p>It</p><p>⭐⭐⭐⭐</p><button class="ver-libro"><i class="fa fa-eye"></i> Ver</button>
                 </div>
                 <div class="libro autor"
                     data-titulo="Harry Potter" data-autor="J.K. Rowling" data-descripcion="Autora británica creadora del universo de Harry Potter." data-imagen="/imgs/gabo.jpg">
-                    <img src="{% static 'web/imgs/gabo.jpg' %}"><h3>J.K. Rowling</h3><p>Harry Potter</p><p>⭐⭐⭐⭐⭐</p><button class="ver-libro"><i class="fa fa-eye"></i> Ver</button>
+                    <img src="/imgs/gabo.jpg"><h3>J.K. Rowling</h3><p>Harry Potter</p><p>⭐⭐⭐⭐⭐</p><button class="ver-libro"><i class="fa fa-eye"></i> Ver</button>
                 </div>
                 <div class="libro autor"
-                    data-titulo="Cien años de soledad" data-autor="Gabriel García Márquez" data-descripcion="Novelista colombiano y figura central del realismo mágico." data-imagen="{% static 'web/imgs/gabo.jpg' %}">
-                    <img src="{% static 'web/imgs/gabo.jpg' %}"><h3>Gabriel García Márquez</h3><p>Cien años de soledad</p><p>⭐⭐⭐⭐⭐</p><button class="ver-libro"><i class="fa fa-eye"></i> Ver</button>
+                    data-titulo="Cien años de soledad" data-autor="Gabriel García Márquez" data-descripcion="Novelista colombiano y figura central del realismo mágico." data-imagen="/imgs/gabo.jpg">
+                    <img src="/imgs/gabo.jpg"><h3>Gabriel García Márquez</h3><p>Cien años de soledad</p><p>⭐⭐⭐⭐⭐</p><button class="ver-libro"><i class="fa fa-eye"></i> Ver</button>
                 </div>
                 <div class="libro autor"
-                    data-titulo="1984" data-autor="George Orwell" data-descripcion="Escritor británico autor de obras críticas como 1984 y Rebelión en la granja." data-imagen="{% static 'web/imgs/gabo.jpg' %}">
-                    <img src="{% static 'web/imgs/gabo.jpg' %}"><h3>George Orwell</h3><p>1984</p><p>⭐⭐⭐⭐</p><button class="ver-libro"><i class="fa fa-eye"></i> Ver</button>
+                    data-titulo="1984" data-autor="George Orwell" data-descripcion="Escritor británico autor de obras críticas como 1984 y Rebelión en la granja." data-imagen="/imgs/gabo.jpg">
+                    <img src="/imgs/gabo.jpg"><h3>George Orwell</h3><p>1984</p><p>⭐⭐⭐⭐</p><button class="ver-libro"><i class="fa fa-eye"></i> Ver</button>
                 </div>
                 <div class="libro autor"
-                    data-titulo="Tokio Blues" data-autor="Haruki Murakami" data-descripcion="Haruki Murakami es un autor japonés conocido por su estilo surrealista y melancólico. Sus obras exploran temas de soledad, amor y realidades alternas." data-imagen="{% static 'web/imgs/gabo.jpg' %}">
-                    <img src="{% static 'web/imgs/gabo.jpg' %}"><h3>Haruki Murakami</h3><p>Tokio Blues</p><p>⭐⭐⭐</p><button class="ver-libro"><i class="fa fa-eye"></i> Ver</button>
+                    data-titulo="Tokio Blues" data-autor="Haruki Murakami" data-descripcion="Haruki Murakami es un autor japonés conocido por su estilo surrealista y melancólico. Sus obras exploran temas de soledad, amor y realidades alternas." data-imagen="/imgs/gabo.jpg">
+                    <img src="/imgs/gabo.jpg"><h3>Haruki Murakami</h3><p>Tokio Blues</p><p>⭐⭐⭐</p><button class="ver-libro"><i class="fa fa-eye"></i> Ver</button>
                 </div>
                 </div>
                 <button class="flecha derecha" onclick="moverCarrusel('autores', 1)">❯</button>
@@ -174,7 +175,7 @@
         </section>
 
     </main>
-    <script src="{% static 'web/js/script.js' %}"></script>
+    <script src="/js/script.js"></script>
     <script>
         function moverCarrusel(id, direccion) {
         const carrusel = document.getElementById(id);
@@ -223,13 +224,14 @@
                         const titulo = libroDiv.dataset.titulo || '';
                         const autor = libroDiv.dataset.autor || '';
                         const descripcion = libroDiv.dataset.descripcion || '';
-                        const imagen = libroDiv.dataset.imagen || '{% static "web/imgs/default-book.jpg" %}';
+                        const imagen = libroDiv.dataset.imagen || '/imgs/default-book.jpg';
                         
                         // Rellenar modal
                         document.getElementById('modalImg').src = imagen;
                         document.getElementById('modalTitulo').textContent = titulo;
                         document.getElementById('modalAutor').textContent = autor;
                         document.getElementById('modalDescripcion').textContent = descripcion;
+                        document.getElementById('modalCalificacion').textContent = '⭐⭐⭐⭐⭐';
                         
                         // Mostrar modal
                         if (modal) modal.style.display = 'block';
@@ -246,7 +248,7 @@
             const libro = await res.json();
             
             // Rellenar modal con datos del libro
-            document.getElementById('modalImg').src = libro.urlImagen || '{% static "web/imgs/default-book.jpg" %}';
+            document.getElementById('modalImg').src = libro.urlImagen || '/imgs/default-book.jpg';
             document.getElementById('modalTitulo').textContent = libro.titulo || '';
             document.getElementById('modalAutor').textContent = libro.autor || '';
             document.getElementById('modalDescripcion').textContent = libro.sinopsis || '';
@@ -287,7 +289,7 @@
                     alert(data.error || 'No se pudo enviar la solicitud');
                   } else if (r.status === 401) {
                     alert('Inicia sesión para solicitar intercambios');
-                    window.location.href = '{% url "login" %}';
+                    window.location.href = '/login.html';
                   } else {
                     const data = await r.json();
                     alert(data.error || 'Error al solicitar intercambio');
@@ -335,7 +337,7 @@
                         const nombre = autorDiv.querySelector('h3').textContent;
                         const libro = autorDiv.querySelector('p').textContent;
                         const descripcion = autorDiv.dataset.descripcion || '';
-                        const imagen = autorDiv.dataset.imagen || '{% static "web/imgs/gabo.jpg" %}';
+                        const imagen = autorDiv.dataset.imagen || '/imgs/gabo.jpg';
                         
                         // Rellenar modal de autor
                         document.getElementById('autorImg').src = imagen;
@@ -350,8 +352,6 @@
             });
         });
     </script>
-    <script src="{% static 'web/js/dashboard.js' %}"></script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
+    <script src="/js/dashboard.js"></script>
 </body>
 </html>
