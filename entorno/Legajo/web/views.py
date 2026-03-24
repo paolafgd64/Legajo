@@ -4,24 +4,8 @@ from django.contrib.auth import authenticate, get_user_model, login as auth_logi
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.http import JsonResponse
-<<<<<<< HEAD
-import json
-from django.http import JsonResponse
-import json
-from django.http import JsonResponse
-from django.http import JsonResponse
-
-
-
-
-
-
-
-
-=======
 from django.shortcuts import render
 from django.views.decorators.http import require_http_methods
->>>>>>> 00e45309638ed4bf1e4ae15a6b5121f5aa5736dd
 
 # Create your views here.
 User = get_user_model()
@@ -85,15 +69,6 @@ def reporte_libros(request):
 def reset_password(request):
     return render(request, 'web/reset_password.html')
 
-<<<<<<< HEAD
-def api_usuarios(request):
-    if request.method == 'POST':
-        return JsonResponse({'mensaje': 'Usuario registrado correctamente'})
-    
-def api_login(request):
-    if request.method == 'POST':
-        data = json.loads(request.body)
-=======
 def _read_json_body(request):
     try:
         return json.loads(request.body or '{}')
@@ -182,30 +157,8 @@ def api_login(request):
         'role': user.rol,
         'redirect_url': redirect_url,
     })
->>>>>>> 00e45309638ed4bf1e4ae15a6b5121f5aa5736dd
 
-        correo = data.get('correo')
-        clave = data.get('clave')
-
-        # 🔥 LOGIN SIMULADO (luego lo hacemos real)
-        if correo == 'admin@gmail.com' and clave == '123':
-            return JsonResponse({
-                'mensaje': 'Login exitoso',
-                'token': 'fake-jwt-token',
-                'role': 'admin'
-            })
-
-        elif correo == 'user@gmail.com' and clave == '123':
-            return JsonResponse({
-                'mensaje': 'Login exitoso',
-                'token': 'fake-jwt-token',
-                'role': 'usuario'
-            })
-
-        else:
-            return JsonResponse({
-                'error': 'Credenciales inválidas'
-            }, status=400)
+      
 
 def api_me(request):
     # Simulación por ahora
