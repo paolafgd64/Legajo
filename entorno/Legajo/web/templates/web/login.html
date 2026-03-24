@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Iniciar Sesión</title>
+    <title>Iniciar Sesion</title>
     <link rel="stylesheet" href="{% static 'web/css/styles.css' %}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
@@ -13,20 +13,19 @@
     <button id="toggleModo" class="modo-toggle">☀️ Modo Claro</button>
     <section class="formulario">
         <form id="loginForm">
+            {% csrf_token %}
             <div class="logo-form"></div>
-            <h2>Iniciar sesión</h2>
-            <input type="email" id="correo" name="correo" placeholder="Correo electrónico" required />
-             <div class="input-pass">
-                <input type="password" id="clave" name="clave" placeholder="Contraseña" required />
+            <h2>Iniciar sesion</h2>
+            <input type="email" id="correo" name="correo" placeholder="Correo electronico" required />
+            <div class="input-pass">
+                <input type="password" id="clave" name="clave" placeholder="Contrasena" required />
                 <i class="toggle-pass fas fa-eye" onclick="verClave('clave', this)"></i>
-                <a href="{% url 'forgot_password' %}">¿Olvidaste tu contraseña?</a>
+                <a href="{% url 'forgot_password' %}">Olvidaste tu contrasena?</a>
             </div>
-            
 
             <button type="submit">Ingresar</button>
         </form>
         <div id="loginMensaje" style="margin-top:10px;color:red"></div>
-        <!-- debug button removed -->
     </section>
     <script src="{% static 'web/js/script.js' %}"></script>
     <script src="{% static 'web/js/validaciones.js' %}"></script>
@@ -43,18 +42,20 @@
                 const clave = document.getElementById('clave').value;
 
                 try {
+                    const csrfToken = form.querySelector('[name=csrfmiddlewaretoken]').value;
                     const res = await fetch('/api/auth/login', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ correo: correo, clave: clave })
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken
+                        },
+                        body: JSON.stringify({ correo, clave })
                     });
 
-                    // Intentar parsear JSON de forma segura
                     let data = null;
                     try {
                         data = await res.json();
                     } catch (err) {
-                        // Si no viene JSON, leer texto para depuración
                         const text = await res.text();
                         console.warn('Respuesta no JSON del servidor:', text);
                         mensaje.textContent = 'Respuesta inesperada del servidor.';
@@ -62,35 +63,16 @@
                     }
 
                     if (!res.ok) {
-                        mensaje.textContent = data.error || data.message || 'Credenciales inválidas';
+                        mensaje.textContent = data.error || data.message || 'Credenciales invalidas';
                         return;
                     }
 
-                    const token = data.token || data.accessToken || '';
-                    if (!token) {
-                        console.error('Login: no llegó token en la respuesta', data);
-                        mensaje.textContent = 'Respuesta inválida del servidor (no llegó token).';
-                        return;
-                    }
-
-                    // Guardar token
-                    localStorage.setItem('jwtToken', token);
-
-                    // Redirigir según rol retornado por el servidor (esperamos data.role)
-                    const role = (data.role || '').toString().toLowerCase();
-                    // Aceptar varias formas/idiomas del rol administrador
-                    if (role === 'admin' || role === 'administrator' || role === 'rol_admin' || role === 'administrador' || role.includes('admin')) {
-                        window.location.href = "{% url 'web/dashboard_admin' %}";
-                    } else {
-                        window.location.href = "{% url 'web/dashboard_usuario' %}";
-                    }
+                    window.location.href = data.redirect_url || "{% url 'dashboard_usuario' %}";
                 } catch (err) {
                     console.error(err);
                     mensaje.textContent = 'Error de red: ' + (err.message || err);
                 }
             });
-
-            // debug button removed — normal login flow above
         });
     </script>
 </body>

@@ -37,6 +37,7 @@ urlpatterns = [
     path('reporte_libros/', views.reporte_libros, name='reporte_libros'),
     path('reset_password/', views.reset_password, name='reset_password'),
     path('api/usuarios', views.api_usuarios, name='api_usuarios'),
+    path('api/auth/login', views.api_login, name='api_login'),
 
 
 ]

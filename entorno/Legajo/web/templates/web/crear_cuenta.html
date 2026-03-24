@@ -13,6 +13,7 @@
     <button id="toggleModo" class="modo-toggle">☀️ Modo Claro</button>
     <section class="formulario formulario-crear">
         <form class="form-crear" id="registroForm" action="{% url 'dashboard_usuario' %}">
+            {% csrf_token %}
             <div class="logo-crear"></div>
             <h2>Crear cuenta</h2>
             <input type="text" id="primerNombre" name="primerNombre" placeholder="Primer nombre" required />
@@ -70,9 +71,13 @@
 
                 try {
                     if (submitBtn) submitBtn.disabled = true;
+                    const csrfToken = form.querySelector('[name=csrfmiddlewaretoken]').value;
                     const res = await fetch('/api/usuarios', {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken
+                        },
                         body: JSON.stringify(payload)
                     });
 
