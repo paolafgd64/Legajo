@@ -11,6 +11,35 @@
 </head>
 
 <body>
+<<<<<<< HEAD
+=======
+    <button id="toggleModo" class="modo-toggle">☀️ Modo Claro</button>
+    <section class="formulario formulario-crear">
+        <form class="form-crear" id="registroForm" action="{% url 'dashboard_usuario' %}">
+            {% csrf_token %}
+            <div class="logo-crear"></div>
+            <h2>Crear cuenta</h2>
+            <input type="text" id="primerNombre" name="primerNombre" placeholder="Primer nombre" required />
+            <input type="text" id="segundoNombre" name="segundoNombre" placeholder="Segundo nombre" />
+            <input type="text" id="primerApellido" name="primerApellido" placeholder="Primer apellido" required />
+            <input type="text" id="segundoApellido" name="segundoApellido" placeholder="Segundo apellido" />
+            <input type="email" id="correo" name="correo" placeholder="Correo electrónico" required />
+            <input type="text" id="direccion" name="direccion" placeholder="Dirección" />
+            <input type="text" id="ciudad" name="ciudad" placeholder="Ciudad" />
+            <input type="tel" id="telefono" name="telefono" placeholder="Teléfono" />
+            <div class="input-pass">
+                <input type="password" id="clave" name="clave" placeholder="Contraseña" required />
+                <i class="toggle-pass fas fa-eye" onclick="verClave('clave', this)"></i>
+            </div>
+            <div class="input-pass">
+                <input type="password" id="confirmClave" name="confirmClave" placeholder="Confirmar contraseña" required />
+                <i class="toggle-pass fas fa-eye" onclick="verClave('confirmClave', this)"></i>
+            </div>
+            <button type="submit">Registrar</button>
+        </form>
+        <div id="mensaje" style="margin-top:10px;color:red"></div>
+    </section>
+>>>>>>> 00e45309638ed4bf1e4ae15a6b5121f5aa5736dd
 
 <a href="{% url 'index' %}" class="btn-volver">←</a>
 
@@ -111,6 +140,7 @@
 
                 const data = await res.json();
 
+<<<<<<< HEAD
                 Swal.fire({
                     icon: "success",
                     title: "Registro completado",
@@ -119,6 +149,19 @@
                 }).then(() => {
                     window.location.href = "{% url 'login' %}";
                 });
+=======
+                try {
+                    if (submitBtn) submitBtn.disabled = true;
+                    const csrfToken = form.querySelector('[name=csrfmiddlewaretoken]').value;
+                    const res = await fetch('/api/usuarios', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken
+                        },
+                        body: JSON.stringify(payload)
+                    });
+>>>>>>> 00e45309638ed4bf1e4ae15a6b5121f5aa5736dd
 
             } catch (err) {
                 console.error(err);
