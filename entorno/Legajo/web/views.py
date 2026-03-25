@@ -133,7 +133,7 @@ def _split_author_name(author_name):
 
     parts = [part for part in author_name.split() if part]
     if len(parts) == 1:
-        return parts[0], None, parts[0], None
+        return parts[0], None, '', None
     if len(parts) == 2:
         return parts[0], None, parts[1], None
     if len(parts) == 3:

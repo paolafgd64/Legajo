@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 
-from .models import Intercambio, Libro
+from .models import Autor, Intercambio, Libro
 
 
 class AuthApiTests(TestCase):
@@ -87,6 +87,24 @@ class InventarioApiTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertTrue(Libro.objects.filter(titulo='Cien anos de soledad').exists())
         self.assertEqual(Libro.objects.get(titulo='Cien anos de soledad').usuario_propietario, self.user)
+
+    def test_autor_de_un_solo_nombre_no_duplica_apellido(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            '/api/libros',
+            data={
+                'titulo': 'Libro de Cher',
+                'autor': 'Cher',
+                'sinopsis': 'Biografia',
+                'genero': 'Biografia',
+                'estado': 'Publicado',
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        autor = Autor.objects.get(nombre1='Cher')
+        self.assertEqual(autor.apellido1, '')
 
     def test_lista_solo_libros_del_usuario_autenticado(self):
         other_user = get_user_model().objects.create_user(
