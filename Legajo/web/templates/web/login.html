@@ -1,107 +1,110 @@
 {% load static %}
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Iniciar Sesión</title>
-
+    <title>Iniciar Sesion</title>
     <link rel="stylesheet" href="{% static 'web/css/styles.css' %}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
-
 <body>
+    <a href="{% url 'index' %}" class="btn-volver">&larr;</a>
+    <button id="toggleModo" class="modo-toggle">Modo Claro</button>
 
-<a href="{% url 'index' %}" class="btn-volver">←</a>
+    <section class="formulario">
+        <form id="loginForm">
+            {% csrf_token %}
 
-<button id="toggleModo" class="modo-toggle">☀️ Modo Claro</button>
+            <div class="logo-form"></div>
+            <h2>Iniciar sesion</h2>
+            <p class="form-heading-copy">Ingresa con tu correo y tu contrasena. Si hay un problema, te lo mostraremos aqui mismo.</p>
 
-<section class="formulario">
+            <input type="email" id="correo" name="correo" placeholder="Correo electronico" required>
 
-    <form id="loginForm">
-        
-        {% csrf_token %} <!-- 🔥 IMPORTANTE -->
+            <div class="input-pass">
+                <input type="password" id="clave" name="clave" placeholder="Contrasena" required>
+                <i class="toggle-pass fas fa-eye" onclick="verClave('clave', this)"></i>
+                <a href="{% url 'forgot_password' %}">Olvidaste tu contrasena?</a>
+            </div>
 
-        <div class="logo-form"></div>
-        <h2>Iniciar sesión</h2>
+            <button type="submit">Ingresar</button>
+            <div id="loginMensaje" class="form-status" role="alert" aria-live="polite"></div>
+        </form>
+    </section>
 
-        <input type="email" id="correo" name="correo" placeholder="Correo electrónico" required />
+    <script src="{% static 'web/js/script.js' %}"></script>
+    <script src="{% static 'web/js/validaciones.js' %}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('loginForm');
+            const mensaje = document.getElementById('loginMensaje');
+            const correo = document.getElementById('correo');
+            const clave = document.getElementById('clave');
 
-        <div class="input-pass">
-            <input type="password" id="clave" name="clave" placeholder="Contraseña" required />
-            <i class="toggle-pass fas fa-eye" onclick="verClave('clave', this)"></i>
-            <a href="{% url 'forgot_password' %}">¿Olvidaste tu contraseña?</a>
-        </div>
+            function getCSRFToken() {
+                return document.querySelector('[name=csrfmiddlewaretoken]').value;
+            }
 
-        <button type="submit">Ingresar</button>
-    </form>
-
-    <div id="loginMensaje" style="margin-top:10px;color:red"></div>
-
-</section>
-
-<!-- Scripts -->
-<script src="{% static 'web/js/script.js' %}"></script>
-<script src="{% static 'web/js/validaciones.js' %}"></script>
-
-<script>
-    document.addEventListener('DOMContentLoaded', () => {
-
-        const form = document.getElementById('loginForm');
-        const mensaje = document.getElementById('loginMensaje');
-
-        // 🔥 FUNCIÓN CSRF
-        function getCSRFToken() {
-            return document.querySelector('[name=csrfmiddlewaretoken]').value;
-        }
-
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            mensaje.textContent = '';
-
-            const correo = document.getElementById('correo').value;
-            const clave = document.getElementById('clave').value;
-
-            try {
-                const res = await fetch('/api/login/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': getCSRFToken()
-                    },
-                    body: JSON.stringify({
-                        correo: correo,
-                        clave: clave
-                    })
+            [correo, clave].forEach((input) => {
+                input.addEventListener('input', () => {
+                    input.classList.remove('input-error');
+                    limpiarMensajeFormulario(mensaje);
                 });
+            });
 
-                const data = await res.json();
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                limpiarMensajeFormulario(mensaje);
+                marcarCamposInvalidos([]);
 
-                if (!res.ok) {
-                    mensaje.textContent = data.error || 'Credenciales inválidas';
+                if (!validarEmail(correo.value)) {
+                    marcarCamposInvalidos([correo]);
+                    mostrarMensajeFormulario(mensaje, 'Ingresa un correo electronico valido.');
                     return;
                 }
 
-                // 🔥 Guardar token (simulado)
-                localStorage.setItem('jwtToken', data.token);
-
-                // 🔥 Redirección por rol
-                const role = (data.role || '').toLowerCase();
-
-                if (role.includes('admin')) {
-                    window.location.href = "{% url 'dashboard_admin' %}";
-                } else {
-                    window.location.href = "{% url 'dashboard_usuario' %}";
+                if (!clave.value.trim()) {
+                    marcarCamposInvalidos([clave]);
+                    mostrarMensajeFormulario(mensaje, 'Ingresa tu contrasena para continuar.');
+                    return;
                 }
 
-            } catch (err) {
-                console.error(err);
-                mensaje.textContent = 'Error de red: ' + err.message;
-            }
-        });
-    });
-</script>
+                try {
+                    const res = await fetch('/api/login/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCSRFToken()
+                        },
+                        body: JSON.stringify({
+                            correo: correo.value,
+                            clave: clave.value
+                        })
+                    });
 
+                    const data = await res.json();
+
+                    if (!res.ok) {
+                        marcarCamposInvalidos([correo, clave]);
+                        mostrarMensajeFormulario(mensaje, data.message || 'Credenciales invalidas.');
+                        return;
+                    }
+
+                    localStorage.setItem('jwtToken', data.token);
+
+                    const role = (data.role || '').toLowerCase();
+                    if (role.includes('admin')) {
+                        window.location.href = "{% url 'dashboard_admin' %}";
+                    } else {
+                        window.location.href = "{% url 'dashboard_usuario' %}";
+                    }
+                } catch (err) {
+                    console.error(err);
+                    mostrarMensajeFormulario(mensaje, 'Error de red: ' + err.message);
+                }
+            });
+        });
+    </script>
 </body>
 </html>

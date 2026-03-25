@@ -6,7 +6,7 @@ import textwrap
 import unicodedata
 
 from django.conf import settings
-from django.contrib.auth import authenticate, get_user_model, login as auth_login
+from django.contrib.auth import authenticate, get_user_model, login as auth_login, logout as auth_logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.password_validation import validate_password
@@ -22,6 +22,7 @@ from django.utils import timezone
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods
+from django.views.decorators.cache import never_cache
 
 from .models import Intercambio, Libro, ReporteUsuario
 from .services import (
@@ -130,6 +131,8 @@ def index(request):
     return render(request, 'web/index.html')
 
 
+@login_required(login_url='login')
+@never_cache
 def chats(request):
     return render(request, 'web/chats.html')
 
@@ -140,6 +143,7 @@ def crear_cuenta(request):
 
 
 @login_required(login_url='login')
+@never_cache
 def dashboard_admin(request):
     if request.user.rol != User.Rol.ADMIN:
         return redirect('dashboard_usuario')
@@ -182,6 +186,7 @@ def api_admin_completed_exchanges(request):
 
 
 @login_required(login_url='login')
+@never_cache
 def dashboard_usuario(request):
     libros_recomendados = (
         Libro.objects.filter(activo=True)
@@ -227,11 +232,15 @@ def forgot_password(request):
     return render(request, 'web/forgot-password.html', context)
 
 
+@login_required(login_url='login')
+@never_cache
 def inventario_admi(request):
     return render(request, 'web/inventario_admi.html')
 
 
 @ensure_csrf_cookie
+@login_required(login_url='login')
+@never_cache
 def inventario(request):
     return render(request, 'web/inventario.html')
 
@@ -242,6 +251,8 @@ def login(request):
 
 
 @ensure_csrf_cookie
+@login_required(login_url='login')
+@never_cache
 def notificaciones(request):
     return render(request, 'web/notificaciones.html')
 
@@ -251,6 +262,7 @@ def novedades_usuarios(request):
 
 
 @login_required(login_url='login')
+@never_cache
 def perfil_admin(request):
     user = request.user
     return render(request, 'web/perfil_admin.html', {
@@ -260,6 +272,7 @@ def perfil_admin(request):
 
 
 @login_required(login_url='login')
+@never_cache
 def perfil(request):
     user = request.user
     return render(request, 'web/perfil.html', {
@@ -269,6 +282,8 @@ def perfil(request):
 
 
 @ensure_csrf_cookie
+@login_required(login_url='login')
+@never_cache
 def registrar_libro(request, libro_id=None):
     context = {}
 
@@ -297,6 +312,18 @@ def registrar_libro(request, libro_id=None):
         }
 
     return render(request, 'web/registrar_libro.html', context)
+
+
+@login_required(login_url='login')
+@never_cache
+@require_http_methods(["POST"])
+def logout_view(request):
+    auth_logout(request)
+    response = redirect('index')
+    response['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response['Pragma'] = 'no-cache'
+    response['Expires'] = '0'
+    return response
 
 
 def reporte_libros(request):
@@ -380,7 +407,7 @@ def reset_password(request):
         try:
             validate_password(password, user=user)
         except ValidationError as exc:
-            context['error_message'] = ' '.join(exc.messages)
+            context['error_message'] = _normalize_validation_messages(exc.messages)
             return render(request, 'web/reset_password.html', context, status=400)
 
         user.set_password(password)
@@ -407,6 +434,31 @@ def _forbidden_response():
 
 def _service_error_response(error):
     return JsonResponse({'message': error.message}, status=error.status_code)
+
+
+def _normalize_validation_message(raw_message):
+    if not raw_message:
+        return 'No se pudo procesar la validacion.'
+
+    replacements = {
+        'This password is too short. It must contain at least 8 characters.': 'La contrasena debe tener al menos 8 caracteres.',
+        'This password is too common.': 'La contrasena es demasiado comun. Elige una mas segura.',
+        'This password is entirely numeric.': 'La contrasena no puede estar compuesta solo por numeros.',
+        'The password is too similar to the email address.': 'La contrasena es demasiado parecida al correo electronico.',
+        'The password is too similar to the first name.': 'La contrasena es demasiado parecida al primer nombre.',
+        'The password is too similar to the last name.': 'La contrasena es demasiado parecida al apellido.',
+        'The password is too similar to the username.': 'La contrasena es demasiado parecida a los datos del usuario.',
+    }
+
+    normalized = str(raw_message).strip()
+    for source, target in replacements.items():
+        normalized = normalized.replace(source, target)
+
+    return normalized
+
+
+def _normalize_validation_messages(messages):
+    return ' '.join(_normalize_validation_message(message) for message in messages if message).strip()
 
 
 def _build_password_reset_link(request, user):
@@ -764,7 +816,7 @@ def api_usuarios(request):
     try:
         validate_password(password, user=user)
     except ValidationError as exc:
-        return JsonResponse({'message': ' '.join(exc.messages)}, status=400)
+        return JsonResponse({'message': _normalize_validation_messages(exc.messages)}, status=400)
 
     user.set_password(password)
     user.save()
@@ -946,32 +998,6 @@ def api_libro_detalle(request, libro_id):
         soft_delete_book(request.user, libro_id)
     except ControlledError as error:
         return _service_error_response(error)
-        titulo = (data.get('titulo') or '').strip()
-        autor_nombre = (data.get('autor') or '').strip()
-        sinopsis = (data.get('sinopsis') or '').strip()
-        genero_nombre = (data.get('genero') or '').strip()
-        estado = (data.get('estado') or libro.estado).strip()
-
-        if not titulo or not autor_nombre or not genero_nombre:
-            return JsonResponse({'message': 'Titulo, autor y genero son obligatorios.'}, status=400)
-
-        if estado not in Libro.Estado.values:
-            estado = Libro.Estado.PUBLICADO
-
-        libro.titulo = titulo
-        libro.sinopsis = sinopsis
-        libro.estado = estado
-        libro.save(update_fields=['titulo', 'sinopsis', 'estado'])
-
-        autor = _get_or_create_author(autor_nombre)
-        genero, _ = Genero.objects.get_or_create(nombre=genero_nombre.title())
-        libro.autores.set([autor])
-        libro.generos.set([genero])
-
-        return JsonResponse(serialize_book(libro))
-
-    libro.activo = False
-    libro.save(update_fields=['activo'])
     return JsonResponse({'message': 'Libro eliminado correctamente.'})
 
 

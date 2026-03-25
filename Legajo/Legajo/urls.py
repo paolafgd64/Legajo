@@ -26,6 +26,7 @@ urlpatterns = [
     path('novedades_usuarios/', views.novedades_usuarios, name='novedades_usuarios'),
     path('perfil_admin/', views.perfil_admin, name='perfil_admin'),
     path('perfil/', views.perfil, name='perfil'),
+    path('logout/', views.logout_view, name='logout'),
     path('registrar_libro/', views.registrar_libro, name='registrar_libro'),
     path('registrar_libro/<int:libro_id>/', views.registrar_libro, name='editar_libro'),
     path('reporte_libros/', views.reporte_libros, name='reporte_libros'),

@@ -9,7 +9,7 @@ https://docs.djangoproject.com/en/4.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
-import pymysql
+import pymysql  # pyright: ignore[reportMissingModuleSource]
 pymysql.version_info = (2, 2, 8, "final", 0)
 pymysql.__version__ = "2.2.8"
 pymysql.install_as_MySQLdb()
@@ -83,7 +83,7 @@ DATABASES = {
         'ENGINE': 'Legajo.mysql_backend',
         'NAME': 'legajoDB',
         'USER': 'root',
-        'PASSWORD': '',
+        'PASSWORD': '1234',
         'HOST': 'localhost',
         'PORT': '3306',
     }
@@ -95,7 +95,7 @@ DATABASES = {
 
 AUTH_PASSWORD_VALIDATORS = [
     {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
+        'NAME': 'web.validators.passwords.UserAttributeSimilarityWithoutEmailValidator',
     },
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',

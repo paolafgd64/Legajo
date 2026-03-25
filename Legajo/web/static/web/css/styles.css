@@ -3,6 +3,7 @@
     --color-texto: #FFFFFF;
     --color-secundario: #8C6249;
     --logo: url(../imgs/logo_oscuro1.jpg) center / cover no-repeat;
+    --form-fondo: url("../imgs/fondo_ayuda.jpg");
 
     --color-acento: #F2AE2E;
     --color-acento-sec: #BF5B04;
@@ -234,19 +235,61 @@ footer .contenedor{
 
 .formulario {
     min-height: 100vh;
-    background-color: var(--color-secundario);
+    background:
+        linear-gradient(135deg, rgba(9, 19, 38, 0.88), rgba(140, 98, 73, 0.74)),
+        url("../imgs/fondo_ayuda.jpg") center / cover no-repeat;
     display: flex;
     justify-content: center;
     align-items: center;
+    padding: 40px 20px;
+    position: relative;
+    overflow: hidden;
+}
+
+body.modo-claro .formulario {
+    background:
+        linear-gradient(135deg, rgba(255, 248, 238, 0.88), rgba(217, 181, 150, 0.7)),
+        url("../imgs/fondo_ayuda.jpg") center / cover no-repeat;
+}
+
+.formulario::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(circle at top right, rgba(242, 174, 46, 0.18), transparent 26%),
+        repeating-linear-gradient(
+            135deg,
+            rgba(255, 255, 255, 0.025) 0,
+            rgba(255, 255, 255, 0.025) 1px,
+            transparent 1px,
+            transparent 18px
+        );
+    pointer-events: none;
 }
 
 .formulario form {
-    background-color: var(--fondo-principal);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.015)),
+        rgba(9, 19, 38, 0.82);
     padding: 40px;
-    border-radius: 10px;
-    box-shadow: 0 0 10px #0009;
+    border-radius: 22px;
+    box-shadow: 0 24px 56px rgba(0, 0, 0, 0.28);
     width: 100%;
     max-width: 400px;
+    position: relative;
+    z-index: 1;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+}
+
+body.modo-claro .formulario form {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 250, 244, 0.88)),
+        rgba(255, 255, 255, 0.82);
+    border-color: rgba(68, 46, 24, 0.1);
+    box-shadow: 0 24px 56px rgba(96, 67, 33, 0.14);
 }
 
 .formulario h2 {
@@ -272,6 +315,7 @@ footer .contenedor{
 .formulario input:focus, #genero:focus {
     outline: none;
     border-color: var(--color-acento);
+    box-shadow: 0 0 0 4px rgba(242, 174, 46, 0.12);
 }
 
 .formulario button {
@@ -322,6 +366,11 @@ form a:hover {
     margin-top: auto;   
     margin-bottom: 20px;
     padding: 0;        
+}
+
+.form-crear .form-heading-copy,
+.form-crear .form-status {
+    grid-column: span 2;
 }
 
 /* Inputs normales */
@@ -382,6 +431,7 @@ form a:hover {
 .formulario textarea:focus {
     outline: none;
     border-color: var(--color-acento);
+    box-shadow: 0 0 0 4px rgba(242, 174, 46, 0.12);
 }
 
 
@@ -475,4 +525,248 @@ form a:hover {
 
 .toggle-pass:hover {
     color: var(--color-acento);
+}
+
+.formulario-libro form {
+    max-width: 560px;
+    padding-top: 34px;
+}
+
+.book-form-copy {
+    text-align: center;
+    margin: -4px 0 22px;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+body.modo-claro .book-form-copy {
+    color: rgba(9, 19, 38, 0.72);
+}
+
+.book-form-icon {
+    width: 84px;
+    height: 84px;
+    margin: 0 auto 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 24px;
+    background: linear-gradient(135deg, var(--color-acento), #ffd27c);
+    box-shadow: 0 16px 32px rgba(242, 174, 46, 0.24);
+}
+
+.book-form-icon i {
+    font-size: 2rem;
+    color: #2c1808;
+}
+
+.book-form-alert {
+    margin-bottom: 16px;
+    padding: 14px 16px;
+    border-radius: 14px;
+    background: rgba(231, 76, 60, 0.14);
+    border: 1px solid rgba(231, 76, 60, 0.32);
+    line-height: 1.5;
+}
+
+body.modo-claro .book-form-alert {
+    color: #7c261d;
+}
+
+.formulario.formulario-libro {
+    background:
+        linear-gradient(135deg, rgba(9, 19, 38, 0.9), rgba(140, 98, 73, 0.72)),
+        url("../imgs/fondo_ayuda.jpg") center / cover no-repeat fixed;
+}
+
+body.modo-claro .formulario.formulario-libro {
+    background:
+        linear-gradient(135deg, rgba(255, 248, 238, 0.9), rgba(217, 181, 150, 0.68)),
+        url("../imgs/fondo_ayuda.jpg") center / cover no-repeat fixed;
+}
+
+.formulario.formulario-libro::after {
+    content: "";
+    position: absolute;
+    inset: 24px;
+    border-radius: 28px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    pointer-events: none;
+}
+
+.formulario-libro form::before {
+    content: "";
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 5px;
+    border-radius: 22px 22px 0 0;
+    background: linear-gradient(90deg, var(--color-acento), var(--color-acento-sec));
+}
+
+.formulario-libro h2 {
+    margin-bottom: 22px;
+}
+
+.formulario-libro input,
+.formulario-libro textarea,
+.formulario-libro select {
+    border-radius: 12px;
+}
+
+.formulario-libro button[type="submit"] {
+    margin-top: 8px;
+    border-radius: 12px;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    box-shadow: 0 16px 28px rgba(0, 0, 0, 0.14);
+}
+
+.form-heading-copy {
+    text-align: center;
+    margin: -10px 0 24px;
+    color: rgba(255, 255, 255, 0.78);
+    line-height: 1.6;
+    font-size: 0.96rem;
+}
+
+body.modo-claro .form-heading-copy {
+    color: rgba(9, 19, 38, 0.72);
+}
+
+.form-status {
+    display: none;
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: 14px;
+    padding: 14px 16px;
+    border-radius: 14px;
+    border: 1px solid transparent;
+    line-height: 1.55;
+    font-size: 0.95rem;
+}
+
+.form-status.is-visible {
+    display: block;
+}
+
+.form-status--error {
+    background: rgba(192, 57, 43, 0.12);
+    border-color: rgba(231, 76, 60, 0.34);
+    color: #ffd9d4;
+}
+
+.form-status--success {
+    background: rgba(39, 174, 96, 0.14);
+    border-color: rgba(46, 204, 113, 0.34);
+    color: #dbffea;
+}
+
+.form-status--info {
+    background: rgba(242, 174, 46, 0.13);
+    border-color: rgba(242, 174, 46, 0.35);
+    color: #fff0c8;
+}
+
+body.modo-claro .form-status--error {
+    color: #7c261d;
+}
+
+body.modo-claro .form-status--success {
+    color: #17653a;
+}
+
+body.modo-claro .form-status--info {
+    color: #7d5200;
+}
+
+.form-status ul {
+    margin: 0;
+    padding-left: 18px;
+}
+
+.form-status li + li {
+    margin-top: 6px;
+}
+
+.formulario input.input-error,
+.formulario select.input-error,
+.formulario textarea.input-error {
+    border-color: #e67e73;
+    box-shadow: 0 0 0 4px rgba(231, 76, 60, 0.12);
+}
+
+.password-checklist {
+    grid-column: span 2;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 14px;
+    margin: -4px 0 6px;
+    padding: 14px 16px;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.password-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 0.9rem;
+}
+
+.password-check::before {
+    content: "•";
+    font-size: 1rem;
+    color: rgba(255, 255, 255, 0.38);
+}
+
+.password-check.is-valid {
+    color: #b8ffd8;
+}
+
+.password-check.is-valid::before {
+    content: "✓";
+    color: #2ecc71;
+    font-weight: 700;
+}
+
+body.modo-claro .password-checklist {
+    background: rgba(9, 19, 38, 0.04);
+    border-color: rgba(9, 19, 38, 0.08);
+}
+
+body.modo-claro .password-check {
+    color: rgba(9, 19, 38, 0.72);
+}
+
+body.modo-claro .password-check::before {
+    color: rgba(9, 19, 38, 0.28);
+}
+
+.formulario .input-pass a {
+    display: inline-block;
+    margin: -4px 0 0;
+    font-size: 0.9rem;
+}
+
+@media (max-width: 720px) {
+    .form-crear {
+        grid-template-columns: 1fr;
+    }
+
+    .form-crear h2,
+    .logo-crear,
+    .form-crear button,
+    .password-checklist {
+        grid-column: span 1;
+    }
+
+    .password-checklist {
+        grid-template-columns: 1fr;
+    }
+
+    .formulario-crear form.form-crear {
+        max-width: 420px;
+    }
 }

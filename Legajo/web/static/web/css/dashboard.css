@@ -1855,6 +1855,255 @@ button.btn-rojo {
     margin-left: 5px;
     font-weight: bold;
 }
+
+/* ========================================
+   Dashboard Atmosphere Refresh
+   ======================================== */
+
+:root {
+    --dashboard-fondo: url("../imgs/fondo_ayuda.jpg");
+    --dashboard-overlay-dark:
+        linear-gradient(135deg, rgba(6, 13, 24, 0.9), rgba(20, 14, 9, 0.78)),
+        radial-gradient(circle at top right, rgba(242, 174, 46, 0.14), transparent 28%),
+        radial-gradient(circle at bottom left, rgba(140, 98, 73, 0.22), transparent 34%);
+    --dashboard-overlay-light:
+        linear-gradient(135deg, rgba(255, 248, 238, 0.9), rgba(239, 224, 205, 0.78)),
+        radial-gradient(circle at top right, rgba(191, 91, 4, 0.1), transparent 28%),
+        radial-gradient(circle at bottom left, rgba(217, 181, 150, 0.28), transparent 36%);
+    --dashboard-surface-dark: rgba(7, 17, 32, 0.82);
+    --dashboard-surface-light: rgba(255, 250, 244, 0.82);
+    --dashboard-border-dark: rgba(255, 255, 255, 0.12);
+    --dashboard-border-light: rgba(68, 46, 24, 0.1);
+}
+
+body {
+    position: relative;
+    overflow-x: hidden;
+    background-color: transparent;
+}
+
+body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background:
+        var(--dashboard-overlay-dark),
+        var(--dashboard-fondo) center / cover no-repeat fixed;
+    z-index: -2;
+}
+
+body::after {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 24%),
+        repeating-linear-gradient(
+            135deg,
+            rgba(255, 255, 255, 0.02) 0,
+            rgba(255, 255, 255, 0.02) 1px,
+            transparent 1px,
+            transparent 18px
+        );
+    opacity: 0.55;
+    pointer-events: none;
+    z-index: -1;
+}
+
+body.modo-claro::before {
+    background:
+        var(--dashboard-overlay-light),
+        var(--dashboard-fondo) center / cover no-repeat fixed;
+}
+
+body.modo-claro::after {
+    opacity: 0.4;
+}
+
+.sidebar {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent 14%),
+        rgba(9, 19, 38, 0.76);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border-right: 1px solid var(--dashboard-border-dark);
+    box-shadow: 2px 0 24px rgba(0, 0, 0, 0.18);
+}
+
+.modo-claro .sidebar {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.45), transparent 14%),
+        rgba(255, 248, 238, 0.72);
+    border-right-color: var(--dashboard-border-light);
+}
+
+.logo {
+    padding: 0.75rem 0.9rem;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.modo-claro .logo {
+    background: rgba(255, 255, 255, 0.56);
+    border-color: rgba(68, 46, 24, 0.08);
+}
+
+.nav-links li {
+    border: 1px solid transparent;
+    transition: all 0.25s ease;
+}
+
+.nav-links li:hover,
+.nav-links li.active {
+    background:
+        linear-gradient(135deg, rgba(242, 174, 46, 0.18), rgba(191, 91, 4, 0.12)),
+        rgba(255, 255, 255, 0.06);
+    border-color: rgba(242, 174, 46, 0.18);
+    color: #fff5e3;
+    transform: translateX(4px);
+}
+
+.modo-claro .nav-links li:hover,
+.modo-claro .nav-links li.active {
+    background:
+        linear-gradient(135deg, rgba(191, 91, 4, 0.12), rgba(242, 174, 46, 0.16)),
+        #f6e5d4;
+    color: #3b2a1c;
+}
+
+.main-content {
+    position: relative;
+    z-index: 1;
+}
+
+header {
+    padding: 1.6rem 1.8rem;
+    border-radius: 26px;
+    background:
+        radial-gradient(circle at top right, rgba(242, 174, 46, 0.16), transparent 24%),
+        linear-gradient(135deg, rgba(8, 17, 31, 0.84), rgba(20, 14, 9, 0.66));
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 20px 44px rgba(0, 0, 0, 0.18);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+.modo-claro header {
+    background:
+        radial-gradient(circle at top right, rgba(191, 91, 4, 0.12), transparent 24%),
+        linear-gradient(135deg, rgba(255, 250, 244, 0.9), rgba(244, 231, 214, 0.78));
+    border-color: rgba(68, 46, 24, 0.08);
+    box-shadow: 0 20px 44px rgba(96, 67, 33, 0.12);
+}
+
+.user-profile {
+    padding: 0.75rem 1rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.modo-claro .user-profile {
+    background: rgba(255, 255, 255, 0.56);
+    border-color: rgba(68, 46, 24, 0.08);
+}
+
+.card,
+.chart-wrapper,
+.inventario,
+.filtros,
+.contenedor-imagen,
+.contenedor-info,
+.libro,
+.item-inventario,
+.reporte-card {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+.card,
+.chart-wrapper,
+.contenedor-imagen,
+.contenedor-info,
+.libro,
+.item-inventario,
+.reporte-card {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.015)),
+        var(--dashboard-surface-dark);
+    border: 1px solid var(--dashboard-border-dark);
+    box-shadow: 0 18px 36px rgba(0, 0, 0, 0.18);
+}
+
+.inventario,
+.filtros {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02)),
+        rgba(140, 98, 73, 0.3);
+    border: 1px solid var(--dashboard-border-dark);
+    box-shadow: 0 18px 36px rgba(0, 0, 0, 0.14);
+}
+
+.modo-claro .card,
+.modo-claro .chart-wrapper,
+.modo-claro .contenedor-imagen,
+.modo-claro .contenedor-info,
+.modo-claro .libro,
+.modo-claro .item-inventario,
+.modo-claro .reporte-card,
+.modo-claro .filtros {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(255, 250, 244, 0.88)),
+        var(--dashboard-surface-light);
+    border-color: var(--dashboard-border-light);
+}
+
+.modo-claro .inventario {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.22)),
+        rgba(217, 181, 150, 0.34);
+    border-color: var(--dashboard-border-light);
+}
+
+.tabla-reportes {
+    background: rgba(255, 250, 244, 0.96);
+    border-radius: 18px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 20px 38px rgba(0, 0, 0, 0.12);
+}
+
+.modo-claro .tabla-reportes {
+    box-shadow: 0 18px 34px rgba(96, 67, 33, 0.1);
+}
+
+.seccion-carrusel {
+    padding: 18px 12px 4px;
+    border-radius: 24px;
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.01)),
+        rgba(7, 17, 32, 0.34);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    box-shadow: 0 18px 34px rgba(0, 0, 0, 0.12);
+}
+
+.modo-claro .seccion-carrusel {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.75), rgba(255, 250, 244, 0.66)),
+        rgba(255, 255, 255, 0.5);
+    border-color: rgba(68, 46, 24, 0.08);
+}
+
+@media (max-width: 768px) {
+    header {
+        padding: 1.2rem;
+        border-radius: 20px;
+    }
+
+    .seccion-carrusel {
+        padding: 14px 8px 0;
+    }
+}
 /* Estilos para Modal de Ver Libro */
 .modal {
     display: none;

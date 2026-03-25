@@ -6,18 +6,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>{% if modo_edicion %}Editar Libro{% else %}Registrar Libro{% endif %}</title>
     <link rel="stylesheet" href="{% static 'web/css/styles.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <button id="toggleModo" class="modo-toggle">☀️ Modo Claro</button>
-    <div class="formulario">
+    <a href="{% url 'inventario' %}" class="btn-volver">&larr;</a>
+    <button id="toggleModo" class="modo-toggle">Modo Claro</button>
+    <div class="formulario formulario-libro">
         <form id="registrarLibroForm" action="/api/libros" method="post" enctype="multipart/form-data">
             {% csrf_token %}
             <input type="hidden" id="modoEdicion" value="{% if modo_edicion %}true{% else %}false{% endif %}">
             <input type="hidden" id="libroId" value="{% if libro_edicion %}{{ libro_edicion.id }}{% endif %}">
 
+            <div class="book-form-icon">
+                <i class="fas fa-book-open"></i>
+            </div>
             <h2><i class="fas fa-book"></i> {% if modo_edicion %}Editar Libro{% else %}Registrar Libro{% endif %}</h2>
+
             {% if error_registro_libro %}
-            <div style="margin-bottom:12px;color:#b00020;">{{ error_registro_libro }}</div>
+            <div class="book-form-alert">{{ error_registro_libro }}</div>
             {% endif %}
 
             <input type="text" id="titulo" name="titulo" placeholder="Titulo del libro" value="{% if libro_edicion %}{{ libro_edicion.titulo }}{% endif %}" required>
