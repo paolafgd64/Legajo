@@ -7,13 +7,17 @@ import unicodedata
 from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model, login as auth_login
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from django.db.models import Count
 from django.db.models.functions import TruncDate
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
+from django.urls import reverse
+from django.utils.encoding import force_bytes, force_str
 from django.utils import timezone
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods
 
@@ -196,8 +200,29 @@ def dashboard_usuario(request):
     )
 
 
+@ensure_csrf_cookie
+@require_http_methods(["GET", "POST"])
 def forgot_password(request):
-    return render(request, 'web/forgot-password.html')
+    context = {}
+
+    if request.method == 'POST':
+        email = (request.POST.get('email') or '').strip().lower()
+        context['submitted_email'] = email
+
+        if not email:
+            context['error_message'] = 'Debes ingresar un correo electronico.'
+            return render(request, 'web/forgot-password.html', context, status=400)
+
+        try:
+            user = User.objects.get(email=email, activo=True, is_active=True)
+        except User.DoesNotExist:
+            user = None
+
+        context['success_message'] = 'Si el correo existe en Legajo, ya generamos un enlace para restablecer la contrasena.'
+        if user and settings.DEBUG:
+            context['reset_link'] = _build_password_reset_link(request, user)
+
+    return render(request, 'web/forgot-password.html', context)
 
 
 def inventario_admi(request):
@@ -320,8 +345,47 @@ def reporte_libros_pdf(request):
     return _build_pdf_response('Reporte de libros registrados', rows, 'reporte_libros.pdf')
 
 
+@ensure_csrf_cookie
+@require_http_methods(["GET", "POST"])
 def reset_password(request):
-    return render(request, 'web/reset_password.html')
+    uid = (request.GET.get('uid') or request.POST.get('uid') or '').strip()
+    token = (request.GET.get('token') or request.POST.get('token') or '').strip()
+    user = _get_password_reset_user(uid) if uid else None
+    token_is_valid = bool(user and token and default_token_generator.check_token(user, token))
+
+    context = {
+        'uid': uid,
+        'token': token,
+        'token_is_valid': token_is_valid,
+    }
+
+    if request.method == 'POST':
+        if not token_is_valid:
+            context['error_message'] = 'El enlace de recuperacion no es valido o ya vencio.'
+            return render(request, 'web/reset_password.html', context, status=400)
+
+        password = request.POST.get('password') or ''
+        confirm_password = request.POST.get('confirmPassword') or ''
+
+        if not password or not confirm_password:
+            context['error_message'] = 'Debes completar ambos campos de contrasena.'
+            return render(request, 'web/reset_password.html', context, status=400)
+
+        if password != confirm_password:
+            context['error_message'] = 'Las contrasenas no coinciden.'
+            return render(request, 'web/reset_password.html', context, status=400)
+
+        try:
+            validate_password(password, user=user)
+        except ValidationError as exc:
+            context['error_message'] = ' '.join(exc.messages)
+            return render(request, 'web/reset_password.html', context, status=400)
+
+        user.set_password(password)
+        user.save(update_fields=['password'])
+        return redirect(f"{reverse('login')}?reset=success")
+
+    return render(request, 'web/reset_password.html', context)
 
 
 def _read_json_body(request):
@@ -341,6 +405,21 @@ def _forbidden_response():
 
 def _service_error_response(error):
     return JsonResponse({'message': error.message}, status=error.status_code)
+
+
+def _build_password_reset_link(request, user):
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    token = default_token_generator.make_token(user)
+    path = f"{reverse('reset_password')}?uid={uid}&token={token}"
+    return request.build_absolute_uri(path)
+
+
+def _get_password_reset_user(uidb64):
+    try:
+        user_id = force_str(urlsafe_base64_decode(uidb64))
+        return User.objects.get(pk=user_id, activo=True, is_active=True)
+    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+        return None
 
 
 def _normalize_pdf_text(value):
@@ -791,74 +870,26 @@ def api_libros(request):
         except ControlledError as error:
             return _service_error_response(error)
         return JsonResponse(libros, safe=False)
-
-        if request.user.rol != User.Rol.ADMIN:
-            libros = libros.filter(usuario_propietario=request.user)
-
-        titulo = (request.GET.get('titulo') or '').strip()
-        autor = (request.GET.get('autor') or '').strip()
-        usuario = (request.GET.get('usuario') or '').strip()
-        genero = (request.GET.get('genero') or '').strip()
-        estado = (request.GET.get('estado') or '').strip()
-
-        if titulo:
-            libros = libros.filter(titulo__icontains=titulo)
-        if autor:
-            libros = libros.filter(
-                Q(autores__nombre1__icontains=autor) |
-                Q(autores__nombre2__icontains=autor) |
-                Q(autores__apellido1__icontains=autor) |
-                Q(autores__apellido2__icontains=autor) |
-                Q(autores__apodo__icontains=autor)
+    try:
+        libro = create_book(
+            request.user,
+            request.POST,
+            image_file=request.FILES.get('imagen'),
+        )
+    except ControlledError as error:
+        if request.content_type and request.content_type.startswith('multipart/form-data'):
+            return render(
+                request,
+                'web/registrar_libro.html',
+                {'error_registro_libro': error.message},
+                status=error.status_code,
             )
-        if usuario:
-            libros = libros.filter(
-                Q(usuario_propietario__nombre1__icontains=usuario) |
-                Q(usuario_propietario__nombre2__icontains=usuario) |
-                Q(usuario_propietario__apellido1__icontains=usuario) |
-                Q(usuario_propietario__apellido2__icontains=usuario) |
-                Q(usuario_propietario__email__icontains=usuario)
-            )
-        if genero:
-            libros = libros.filter(generos__nombre__icontains=genero)
-        if estado:
-            libros = libros.filter(estado__iexact=estado)
+        return _service_error_response(error)
 
-        libros = libros.order_by('-id').distinct()
-        return JsonResponse([_serialize_book(libro) for libro in libros], safe=False)
+    if request.content_type and request.content_type.startswith('multipart/form-data'):
+        return redirect('inventario')
 
-    titulo = (request.POST.get('titulo') or '').strip()
-    autor_nombre = (request.POST.get('autor') or '').strip()
-    sinopsis = (request.POST.get('sinopsis') or '').strip()
-    genero_nombre = (request.POST.get('genero') or '').strip()
-    estado = (request.POST.get('estado') or Libro.Estado.PUBLICADO).strip()
-
-    if not titulo or not autor_nombre or not genero_nombre:
-        return JsonResponse({'message': 'Titulo, autor y genero son obligatorios.'}, status=400)
-
-    if estado not in Libro.Estado.values:
-        estado = Libro.Estado.PUBLICADO
-
-    image_file = request.FILES.get('imagen')
-    if image_file:
-        url_imagen = _save_uploaded_image(image_file)
-    else:
-        url_imagen = '/static/web/imgs/libro_de_la_selva.jpg'
-
-    libro = Libro.objects.create(
-        titulo=titulo,
-        sinopsis=sinopsis,
-        estado=estado,
-        url_imagen=url_imagen,
-        usuario_propietario=request.user,
-    )
-
-    autor = _get_or_create_author(autor_nombre)
-    genero, _ = Genero.objects.get_or_create(nombre=genero_nombre.title())
-    libro.autores.add(autor)
-    libro.generos.add(genero)
-
-    return JsonResponse(_serialize_book(libro), status=201)
+    return JsonResponse(libro, status=201)
 
 
 @require_http_methods(["GET"])
@@ -900,32 +931,6 @@ def api_libro_detalle(request, libro_id):
         soft_delete_book(request.user, libro_id)
     except ControlledError as error:
         return _service_error_response(error)
-        titulo = (data.get('titulo') or '').strip()
-        autor_nombre = (data.get('autor') or '').strip()
-        sinopsis = (data.get('sinopsis') or '').strip()
-        genero_nombre = (data.get('genero') or '').strip()
-        estado = (data.get('estado') or libro.estado).strip()
-
-        if not titulo or not autor_nombre or not genero_nombre:
-            return JsonResponse({'message': 'Titulo, autor y genero son obligatorios.'}, status=400)
-
-        if estado not in Libro.Estado.values:
-            estado = Libro.Estado.PUBLICADO
-
-        libro.titulo = titulo
-        libro.sinopsis = sinopsis
-        libro.estado = estado
-        libro.save(update_fields=['titulo', 'sinopsis', 'estado'])
-
-        autor = _get_or_create_author(autor_nombre)
-        genero, _ = Genero.objects.get_or_create(nombre=genero_nombre.title())
-        libro.autores.set([autor])
-        libro.generos.set([genero])
-
-        return JsonResponse(_serialize_book(libro))
-
-    libro.activo = False
-    libro.save(update_fields=['activo'])
     return JsonResponse({'message': 'Libro eliminado correctamente.'})
 
 

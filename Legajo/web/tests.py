@@ -1,12 +1,15 @@
 import json
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.tokens import default_token_generator
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
 from django.utils import timezone
 
 from .models import Autor, Intercambio, Libro, ReporteUsuario
-from .views import _get_admin_dashboard_context
+from .views import _build_password_reset_link, _get_admin_dashboard_context, _get_password_reset_user
 
 
 class AuthApiTests(TestCase):
@@ -56,6 +59,57 @@ class AuthApiTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['redirect_url'], '/dashboard_admin/')
+
+    def test_forgot_password_generates_reset_link_in_debug(self):
+        user_model = get_user_model()
+        user = user_model.objects.create_user(
+            email='recovery@example.com',
+            password='Segura123!@#',
+            nombre1='Recuperar',
+            apellido1='Cuenta',
+            direccion='Calle 8',
+            ciudad='Bogota',
+            telefono=3001230000,
+        )
+
+        class DummyRequest:
+            def build_absolute_uri(self, path):
+                return f'http://testserver{path}'
+
+        reset_link = _build_password_reset_link(DummyRequest(), user)
+
+        self.assertIn('/reset_password/?uid=', reset_link)
+        self.assertIn('token=', reset_link)
+        self.assertEqual(_get_password_reset_user(urlsafe_base64_encode(force_bytes(user.pk))), user)
+
+    def test_reset_password_updates_user_password(self):
+        user_model = get_user_model()
+        user = user_model.objects.create_user(
+            email='reset@example.com',
+            password='Anterior123!@#',
+            nombre1='Reset',
+            apellido1='Usuario',
+            direccion='Calle 9',
+            ciudad='Bogota',
+            telefono=3001230001,
+        )
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+
+        response = self.client.post(
+            '/reset_password/',
+            data={
+                'uid': uid,
+                'token': token,
+                'password': 'NuevaSegura123!@#',
+                'confirmPassword': 'NuevaSegura123!@#',
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.headers['Location'], '/login/?reset=success')
+        user.refresh_from_db()
+        self.assertTrue(user.check_password('NuevaSegura123!@#'))
 
 
 class InventarioApiTests(TestCase):
