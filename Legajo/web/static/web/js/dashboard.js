@@ -42,6 +42,19 @@ async function cargarLibrosRecomendados() {
     }
 }
 
+function obtenerMensajeVacio(carrusel, mensajeSinLibros, mensajeSoloPropios) {
+    if (!carrusel) return mensajeSinLibros;
+
+    const totalSistema = Number(carrusel.dataset.totalLibrosSistema || 0);
+    const totalAjenos = Number(carrusel.dataset.totalLibrosAjenos || 0);
+
+    if (totalSistema > 0 && totalAjenos === 0) {
+        return mensajeSoloPropios;
+    }
+
+    return mensajeSinLibros;
+}
+
 function crearElementoLibro(libro) {
     const div = document.createElement('div');
     div.className = 'libro';
@@ -183,7 +196,11 @@ async function inicializarDashboard() {
     if (carruselRecomendados && Array.isArray(libros)) {
         carruselRecomendados.innerHTML = '';
         if (libros.length === 0) {
-            carruselRecomendados.innerHTML = '<p style="padding:20px;">No hay libros de otros usuarios disponibles por ahora.</p>';
+            carruselRecomendados.innerHTML = `<p style="padding:20px;">${obtenerMensajeVacio(
+                carruselRecomendados,
+                'No hay libros de otros usuarios disponibles por ahora.',
+                'Hay libros registrados, pero ninguno pertenece a otros usuarios para esta cuenta.'
+            )}</p>`;
         } else {
             libros.slice(0, 8).forEach((libro) => {
                 carruselRecomendados.appendChild(crearElementoLibro(libro));
@@ -193,9 +210,17 @@ async function inicializarDashboard() {
 
     if (carruselGeneros && Array.isArray(libros)) {
         carruselGeneros.innerHTML = '';
-        libros.slice(0, 8).forEach((libro) => {
-            carruselGeneros.appendChild(crearElementoLibro(libro));
-        });
+        if (libros.length === 0) {
+            carruselGeneros.innerHTML = `<p style="padding:20px;">${obtenerMensajeVacio(
+                carruselGeneros,
+                'Aun no hay generos para mostrar.',
+                'Hay libros registrados, pero no hay generos de otros usuarios para mostrar en esta cuenta.'
+            )}</p>`;
+        } else {
+            libros.slice(0, 8).forEach((libro) => {
+                carruselGeneros.appendChild(crearElementoLibro(libro));
+            });
+        }
     }
 
     attachVerLibroListeners();
