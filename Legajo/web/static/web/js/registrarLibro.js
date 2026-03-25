@@ -11,6 +11,15 @@ function getCookie(name) {
   return '';
 }
 
+async function parseJsonResponseRegistrar(response) {
+  const rawText = await response.text();
+  try {
+    return JSON.parse(rawText);
+  } catch (error) {
+    throw new Error('El servidor devolvio una pagina HTML en lugar de JSON.');
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('registrarLibroForm');
   if (!form) return;
@@ -54,7 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
       }
 
-      const data = await res.json();
+      const data = await parseJsonResponseRegistrar(res);
       if (!res.ok) {
         throw new Error(data.message || (modoEdicion ? 'No se pudo actualizar el libro' : 'No se pudo registrar el libro'));
       }

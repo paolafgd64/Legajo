@@ -42,8 +42,10 @@ urlpatterns = [
     path('api/libros/<int:libro_id>', views.api_libro_detalle, name='api_libro_detalle'),
     path('api/libros/<int:libro_id>/', views.api_libro_detalle, name='api_libro_detalle_slash'),
     path('api/notificaciones', views.api_notificaciones, name='api_notificaciones'),
+    path('api/intercambios', views.api_intercambios, name='api_intercambios'),
     path('api/intercambios/<int:intercambio_id>/inventario', views.api_inventario_solicitante_intercambio, name='api_inventario_solicitante_intercambio'),
     path('api/intercambios/<int:intercambio_id>/accept', views.api_aceptar_intercambio, name='api_aceptar_intercambio'),
+    path('api/intercambios/<int:intercambio_id>/confirm', views.api_confirmar_intercambio_pin, name='api_confirmar_intercambio_pin'),
     path('api/intercambios/request', views.api_solicitar_intercambio, name='api_solicitar_intercambio'),
 ]
 

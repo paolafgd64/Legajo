@@ -157,6 +157,7 @@ class Intercambio(models.Model):
     fecha_solicitud = models.DateTimeField(auto_now_add=True)
     fecha_confirmacion = models.DateTimeField(null=True, blank=True)
     fecha_completado = models.DateTimeField(null=True, blank=True)
+    pin_validacion = models.CharField(max_length=6, null=True, blank=True)
 
     estado = models.CharField(max_length=20, choices=Estado.choices)
 

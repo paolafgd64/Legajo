@@ -1,6 +1,7 @@
 import calendar
 import datetime
 import json
+import random
 import textwrap
 import unicodedata
 
@@ -10,7 +11,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
-from django.db.models import Count
+from django.db import transaction
+from django.db.models import Count, Q
 from django.db.models.functions import TruncDate
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
@@ -886,8 +888,21 @@ def api_libros(request):
             )
         return _service_error_response(error)
 
-    if request.content_type and request.content_type.startswith('multipart/form-data'):
-        return redirect('inventario')
+        libros = libros.order_by('-id').distinct()
+        return JsonResponse([serialize_book(libro) for libro in libros], safe=False)
+
+    payload = {
+        'titulo': (request.POST.get('titulo') or '').strip(),
+        'autor': (request.POST.get('autor') or '').strip(),
+        'sinopsis': (request.POST.get('sinopsis') or '').strip(),
+        'genero': (request.POST.get('genero') or '').strip(),
+        'estado': (request.POST.get('estado') or Libro.Estado.PUBLICADO).strip(),
+    }
+
+    try:
+        libro = create_book(request.user, payload, request.FILES.get('imagen'))
+    except ControlledError as error:
+        return _service_error_response(error)
 
     return JsonResponse(libro, status=201)
 
@@ -931,7 +946,85 @@ def api_libro_detalle(request, libro_id):
         soft_delete_book(request.user, libro_id)
     except ControlledError as error:
         return _service_error_response(error)
+        titulo = (data.get('titulo') or '').strip()
+        autor_nombre = (data.get('autor') or '').strip()
+        sinopsis = (data.get('sinopsis') or '').strip()
+        genero_nombre = (data.get('genero') or '').strip()
+        estado = (data.get('estado') or libro.estado).strip()
+
+        if not titulo or not autor_nombre or not genero_nombre:
+            return JsonResponse({'message': 'Titulo, autor y genero son obligatorios.'}, status=400)
+
+        if estado not in Libro.Estado.values:
+            estado = Libro.Estado.PUBLICADO
+
+        libro.titulo = titulo
+        libro.sinopsis = sinopsis
+        libro.estado = estado
+        libro.save(update_fields=['titulo', 'sinopsis', 'estado'])
+
+        autor = _get_or_create_author(autor_nombre)
+        genero, _ = Genero.objects.get_or_create(nombre=genero_nombre.title())
+        libro.autores.set([autor])
+        libro.generos.set([genero])
+
+        return JsonResponse(serialize_book(libro))
+
+    libro.activo = False
+    libro.save(update_fields=['activo'])
     return JsonResponse({'message': 'Libro eliminado correctamente.'})
+
+
+@require_http_methods(["GET"])
+def api_intercambios(request):
+    if not request.user.is_authenticated:
+        return _unauthorized_response()
+
+    intercambios = (
+        Intercambio.objects.filter(
+            Q(usuario_solicitante=request.user) | Q(usuario_receptor=request.user),
+            activo=True,
+        )
+        .select_related(
+            'usuario_solicitante',
+            'usuario_receptor',
+            'libro_solicitado',
+            'libro_cambio',
+        )
+        .order_by('-fecha_solicitud')
+    )
+
+    resultado = []
+    for intercambio in intercambios:
+        es_solicitante = intercambio.usuario_solicitante_id == request.user.id
+        contraparte = intercambio.usuario_receptor if es_solicitante else intercambio.usuario_solicitante
+        nombre_contraparte = str(contraparte) if contraparte else 'Usuario desconocido'
+        libro_solicitado = intercambio.libro_solicitado.titulo if intercambio.libro_solicitado else 'Libro no disponible'
+        libro_cambio = intercambio.libro_cambio.titulo if intercambio.libro_cambio else 'Sin seleccionar'
+
+        if intercambio.estado == Intercambio.Estado.PENDIENTE:
+            descripcion = f'Pendiente por "{libro_solicitado}".'
+        elif intercambio.estado == Intercambio.Estado.ACEPTADO:
+            descripcion = f'Aceptado: "{libro_solicitado}" por "{libro_cambio}".'
+        elif intercambio.estado == Intercambio.Estado.COMPLETADO:
+            descripcion = f'Completado: "{libro_solicitado}" por "{libro_cambio}".'
+        else:
+            descripcion = f'Estado: {intercambio.estado}.'
+
+        resultado.append({
+            'id': intercambio.id,
+            'usuario': nombre_contraparte,
+            'rolUsuario': 'Solicitante' if es_solicitante else 'Propietario',
+            'estado': intercambio.estado,
+            'descripcion': descripcion,
+            'fecha': intercambio.fecha_solicitud.strftime('%Y-%m-%d %H:%M'),
+            'libroSolicitado': libro_solicitado,
+            'libroCambio': libro_cambio,
+            'pinRequerido': intercambio.estado == Intercambio.Estado.ACEPTADO,
+            'yaCompletado': intercambio.estado == Intercambio.Estado.COMPLETADO,
+        })
+
+    return JsonResponse(resultado, safe=False)
 
 
 @require_http_methods(["GET"])
@@ -1003,7 +1096,7 @@ def api_inventario_solicitante_intercambio(request, intercambio_id):
         .order_by('-id')
     )
 
-    return JsonResponse([_serialize_book(libro) for libro in libros], safe=False)
+    return JsonResponse([serialize_book(libro) for libro in libros], safe=False)
 
 
 @require_http_methods(["POST"])
@@ -1046,7 +1139,8 @@ def api_aceptar_intercambio(request, intercambio_id):
     intercambio.libro_cambio = libro_cambio
     intercambio.estado = Intercambio.Estado.ACEPTADO
     intercambio.fecha_confirmacion = timezone.now()
-    intercambio.save(update_fields=['libro_cambio', 'estado', 'fecha_confirmacion'])
+    intercambio.pin_validacion = f'{random.randint(0, 999999):06d}'
+    intercambio.save(update_fields=['libro_cambio', 'estado', 'fecha_confirmacion', 'pin_validacion'])
 
     solicitante = intercambio.usuario_solicitante
     receptor = intercambio.usuario_receptor
@@ -1057,7 +1151,7 @@ def api_aceptar_intercambio(request, intercambio_id):
         f'Hola {str(solicitante) if solicitante else ""}, '
         f'{nombre_receptor} acepto tu solicitud de intercambio por "{titulo_solicitado}". '
         f'El libro seleccionado para el intercambio es "{libro_cambio.titulo}". '
-        f'Ponganse de acuerdo para continuar.'
+        f'Tu PIN de validacion es {intercambio.pin_validacion}. Ponganse de acuerdo para continuar.'
     )
 
     return JsonResponse({
@@ -1066,6 +1160,66 @@ def api_aceptar_intercambio(request, intercambio_id):
         'libroCambio': libro_cambio.titulo,
         'telefonoWhatsapp': telefono_solicitante,
         'mensajeWhatsapp': mensaje_whatsapp,
+        'pinValidacion': intercambio.pin_validacion,
+    })
+
+
+@require_http_methods(["POST"])
+def api_confirmar_intercambio_pin(request, intercambio_id):
+    if not request.user.is_authenticated:
+        return _unauthorized_response()
+
+    data = _read_json_body(request)
+    if data is None:
+        return JsonResponse({'message': 'El cuerpo de la solicitud no es JSON valido.'}, status=400)
+
+    try:
+        intercambio = Intercambio.objects.select_related(
+            'usuario_solicitante',
+            'usuario_receptor',
+            'libro_solicitado',
+            'libro_cambio',
+        ).get(id=intercambio_id, activo=True)
+    except Intercambio.DoesNotExist:
+        return JsonResponse({'message': 'Intercambio no encontrado.'}, status=404)
+
+    if request.user.id not in {intercambio.usuario_solicitante_id, intercambio.usuario_receptor_id}:
+        return JsonResponse({'message': 'No tienes permiso para confirmar este intercambio.'}, status=403)
+
+    if intercambio.estado != Intercambio.Estado.ACEPTADO:
+        return JsonResponse({'message': 'Este intercambio no esta listo para confirmacion.'}, status=400)
+
+    pin = str(data.get('pin') or '').strip()
+    if not pin:
+        return JsonResponse({'message': 'Debes ingresar el PIN de validacion.'}, status=400)
+
+    if pin != (intercambio.pin_validacion or ''):
+        return JsonResponse({'message': 'El PIN ingresado no es valido.'}, status=400)
+
+    if not intercambio.libro_solicitado or not intercambio.libro_cambio:
+        return JsonResponse({'message': 'El intercambio no tiene ambos libros asignados.'}, status=400)
+
+    if not intercambio.usuario_solicitante or not intercambio.usuario_receptor:
+        return JsonResponse({'message': 'El intercambio no tiene usuarios validos para completar.'}, status=400)
+
+    with transaction.atomic():
+        libro_solicitado = intercambio.libro_solicitado
+        libro_cambio = intercambio.libro_cambio
+        usuario_solicitante = intercambio.usuario_solicitante
+        usuario_receptor = intercambio.usuario_receptor
+
+        libro_solicitado.usuario_propietario = usuario_solicitante
+        libro_cambio.usuario_propietario = usuario_receptor
+        libro_solicitado.save(update_fields=['usuario_propietario'])
+        libro_cambio.save(update_fields=['usuario_propietario'])
+
+        intercambio.estado = Intercambio.Estado.COMPLETADO
+        intercambio.fecha_completado = timezone.now()
+        intercambio.save(update_fields=['estado', 'fecha_completado'])
+
+    return JsonResponse({
+        'message': 'Intercambio confirmado correctamente.',
+        'idIntercambio': intercambio.id,
     })
 
 
