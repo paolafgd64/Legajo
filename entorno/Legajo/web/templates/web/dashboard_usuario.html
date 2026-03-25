@@ -42,7 +42,10 @@
             <h2 class="titulo-seccion">Recomendados</h2>
             <div class="contenedor-carrusel">
                 <button class="flecha izquierda" onclick="moverCarrusel('recomendados', -1)">&#10094;</button>
-                <div class="carrusel-libros" id="recomendados">
+                <div class="carrusel-libros"
+                     id="recomendados"
+                     data-total-libros-sistema="{{ total_libros_sistema }}"
+                     data-total-libros-ajenos="{{ total_libros_ajenos }}">
                     {% for libro in libros_recomendados %}
                     <div class="libro"
                          data-id="{{ libro.id }}"
@@ -57,8 +60,6 @@
                         <div class="estrellas-display">Disponible</div>
                         <button class="ver-libro"><i class="fa fa-eye"></i> Ver</button>
                     </div>
-                    {% empty %}
-                    <p style="padding:20px;">No hay libros de otros usuarios disponibles por ahora.</p>
                     {% endfor %}
                 </div>
                 <button class="flecha derecha" onclick="moverCarrusel('recomendados', 1)">&#10095;</button>
@@ -69,7 +70,10 @@
             <h2 class="titulo-seccion">Generos</h2>
             <div class="contenedor-carrusel">
                 <button class="flecha izquierda" onclick="moverCarrusel('generos', -1)">&#10094;</button>
-                <div class="carrusel-libros" id="generos">
+                <div class="carrusel-libros"
+                     id="generos"
+                     data-total-libros-sistema="{{ total_libros_sistema }}"
+                     data-total-libros-ajenos="{{ total_libros_ajenos }}">
                     {% for libro in libros_generos %}
                     <div class="libro"
                          data-id="{{ libro.id }}"
@@ -84,8 +88,6 @@
                         <div class="estrellas-display">Disponible</div>
                         <button class="ver-libro"><i class="fa fa-eye"></i> Ver</button>
                     </div>
-                    {% empty %}
-                    <p style="padding:20px;">Aun no hay generos para mostrar.</p>
                     {% endfor %}
                 </div>
                 <button class="flecha derecha" onclick="moverCarrusel('generos', 1)">&#10095;</button>

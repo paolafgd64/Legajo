@@ -46,6 +46,11 @@ def dashboard_usuario(request):
         .prefetch_related('autores', 'generos')
         .order_by('-id')
     )
+    total_libros_sistema = (
+        Libro.objects.filter(activo=True)
+        .exclude(usuario_propietario__isnull=True)
+        .count()
+    )
     libros_serializados = [_serialize_book(libro) for libro in libros_recomendados]
     return render(
         request,
@@ -53,6 +58,8 @@ def dashboard_usuario(request):
         {
             'libros_recomendados': libros_serializados[:8],
             'libros_generos': libros_serializados[:8],
+            'total_libros_sistema': total_libros_sistema,
+            'total_libros_ajenos': len(libros_serializados),
         },
     )
 
@@ -62,11 +69,15 @@ def forgot_password(request):
 
 
 def inventario_admi(request):
+    if request.user.is_authenticated and request.user.rol != User.Rol.ADMIN:
+        return redirect('inventario')
     return render(request, 'web/inventario_admi.html')
 
 
 @ensure_csrf_cookie
 def inventario(request):
+    if request.user.is_authenticated and request.user.rol == User.Rol.ADMIN:
+        return redirect('inventario_admi')
     return render(request, 'web/inventario.html')
 
 
@@ -330,7 +341,8 @@ def api_libros(request):
     libro.generos.add(genero)
 
     if request.content_type and request.content_type.startswith('multipart/form-data'):
-        return redirect('inventario')
+        destino = 'inventario_admi' if request.user.rol == User.Rol.ADMIN else 'inventario'
+        return redirect(destino)
 
     return JsonResponse(_serialize_book(libro), status=201)
 
