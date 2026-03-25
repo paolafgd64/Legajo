@@ -10,8 +10,8 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <button id="toggleModo" class="modo-toggle">🌙 Modo Claro</button>
-    <!-- Sidebar -->
+    {% csrf_token %}
+    <button id="toggleModo" class="modo-toggle">☀️ Modo Claro</button>
     <nav class="sidebar">
         <div class="logo">
             <i class="fas fa-user"></i>
@@ -26,71 +26,40 @@
         </ul>
     </nav>
 
-    <!-- Contenido Principal -->
     <main class="main-content">
         <header>
             <div class="header-left">
                 <h1>Tus Intercambios</h1>
+                <p>Da seguimiento a cada solicitud, valida el PIN y completa tus cambios de forma segura.</p>
             </div>
             <div class="header-right">
                 <div class="user-profile">
-                <img src="{% static 'web/imgs/profile.png' %}" alt="imagen">
-                <span>Usuario</span>
+                    <img src="{% static 'web/imgs/profile.png' %}" alt="imagen">
+                    <span id="nombreUsuarioIntercambios">Usuario</span>
                 </div>
             </div>
         </header>
 
-        <section class="chat-lista">
-            <div class="chat-item no-leido">
-                <div class="chat-avatar"><img src="{% static 'web/imgs/profile.png' %}"  alt=""></div>
-                <div class="chat-name">Juan Pérez</div>
-                <div class="chat-info"></div>
-                <div class="chat-last-message"> Hola, como vas con el libro?</div>
-                <div class="chat-status online"></div>
+        <section class="intercambios-hero">
+            <div class="intercambios-hero-logo">
+                <i class="fas fa-book-open-reader"></i>
             </div>
-                <div class="chat-item no-leido">
-                <div class="chat-avatar"><img src="{% static 'web/imgs/profile.png' %}" alt=""></div>
-                <div class="chat-name">Claudia Gomez</div>
-                <div class="chat-info"></div>
-                <div class="chat-last-message"> No, hoy termino el libro de...</div>
+            <div class="intercambios-hero-copy">
+                <span class="intercambios-badge">Gestion activa</span>
+                <h2>Conecta, valida y completa tus intercambios</h2>
+                <p>Encuentra a la otra persona, revisa los libros vinculados y confirma el proceso con tu PIN de seguridad.</p>
             </div>
-                <div class="chat-item no-leido">
-                <div class="chat-avatar"><img src="{% static 'web/imgs/profile.png' %}" alt=""></div>
-                <div class="chat-name">Maria Gonzales S</div>
-                <div class="chat-info"></div>
-                <div class="chat-last-message"> Mañana me llega el libro de Cro..</div>
-                <div class="chat-status online"></div>
-            </div>
-                <div class="chat-item">
-                <div class="chat-avatar"><img src="{% static 'web/imgs/profile.png' %}" alt=""></div>
-                <div class="chat-name">Julian Lopez</div>
-                <div class="chat-info"></div>
-                <div class="chat-last-message"> Si te gusto el libro?..</div>
-                <div class="chat-status online"></div>
-            </div>
-                <div class="chat-item">
-                <div class="chat-avatar"><img src="{% static 'web/imgs/profile.png' %}" alt=""></div>
-                <div class="chat-name">Julieth Aguirre</div>
-                <div class="chat-info"></div>
-                <div class="chat-last-message"> Ese libro esta muy...</div>
-                <div class="chat-status online"></div>
-            </div>
-                <div class="chat-item no-leido">
-                <div class="chat-avatar"><img src="{% static 'web/imgs/profile.png' %}" alt=""></div>
-                <div class="chat-name">Maicol Sanchez Sanchez</div>
-                <div class="chat-info"></div>
-                <div class="chat-last-message"> Cuando termines el libro me cuentas</div>
-                <div class="chat-status online"></div>
-            </div>
-                <div class="chat-item">
-                <div class="chat-avatar"><img src="{% static 'web/imgs/profile.png' %}" alt=""></div>
-                <div class="chat-name">Milena A</div>
-                <div class="chat-info"></div>
-                <div class="chat-last-message"> Mañana hay nueva edicion de...</div>
-            </div>
+        </section>
 
+        <section class="chat-lista" id="listaIntercambios">
+            <div class="intercambio-empty">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Cargando intercambios...</p>
+            </div>
         </section>
     </main>
     <script src="{% static 'web/js/script.js' %}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="{% static 'web/js/chats.js' %}"></script>
 </body>
 </html>
