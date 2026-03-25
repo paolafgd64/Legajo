@@ -55,6 +55,7 @@ async function cargarInventario() {
         <h4>${escapeHtml(libro.autor)}</h4>
         <p class="descripcion">${escapeHtml(libro.sinopsis)}</p>
         <button class="btn-verde" onclick="verLibro(${libro.id})"><i class="fas fa-eye"></i> Ver</button>
+        <button class="btn-amarillo" onclick="editarLibro(${libro.id})"><i class="fas fa-pen"></i> Editar</button>
         <button class="btn-rojo" onclick="eliminarLibro(${libro.id})"><i class="fas fa-trash"></i> Eliminar</button>
       `;
       grid.appendChild(item);
@@ -63,6 +64,10 @@ async function cargarInventario() {
     console.error('Error cargando inventario:', error);
     grid.innerHTML = '<p style="grid-column: 1/-1; text-align: center; padding: 40px;">Error cargando tu inventario.</p>';
   }
+}
+
+async function editarLibro(id) {
+  window.location.href = `/registrar_libro/${id}/`;
 }
 
 async function verLibro(id) {

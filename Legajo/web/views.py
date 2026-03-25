@@ -214,6 +214,7 @@ def login(request):
     return render(request, 'web/login.html')
 
 
+@ensure_csrf_cookie
 def notificaciones(request):
     return render(request, 'web/notificaciones.html')
 
@@ -222,17 +223,53 @@ def novedades_usuarios(request):
     return render(request, 'web/novedades_usuarios.html')
 
 
+@login_required(login_url='login')
 def perfil_admin(request):
-    return render(request, 'web/perfil_admin.html')
+    user = request.user
+    return render(request, 'web/perfil_admin.html', {
+        'perfil_usuario': user,
+        'nombre_completo': ' '.join(filter(None, [user.nombre1, user.nombre2, user.apellido1, user.apellido2])),
+    })
 
 
+@login_required(login_url='login')
 def perfil(request):
-    return render(request, 'web/perfil.html')
+    user = request.user
+    return render(request, 'web/perfil.html', {
+        'perfil_usuario': user,
+        'nombre_completo': ' '.join(filter(None, [user.nombre1, user.nombre2, user.apellido1, user.apellido2])),
+    })
 
 
 @ensure_csrf_cookie
-def registrar_libro(request):
-    return render(request, 'web/registrar_libro.html')
+def registrar_libro(request, libro_id=None):
+    context = {}
+
+    if libro_id is not None:
+        if not request.user.is_authenticated:
+            return redirect('login')
+
+        try:
+            libro = Libro.objects.prefetch_related('autores', 'generos').get(id=libro_id, activo=True)
+        except Libro.DoesNotExist:
+            return redirect('inventario')
+
+        if libro.usuario_propietario_id != request.user.id and request.user.rol != User.Rol.ADMIN:
+            return redirect('inventario')
+
+        autores = list(libro.autores.all())
+        generos = list(libro.generos.all())
+        context['modo_edicion'] = True
+        context['libro_edicion'] = {
+            'id': libro.id,
+            'titulo': libro.titulo,
+            'autor': str(autores[0]) if autores else '',
+            'sinopsis': libro.sinopsis,
+            'genero': generos[0].nombre if generos else '',
+            'estado': libro.estado,
+        }
+
+    return render(request, 'web/registrar_libro.html', context)
 
 
 def reporte_libros(request):
@@ -684,12 +721,50 @@ def api_login(request):
     })
 
 
-@require_http_methods(["GET"])
+@require_http_methods(["GET", "PUT"])
 def api_me(request):
     if not request.user.is_authenticated:
         return _unauthorized_response()
 
     user = request.user
+    if request.method == 'PUT':
+        data = _read_json_body(request)
+        if data is None:
+            return JsonResponse({'message': 'El cuerpo de la solicitud no es JSON valido.'}, status=400)
+
+        required_fields = {
+            'primerNombre': 'El primer nombre es obligatorio.',
+            'primerApellido': 'El primer apellido es obligatorio.',
+            'correo': 'El correo es obligatorio.',
+            'direccion': 'La direccion es obligatoria.',
+            'ciudad': 'La ciudad es obligatoria.',
+            'telefono': 'El telefono es obligatorio.',
+        }
+
+        for field, message in required_fields.items():
+            value = data.get(field)
+            if value is None or str(value).strip() == '':
+                return JsonResponse({'message': message}, status=400)
+
+        email = (data.get('correo') or '').strip().lower()
+        telefono = str(data.get('telefono')).strip()
+
+        if not telefono.isdigit():
+            return JsonResponse({'message': 'El telefono debe contener solo numeros.'}, status=400)
+
+        if User.objects.exclude(id=user.id).filter(email=email).exists():
+            return JsonResponse({'message': 'Ya existe un usuario registrado con ese correo.'}, status=400)
+
+        user.email = email
+        user.nombre1 = (data.get('primerNombre') or '').strip()
+        user.nombre2 = (data.get('segundoNombre') or '').strip() or None
+        user.apellido1 = (data.get('primerApellido') or '').strip()
+        user.apellido2 = (data.get('segundoApellido') or '').strip() or None
+        user.direccion = (data.get('direccion') or '').strip()
+        user.ciudad = (data.get('ciudad') or '').strip()
+        user.telefono = int(telefono)
+        user.save()
+
     return JsonResponse({
         'id': user.id,
         'idUsuario': user.id,
@@ -717,26 +792,73 @@ def api_libros(request):
             return _service_error_response(error)
         return JsonResponse(libros, safe=False)
 
-    try:
-        libro = create_book(
-            request.user,
-            request.POST,
-            image_file=request.FILES.get('imagen'),
-        )
-    except ControlledError as error:
-        if request.content_type and request.content_type.startswith('multipart/form-data'):
-            return render(
-                request,
-                'web/registrar_libro.html',
-                {'error_registro_libro': error.message},
-                status=error.status_code,
+        if request.user.rol != User.Rol.ADMIN:
+            libros = libros.filter(usuario_propietario=request.user)
+
+        titulo = (request.GET.get('titulo') or '').strip()
+        autor = (request.GET.get('autor') or '').strip()
+        usuario = (request.GET.get('usuario') or '').strip()
+        genero = (request.GET.get('genero') or '').strip()
+        estado = (request.GET.get('estado') or '').strip()
+
+        if titulo:
+            libros = libros.filter(titulo__icontains=titulo)
+        if autor:
+            libros = libros.filter(
+                Q(autores__nombre1__icontains=autor) |
+                Q(autores__nombre2__icontains=autor) |
+                Q(autores__apellido1__icontains=autor) |
+                Q(autores__apellido2__icontains=autor) |
+                Q(autores__apodo__icontains=autor)
             )
-        return _service_error_response(error)
+        if usuario:
+            libros = libros.filter(
+                Q(usuario_propietario__nombre1__icontains=usuario) |
+                Q(usuario_propietario__nombre2__icontains=usuario) |
+                Q(usuario_propietario__apellido1__icontains=usuario) |
+                Q(usuario_propietario__apellido2__icontains=usuario) |
+                Q(usuario_propietario__email__icontains=usuario)
+            )
+        if genero:
+            libros = libros.filter(generos__nombre__icontains=genero)
+        if estado:
+            libros = libros.filter(estado__iexact=estado)
 
-    if request.content_type and request.content_type.startswith('multipart/form-data'):
-        return redirect('inventario')
+        libros = libros.order_by('-id').distinct()
+        return JsonResponse([_serialize_book(libro) for libro in libros], safe=False)
 
-    return JsonResponse(libro, status=201)
+    titulo = (request.POST.get('titulo') or '').strip()
+    autor_nombre = (request.POST.get('autor') or '').strip()
+    sinopsis = (request.POST.get('sinopsis') or '').strip()
+    genero_nombre = (request.POST.get('genero') or '').strip()
+    estado = (request.POST.get('estado') or Libro.Estado.PUBLICADO).strip()
+
+    if not titulo or not autor_nombre or not genero_nombre:
+        return JsonResponse({'message': 'Titulo, autor y genero son obligatorios.'}, status=400)
+
+    if estado not in Libro.Estado.values:
+        estado = Libro.Estado.PUBLICADO
+
+    image_file = request.FILES.get('imagen')
+    if image_file:
+        url_imagen = _save_uploaded_image(image_file)
+    else:
+        url_imagen = '/static/web/imgs/libro_de_la_selva.jpg'
+
+    libro = Libro.objects.create(
+        titulo=titulo,
+        sinopsis=sinopsis,
+        estado=estado,
+        url_imagen=url_imagen,
+        usuario_propietario=request.user,
+    )
+
+    autor = _get_or_create_author(autor_nombre)
+    genero, _ = Genero.objects.get_or_create(nombre=genero_nombre.title())
+    libro.autores.add(autor)
+    libro.generos.add(genero)
+
+    return JsonResponse(_serialize_book(libro), status=201)
 
 
 @require_http_methods(["GET"])
@@ -778,7 +900,168 @@ def api_libro_detalle(request, libro_id):
         soft_delete_book(request.user, libro_id)
     except ControlledError as error:
         return _service_error_response(error)
+        titulo = (data.get('titulo') or '').strip()
+        autor_nombre = (data.get('autor') or '').strip()
+        sinopsis = (data.get('sinopsis') or '').strip()
+        genero_nombre = (data.get('genero') or '').strip()
+        estado = (data.get('estado') or libro.estado).strip()
+
+        if not titulo or not autor_nombre or not genero_nombre:
+            return JsonResponse({'message': 'Titulo, autor y genero son obligatorios.'}, status=400)
+
+        if estado not in Libro.Estado.values:
+            estado = Libro.Estado.PUBLICADO
+
+        libro.titulo = titulo
+        libro.sinopsis = sinopsis
+        libro.estado = estado
+        libro.save(update_fields=['titulo', 'sinopsis', 'estado'])
+
+        autor = _get_or_create_author(autor_nombre)
+        genero, _ = Genero.objects.get_or_create(nombre=genero_nombre.title())
+        libro.autores.set([autor])
+        libro.generos.set([genero])
+
+        return JsonResponse(_serialize_book(libro))
+
+    libro.activo = False
+    libro.save(update_fields=['activo'])
     return JsonResponse({'message': 'Libro eliminado correctamente.'})
+
+
+@require_http_methods(["GET"])
+def api_notificaciones(request):
+    if not request.user.is_authenticated:
+        return _unauthorized_response()
+
+    notificaciones = (
+        Intercambio.objects.filter(
+            usuario_receptor=request.user,
+            activo=True,
+        )
+        .select_related('usuario_solicitante', 'libro_solicitado')
+        .order_by('-fecha_solicitud')
+    )
+
+    resultado = []
+    for intercambio in notificaciones:
+        solicitante = intercambio.usuario_solicitante
+        libro = intercambio.libro_solicitado
+        nombre_solicitante = str(solicitante) if solicitante else 'Usuario desconocido'
+        titulo_libro = libro.titulo if libro else 'Libro sin titulo'
+
+        if intercambio.estado == Intercambio.Estado.PENDIENTE:
+            mensaje = f'{nombre_solicitante} solicito intercambio por tu libro "{titulo_libro}".'
+        elif intercambio.estado == Intercambio.Estado.ACEPTADO:
+            mensaje = f'Tienes un intercambio aceptado para "{titulo_libro}".'
+        elif intercambio.estado == Intercambio.Estado.RECHAZADO:
+            mensaje = f'La solicitud por "{titulo_libro}" fue rechazada.'
+        else:
+            mensaje = f'El intercambio por "{titulo_libro}" fue completado.'
+
+        resultado.append({
+            'id': intercambio.id,
+            'usuario': nombre_solicitante,
+            'libro': titulo_libro,
+            'estado': intercambio.estado,
+            'mensaje': mensaje,
+            'fecha': intercambio.fecha_solicitud.strftime('%Y-%m-%d %H:%M'),
+            'esNueva': intercambio.estado == Intercambio.Estado.PENDIENTE,
+            'puedeAceptar': intercambio.estado == Intercambio.Estado.PENDIENTE,
+        })
+
+    return JsonResponse(resultado, safe=False)
+
+
+@require_http_methods(["GET"])
+def api_inventario_solicitante_intercambio(request, intercambio_id):
+    if not request.user.is_authenticated:
+        return _unauthorized_response()
+
+    try:
+        intercambio = Intercambio.objects.select_related('usuario_receptor', 'usuario_solicitante').get(
+            id=intercambio_id,
+            activo=True,
+        )
+    except Intercambio.DoesNotExist:
+        return JsonResponse({'message': 'Intercambio no encontrado.'}, status=404)
+
+    if intercambio.usuario_receptor_id != request.user.id:
+        return JsonResponse({'message': 'No tienes permiso para ver este inventario.'}, status=403)
+
+    libros = (
+        Libro.objects.filter(
+            usuario_propietario=intercambio.usuario_solicitante,
+            activo=True,
+        )
+        .prefetch_related('autores', 'generos')
+        .order_by('-id')
+    )
+
+    return JsonResponse([_serialize_book(libro) for libro in libros], safe=False)
+
+
+@require_http_methods(["POST"])
+def api_aceptar_intercambio(request, intercambio_id):
+    if not request.user.is_authenticated:
+        return _unauthorized_response()
+
+    data = _read_json_body(request)
+    if data is None:
+        return JsonResponse({'message': 'El cuerpo de la solicitud no es JSON valido.'}, status=400)
+
+    try:
+        intercambio = Intercambio.objects.select_related(
+            'usuario_receptor',
+            'usuario_solicitante',
+            'libro_solicitado',
+        ).get(id=intercambio_id, activo=True)
+    except Intercambio.DoesNotExist:
+        return JsonResponse({'message': 'Intercambio no encontrado.'}, status=404)
+
+    if intercambio.usuario_receptor_id != request.user.id:
+        return JsonResponse({'message': 'No tienes permiso para aceptar este intercambio.'}, status=403)
+
+    if intercambio.estado != Intercambio.Estado.PENDIENTE:
+        return JsonResponse({'message': 'Este intercambio ya no esta pendiente.'}, status=400)
+
+    libro_cambio_id = data.get('libroCambioId')
+    if not libro_cambio_id:
+        return JsonResponse({'message': 'Debes seleccionar un libro del solicitante.'}, status=400)
+
+    try:
+        libro_cambio = Libro.objects.get(
+            id=libro_cambio_id,
+            usuario_propietario=intercambio.usuario_solicitante,
+            activo=True,
+        )
+    except Libro.DoesNotExist:
+        return JsonResponse({'message': 'El libro seleccionado no pertenece al solicitante.'}, status=400)
+
+    intercambio.libro_cambio = libro_cambio
+    intercambio.estado = Intercambio.Estado.ACEPTADO
+    intercambio.fecha_confirmacion = timezone.now()
+    intercambio.save(update_fields=['libro_cambio', 'estado', 'fecha_confirmacion'])
+
+    solicitante = intercambio.usuario_solicitante
+    receptor = intercambio.usuario_receptor
+    telefono_solicitante = str(solicitante.telefono) if solicitante and solicitante.telefono else ''
+    nombre_receptor = str(receptor) if receptor else 'el propietario'
+    titulo_solicitado = intercambio.libro_solicitado.titulo if intercambio.libro_solicitado else 'tu libro'
+    mensaje_whatsapp = (
+        f'Hola {str(solicitante) if solicitante else ""}, '
+        f'{nombre_receptor} acepto tu solicitud de intercambio por "{titulo_solicitado}". '
+        f'El libro seleccionado para el intercambio es "{libro_cambio.titulo}". '
+        f'Ponganse de acuerdo para continuar.'
+    )
+
+    return JsonResponse({
+        'message': 'Intercambio aceptado correctamente.',
+        'idIntercambio': intercambio.id,
+        'libroCambio': libro_cambio.titulo,
+        'telefonoWhatsapp': telefono_solicitante,
+        'mensajeWhatsapp': mensaje_whatsapp,
+    })
 
 
 @require_http_methods(["POST"])
