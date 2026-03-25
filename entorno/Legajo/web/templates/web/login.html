@@ -5,51 +5,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<<<<<<< HEAD
     <title>Iniciar Sesión</title>
 
-=======
-    <title>Iniciar Sesion</title>
->>>>>>> 00e45309638ed4bf1e4ae15a6b5121f5aa5736dd
     <link rel="stylesheet" href="{% static 'web/css/styles.css' %}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 
 <body>
-<<<<<<< HEAD
 
 <a href="{% url 'index' %}" class="btn-volver">←</a>
-=======
-    <button id="toggleModo" class="modo-toggle">☀️ Modo Claro</button>
-    <section class="formulario">
-        <form id="loginForm">
-            {% csrf_token %}
-            <div class="logo-form"></div>
-            <h2>Iniciar sesion</h2>
-            <input type="email" id="correo" name="correo" placeholder="Correo electronico" required />
-            <div class="input-pass">
-                <input type="password" id="clave" name="clave" placeholder="Contrasena" required />
-                <i class="toggle-pass fas fa-eye" onclick="verClave('clave', this)"></i>
-                <a href="{% url 'forgot_password' %}">Olvidaste tu contrasena?</a>
-            </div>
-
-            <button type="submit">Ingresar</button>
-        </form>
-        <div id="loginMensaje" style="margin-top:10px;color:red"></div>
-    </section>
-    <script src="{% static 'web/js/script.js' %}"></script>
-    <script src="{% static 'web/js/validaciones.js' %}"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const form = document.getElementById('loginForm');
-            const mensaje = document.getElementById('loginMensaje');
->>>>>>> 00e45309638ed4bf1e4ae15a6b5121f5aa5736dd
 
 <button id="toggleModo" class="modo-toggle">☀️ Modo Claro</button>
 
 <section class="formulario">
 
-<<<<<<< HEAD
     <form id="loginForm">
         
         {% csrf_token %} <!-- 🔥 IMPORTANTE -->
@@ -130,40 +99,6 @@
                 console.error(err);
                 mensaje.textContent = 'Error de red: ' + err.message;
             }
-=======
-                try {
-                    const csrfToken = form.querySelector('[name=csrfmiddlewaretoken]').value;
-                    const res = await fetch('/api/auth/login', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': csrfToken
-                        },
-                        body: JSON.stringify({ correo, clave })
-                    });
-
-                    let data = null;
-                    try {
-                        data = await res.json();
-                    } catch (err) {
-                        const text = await res.text();
-                        console.warn('Respuesta no JSON del servidor:', text);
-                        mensaje.textContent = 'Respuesta inesperada del servidor.';
-                        return;
-                    }
-
-                    if (!res.ok) {
-                        mensaje.textContent = data.error || data.message || 'Credenciales invalidas';
-                        return;
-                    }
-
-                    window.location.href = data.redirect_url || "{% url 'dashboard_usuario' %}";
-                } catch (err) {
-                    console.error(err);
-                    mensaje.textContent = 'Error de red: ' + (err.message || err);
-                }
-            });
->>>>>>> 00e45309638ed4bf1e4ae15a6b5121f5aa5736dd
         });
     });
 </script>

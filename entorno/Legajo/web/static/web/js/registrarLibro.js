@@ -1,94 +1,57 @@
-// /js/registrarLibro.js
-// Maneja el registro de libros desde registrar_libro.html
 const API = '/api/libros';
-const UPLOAD_API = '/api/upload/imagen';
+
+function getCookie(name) {
+  const cookies = document.cookie ? document.cookie.split(';') : [];
+  for (const cookie of cookies) {
+    const trimmed = cookie.trim();
+    if (trimmed.startsWith(`${name}=`)) {
+      return decodeURIComponent(trimmed.substring(name.length + 1));
+    }
+  }
+  return '';
+}
 
 document.addEventListener('DOMContentLoaded', () => {
-  const form = document.querySelector('form');
+  const form = document.getElementById('registrarLibroForm');
   if (!form) return;
 
-  form.onsubmit = async (e) => {
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    const titulo = document.getElementById('titulo').value.trim();
-    const autor = document.getElementById('autor').value.trim();
-    const sinopsis = document.getElementById('sinopsis').value.trim();
-    const genero = document.getElementById('genero').value.trim();
-    const imagenInput = document.getElementById('imagen');
-    const estado = 'Publicado';
+    const formData = new FormData(form);
+    const csrfToken = getCookie('csrftoken') || form.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
 
-    // Imagen por defecto
-    let urlImagen = '/imgs/default-book.jpg';
-
-    // Subir imagen si existe
-    if (imagenInput.files && imagenInput.files[0]) {
-      const file = imagenInput.files[0];
-      const formData = new FormData();
-      formData.append('file', file);
-
-      try {
-        const uploadRes = await fetch(UPLOAD_API, {
-          method: 'POST',
-          body: formData
-        });
-
-        if (!uploadRes.ok) throw new Error('Error al subir la imagen');
-
-        const uploadData = await uploadRes.json();
-        urlImagen = uploadData.url;
-
-      } catch (err) {
-        console.error('Error subiendo imagen:', err);
-
-        await Swal.fire({
-          icon: 'warning',
-          title: 'Advertencia',
-          text: 'No se pudo subir la imagen, se usará una imagen por defecto'
-        });
-      }
-    }
-
-    await enviarLibro({ titulo, autor, sinopsis, genero, estado, urlImagen });
-  };
-
-  async function enviarLibro(libro) {
     try {
-      const token = localStorage.getItem('jwtToken');
-      const headers = { 'Content-Type': 'application/json' };
-
-      if (token) {
-        headers['Authorization'] = 'Bearer ' + token;
-      }
-
       const res = await fetch(API, {
         method: 'POST',
-        headers: headers,
-        body: JSON.stringify(libro)
+        credentials: 'same-origin',
+        headers: {
+          'X-CSRFToken': csrfToken
+        },
+        body: formData
       });
 
+      const data = await res.json();
       if (!res.ok) {
-        const error = await res.text();
-        throw new Error(error || 'Error desconocido');
+        throw new Error(data.message || 'No se pudo registrar el libro');
       }
 
       await Swal.fire({
         icon: 'success',
         title: 'Libro registrado',
-        text: 'El libro ha sido registrado exitosamente',
-        confirmButtonText: 'Aceptar'
+        text: 'El libro fue guardado correctamente',
+        confirmButtonText: 'Continuar'
       });
 
       form.reset();
-      window.location.href = 'inventario.html';
-
+      window.location.href = '/inventario/';
     } catch (err) {
-      console.error('Error:', err);
-
+      console.error('Error registrando libro:', err);
       Swal.fire({
         icon: 'error',
         title: 'Error al registrar',
         text: err.message || 'No se pudo registrar el libro'
       });
     }
-  }
+  });
 });

@@ -7,51 +7,9 @@
     <title>Dashboard Usuario</title>
     <link rel="stylesheet" href="{% static 'web/css/dashboard.css' %}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-    <script>
-        // Comprobar token JWT antes de mostrar contenido protegido
-        (async function() {
-            try {
-                const token = localStorage.getItem('jwtToken');
-                if (!token) {
-                    // No hay token: volver al login
-                    window.location.href = '{% static "templates/web/login.html" %}';
-                    return;
-                }
-
-                const resp = await fetch('/api/auth/me', {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': 'Bearer ' + token,
-                        'Accept': 'application/json'
-                    }
-                });
-
-                if (!resp.ok) {
-                    // Token inválido o expirado: eliminar y forzar login
-                    localStorage.removeItem('jwtToken');
-                    window.location.href = '/login.html';
-                    return;
-                }
-
-                const user = await resp.json();
-                // Rellenar nombre en la UI si existe el elemento
-                const nombreEl = document.getElementById('nombreRecibido');
-                if (nombreEl) {
-                    const nombre = user.primerNombre;
-                    nombreEl.textContent = nombre;
-                }
-            } catch (e) {
-                console.error('Error validando token en dashboard:', e);
-                localStorage.removeItem('jwtToken');
-                window.location.href = '/login.html';
-            }
-        })();
-    </script>
-    <button id="toggleModo" class="modo-toggle">🌙 Modo Claro</button>
-    <!-- Sidebar -->
+    <button id="toggleModo" class="modo-toggle">Modo Claro</button>
     <nav class="sidebar">
         <div class="logo">
             <i class="fas fa-user"></i>
@@ -66,12 +24,11 @@
         </ul>
     </nav>
 
-    <!-- Contenido Principal -->
     <main class="main-content">
         <header>
             <div class="header-left">
                 <h1>Bienvenid@</h1>
-                <p><span id="nombreRecibido">nombre</span>, Como estás?</p>
+                <p><span id="nombreRecibido">usuario</span>, como estas?</p>
             </div>
             <div class="header-right">
                 <div class="user-profile">
@@ -84,274 +41,103 @@
         <section class="seccion-carrusel">
             <h2 class="titulo-seccion">Recomendados</h2>
             <div class="contenedor-carrusel">
-                <button class="flecha izquierda" onclick="moverCarrusel('recomendados', -1)">❮</button>
+                <button class="flecha izquierda" onclick="moverCarrusel('recomendados', -1)">&#10094;</button>
                 <div class="carrusel-libros" id="recomendados">
-                    <!-- Los libros se cargarán dinámicamente aquí -->
+                    {% for libro in libros_recomendados %}
+                    <div class="libro"
+                         data-id="{{ libro.id }}"
+                         data-titulo="{{ libro.titulo }}"
+                         data-autor="{{ libro.autor }}"
+                         data-descripcion="{{ libro.sinopsis }}"
+                         data-imagen="{{ libro.urlImagen }}"
+                         data-usuario="{{ libro.usuario }}">
+                        <img src="{{ libro.urlImagen }}" alt="{{ libro.titulo }}">
+                        <h3>{{ libro.titulo }}</h3>
+                        <p>{{ libro.autor }}</p>
+                        <div class="estrellas-display">Disponible</div>
+                        <button class="ver-libro"><i class="fa fa-eye"></i> Ver</button>
+                    </div>
+                    {% empty %}
+                    <p style="padding:20px;">No hay libros de otros usuarios disponibles por ahora.</p>
+                    {% endfor %}
                 </div>
-                <button class="flecha derecha" onclick="moverCarrusel('recomendados', 1)">❯</button>
-            </div>
-            <div id="modal" class="modal">
-                <div class="modal-content">
-                    <span id="closeModal" class="close">&times;</span>
-
-                     <img id="modalImg" class="modal-img">
-                     <div class="modal-text">
-                         <h2 id="modalTitulo"></h2>
-                         <h4 id="modalAutor"></h4>
-                         <div id="modalCalificacion" class="rating-badge">⭐⭐⭐⭐⭐</div>
-                         <h3>Sipnosis del libro</h3>
-                         <p id="modalDescripcion"></p>
-                         <!-- Contenedor de acciones (botón solicitar intercambio) -->
-                         <div id="modalAcciones" style="margin-top:12px;">
-                             <button id="btnSolicitarIntercambio" class="btn-amarillo"><i class="fas fa-exchange-alt"></i> Solicitar intercambio</button>
-                         </div>
-                     </div>
-                </div>
+                <button class="flecha derecha" onclick="moverCarrusel('recomendados', 1)">&#10095;</button>
             </div>
         </section>
 
         <section class="seccion-carrusel">
-            <h2 class="titulo-seccion">Autores más leídos</h2>
+            <h2 class="titulo-seccion">Generos</h2>
             <div class="contenedor-carrusel">
-                <button class="flecha izquierda" onclick="moverCarrusel('autores', -1)">❮</button>
-                <div class="carrusel-libros" id="autores">
-                <div class="libro autor"
-                    data-titulo="Hábitos Atómicos" data-autor="James Clear" data-descripcion="Un libro sobre cómo pequeños hábitos generan cambios gigantes." data-imagen="/imgs/libro_de_la_selva.jpg">
-                    <img src="/imgs/gabo.jpg"><h3>James Clear</h3><p>Hábitos Atómicos</p><p>⭐⭐⭐⭐⭐</p><button class="ver-libro"><i class="fa fa-eye"></i> Ver</button>
+                <button class="flecha izquierda" onclick="moverCarrusel('generos', -1)">&#10094;</button>
+                <div class="carrusel-libros" id="generos">
+                    {% for libro in libros_generos %}
+                    <div class="libro"
+                         data-id="{{ libro.id }}"
+                         data-titulo="{{ libro.titulo }}"
+                         data-autor="{{ libro.autor }}"
+                         data-descripcion="{{ libro.sinopsis }}"
+                         data-imagen="{{ libro.urlImagen }}"
+                         data-usuario="{{ libro.usuario }}">
+                        <img src="{{ libro.urlImagen }}" alt="{{ libro.titulo }}">
+                        <h3>{{ libro.genero|default:"Genero" }}</h3>
+                        <p>{{ libro.titulo }}</p>
+                        <div class="estrellas-display">Disponible</div>
+                        <button class="ver-libro"><i class="fa fa-eye"></i> Ver</button>
+                    </div>
+                    {% empty %}
+                    <p style="padding:20px;">Aun no hay generos para mostrar.</p>
+                    {% endfor %}
                 </div>
-                <div class="libro autor"
-                    data-titulo="It" data-autor="Stephen King" data-descripcion="Escritor estadounidense famoso por novelas de terror como It, El resplandor y Carrie." data-imagen="/imgs/gabo.jpg">
-                    <img src="/imgs/gabo.jpg"><h3>Stephen King</h3><p>It</p><p>⭐⭐⭐⭐</p><button class="ver-libro"><i class="fa fa-eye"></i> Ver</button>
-                </div>
-                <div class="libro autor"
-                    data-titulo="Harry Potter" data-autor="J.K. Rowling" data-descripcion="Autora británica creadora del universo de Harry Potter." data-imagen="/imgs/gabo.jpg">
-                    <img src="/imgs/gabo.jpg"><h3>J.K. Rowling</h3><p>Harry Potter</p><p>⭐⭐⭐⭐⭐</p><button class="ver-libro"><i class="fa fa-eye"></i> Ver</button>
-                </div>
-                <div class="libro autor"
-                    data-titulo="Cien años de soledad" data-autor="Gabriel García Márquez" data-descripcion="Novelista colombiano y figura central del realismo mágico." data-imagen="/imgs/gabo.jpg">
-                    <img src="/imgs/gabo.jpg"><h3>Gabriel García Márquez</h3><p>Cien años de soledad</p><p>⭐⭐⭐⭐⭐</p><button class="ver-libro"><i class="fa fa-eye"></i> Ver</button>
-                </div>
-                <div class="libro autor"
-                    data-titulo="1984" data-autor="George Orwell" data-descripcion="Escritor británico autor de obras críticas como 1984 y Rebelión en la granja." data-imagen="/imgs/gabo.jpg">
-                    <img src="/imgs/gabo.jpg"><h3>George Orwell</h3><p>1984</p><p>⭐⭐⭐⭐</p><button class="ver-libro"><i class="fa fa-eye"></i> Ver</button>
-                </div>
-                <div class="libro autor"
-                    data-titulo="Tokio Blues" data-autor="Haruki Murakami" data-descripcion="Haruki Murakami es un autor japonés conocido por su estilo surrealista y melancólico. Sus obras exploran temas de soledad, amor y realidades alternas." data-imagen="/imgs/gabo.jpg">
-                    <img src="/imgs/gabo.jpg"><h3>Haruki Murakami</h3><p>Tokio Blues</p><p>⭐⭐⭐</p><button class="ver-libro"><i class="fa fa-eye"></i> Ver</button>
-                </div>
-                </div>
-                <button class="flecha derecha" onclick="moverCarrusel('autores', 1)">❯</button>
+                <button class="flecha derecha" onclick="moverCarrusel('generos', 1)">&#10095;</button>
             </div>
-            <div id="modalAutor" class="modal">
-                <div class="modal-content">
-                    <span id="cerrarAutor" class="close">&times;</span>
+        </section>
 
-                    <img id="autorImg" class="modal-img">
-                    <div class="modal-text">
-                    <h2 id="autorNombre"></h2>
-                    <h3>Libros más conocidos:</h3>
-                    <p id="autorLibros"></p>
-                    <h3>Descripción:</h3>
-                    <p id="autorDescripcion"></p>
+        <div id="modal" class="modal">
+            <div class="modal-content">
+                <span id="closeModal" class="close">&times;</span>
+                <img id="modalImg" class="modal-img" alt="Libro">
+                <div class="modal-text">
+                    <h2 id="modalTitulo"></h2>
+                    <h4 id="modalAutor"></h4>
+                    <p id="modalDescripcion"></p>
+                    <div id="modalAcciones" style="margin-top: 12px;">
+                        <button id="btnSolicitarIntercambio" class="btn-amarillo">
+                            <i class="fas fa-exchange-alt"></i> Solicitar intercambio
+                        </button>
                     </div>
                 </div>
             </div>
-        </section>
-
-        <section class="seccion-carrusel">
-            <h2 class="titulo-seccion">Géneros</h2>
-            <div class="contenedor-carrusel">
-                <button class="flecha izquierda" onclick="moverCarrusel('generos', -1)">❮</button>
-                <div class="carrusel-libros" id="generos">
-                <div class="libro" data-titulo="Hábitos Atómicos" data-autor="James Clear" data-descripcion="Un libro sobre cómo pequeños hábitos generan cambios gigantes." data-imagen="/imgs/libro_de_la_selva.jpg"><img src="/imgs/terror.jpeg"><h3>Autoayuda</h3><p>Libros que motivan</p><p>⭐⭐⭐⭐</p><button class="ver-libro"><i class="fa fa-eye"></i> Ver</button></div>
-                <div class="libro" data-titulo="Cien años de soledad" data-autor="Gabriel García Márquez" data-descripcion="Una obra maestra del realismo mágico que narra la saga de la familia Buendía en el pueblo ficticio de Macondo." data-imagen="/imgs/libro_de_la_selva.jpg"><img src="/imgs/terror.jpeg"><h3>Ficción</h3><p>Historias creativas</p><p>⭐⭐⭐⭐⭐</p><button class="ver-libro"><i class="fa fa-eye"></i> Ver</button></div>
-                <div class="libro" data-titulo="El código Da Vinci" data-autor="Dan Brown" data-descripcion="Un thriller que combina arte, historia y conspiraciones en una búsqueda frenética por resolver un misterio antiguo." data-imagen="/imgs/libro_de_la_selva.jpg"><img src="/imgs/terror.jpeg"><h3>Misterio</h3><p>Tramas intrigantes</p><p>⭐⭐⭐</p><button class="ver-libro"><i class="fa fa-eye"></i> Ver</button></div>
-                <div class="libro" data-titulo="Harry Potter y la piedra filosofal" data-autor="J.K. Rowling" data-descripcion="El inicio de la saga mágica de Harry Potter, donde un niño descubre su herencia como mago y enfrenta al malvado Voldemort." data-imagen="/imgs/libro_de_la_selva.jpg"><img src="/imgs/terror.jpeg"><h3>Fantasía</h3><p>Mundos mágicos</p><p>⭐⭐⭐⭐</p><button class="ver-libro"><i class="fa fa-eye"></i> Ver</button></div>
-                <div class="libro" data-titulo="Steve Jobs" data-autor="Walter Isaacson" data-descripcion="Una biografía autorizada del cofundador de Apple, explorando su vida, innovaciones y personalidad compleja." data-imagen="/imgs/libro_de_la_selva.jpg"><img src="/imgs/terror.jpeg"><h3>Biografías</h3><p>Vidas inspiradoras</p><p>⭐⭐⭐</p><button class="ver-libro"><i class="fa fa-eye"></i> Ver</button></div>
-                <div class="libro" data-titulo="Orgullo y prejuicio" data-autor="Jane Austen" data-descripcion="Una historia clásica de amor y malentendidos en la Inglaterra del siglo XIX, centrada en Elizabeth Bennet y el señor Darcy." data-imagen="/imgs/libro_de_la_selva.jpg"><img src="/imgs/terror.jpeg"><h3>Romance</h3><p>Historias de amor</p><p>⭐⭐⭐⭐⭐</p><button class="ver-libro"><i class="fa fa-eye"></i> Ver</button></div>
-                </div>
-                <button class="flecha derecha" onclick="moverCarrusel('generos', 1)">❯</button>
-            </div>
-        </section>
-
+        </div>
     </main>
-    <script src="/js/script.js"></script>
+
+    <script src="{% static 'web/js/script.js' %}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         function moverCarrusel(id, direccion) {
-        const carrusel = document.getElementById(id);
-        const libros = carrusel.querySelectorAll('.libro');
-        const anchoLibro = libros[0].offsetWidth + 16;
+            const carrusel = document.getElementById(id);
+            if (!carrusel) return;
+            const primerLibro = carrusel.querySelector('.libro');
+            if (!primerLibro) return;
 
-        carrusel.scrollLeft += direccion * anchoLibro;
-
-        const scrollMax = carrusel.scrollWidth - carrusel.clientWidth;
-
-        // Movimiento infinito fluido
-        if (direccion === 1 && carrusel.scrollLeft >= scrollMax - 5) {
-            carrusel.scrollLeft = 0;
-        } else if (direccion === -1 && carrusel.scrollLeft <= 0) {
-            carrusel.scrollLeft = scrollMax;
+            const anchoLibro = primerLibro.offsetWidth + 16;
+            carrusel.scrollLeft += direccion * anchoLibro;
         }
-        }
-    </script>
-    <script>
-        // Modal para libros en dashboard usuario
+
         const modal = document.getElementById('modal');
         const closeModal = document.getElementById('closeModal');
-        
-        // Cerrar modal al hacer clic en X
+
         if (closeModal) {
             closeModal.addEventListener('click', () => {
                 if (modal) modal.style.display = 'none';
             });
         }
-        
-        // Cerrar modal al hacer clic fuera
+
         window.addEventListener('click', (event) => {
             if (modal && event.target === modal) {
                 modal.style.display = 'none';
             }
         });
-        
-        // Evento para botones "Ver" en carruseles
-        document.addEventListener('DOMContentLoaded', () => {
-            const botonesVer = document.querySelectorAll('.ver-libro');
-            botonesVer.forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    const libroDiv = btn.closest('.libro');
-                    if (libroDiv) {
-                        const titulo = libroDiv.dataset.titulo || '';
-                        const autor = libroDiv.dataset.autor || '';
-                        const descripcion = libroDiv.dataset.descripcion || '';
-                        const imagen = libroDiv.dataset.imagen || '/imgs/default-book.jpg';
-                        
-                        // Rellenar modal
-                        document.getElementById('modalImg').src = imagen;
-                        document.getElementById('modalTitulo').textContent = titulo;
-                        document.getElementById('modalAutor').textContent = autor;
-                        document.getElementById('modalDescripcion').textContent = descripcion;
-                        document.getElementById('modalCalificacion').textContent = '⭐⭐⭐⭐⭐';
-                        
-                        // Mostrar modal
-                        if (modal) modal.style.display = 'block';
-                    }
-                });
-            });
-        });
-
-        // Función para mostrar detalles completos del libro (con ID) y permitir intercambio
-        async function verLibroCompleto(libroId) {
-          try {
-            const res = await fetch(`/api/libros/${libroId}`);
-            if (!res.ok) throw new Error('Error al cargar libro');
-            const libro = await res.json();
-            
-            // Rellenar modal con datos del libro
-            document.getElementById('modalImg').src = libro.urlImagen || '/imgs/default-book.jpg';
-            document.getElementById('modalTitulo').textContent = libro.titulo || '';
-            document.getElementById('modalAutor').textContent = libro.autor || '';
-            document.getElementById('modalDescripcion').textContent = libro.sinopsis || '';
-            
-            // Añadir botón de solicitar intercambio
-            let acciones = document.getElementById('modalAcciones');
-            if (!acciones) {
-              acciones = document.createElement('div');
-              acciones.id = 'modalAcciones';
-              acciones.style.marginTop = '12px';
-              const btn = document.createElement('button');
-              btn.id = 'btnSolicitarIntercambio';
-              btn.className = 'btn-amarillo';
-              btn.innerHTML = '<i class="fas fa-exchange-alt"></i> Solicitar intercambio';
-              acciones.appendChild(btn);
-              const modalContent = document.querySelector('#modal .modal-content .modal-text');
-              if (modalContent) modalContent.appendChild(acciones);
-            }
-
-            // Asignar handler del botón
-            const btnSolicitar = document.getElementById('btnSolicitarIntercambio');
-            if (btnSolicitar) {
-              btnSolicitar.onclick = async () => {
-                try {
-                  const token = localStorage.getItem('jwtToken');
-                  const headers = { 'Content-Type': 'application/json' };
-                  if (token) headers['Authorization'] = 'Bearer ' + token;
-                  const r = await fetch('/api/intercambios/request', {
-                    method: 'POST',
-                    headers: headers,
-                    body: JSON.stringify({ libroId: libro.idLibro })
-                  });
-                  if (r.status === 201) {
-                    alert('Solicitud de intercambio enviada al propietario');
-                    if (modal) modal.style.display = 'none';
-                  } else if (r.status === 400) {
-                    const data = await r.json();
-                    alert(data.error || 'No se pudo enviar la solicitud');
-                  } else if (r.status === 401) {
-                    alert('Inicia sesión para solicitar intercambios');
-                    window.location.href = '/login.html';
-                  } else {
-                    const data = await r.json();
-                    alert(data.error || 'Error al solicitar intercambio');
-                  }
-                } catch (err) {
-                  console.error('Error solicitando intercambio', err);
-                  alert('Error solicitando intercambio');
-                }
-              };
-            }
-            
-            // Mostrar modal
-            if (modal) modal.style.display = 'block';
-          } catch (e) {
-            console.error('Error:', e);
-            alert('No se pudo cargar el libro');
-          }
-        }
     </script>
-    <script>
-        // Modal para autores
-        const modalAutor = document.getElementById('modalAutor');
-        const cerrarAutor = document.getElementById('cerrarAutor');
-        
-        if (cerrarAutor) {
-            cerrarAutor.addEventListener('click', () => {
-                if (modalAutor) modalAutor.style.display = 'none';
-            });
-        }
-        
-        window.addEventListener('click', (event) => {
-            if (modalAutor && event.target === modalAutor) {
-                modalAutor.style.display = 'none';
-            }
-        });
-        
-        // Evento para botones "Ver" en carrusel de autores
-        document.addEventListener('DOMContentLoaded', () => {
-            const botonesVerAutores = document.querySelectorAll('#autores .ver-libro');
-            botonesVerAutores.forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    const autorDiv = btn.closest('.libro');
-                    if (autorDiv) {
-                        const nombre = autorDiv.querySelector('h3').textContent;
-                        const libro = autorDiv.querySelector('p').textContent;
-                        const descripcion = autorDiv.dataset.descripcion || '';
-                        const imagen = autorDiv.dataset.imagen || '/imgs/gabo.jpg';
-                        
-                        // Rellenar modal de autor
-                        document.getElementById('autorImg').src = imagen;
-                        document.getElementById('autorNombre').textContent = nombre;
-                        document.getElementById('autorLibros').textContent = libro;
-                        document.getElementById('autorDescripcion').textContent = descripcion;
-                        
-                        // Mostrar modal
-                        if (modalAutor) modalAutor.style.display = 'block';
-                    }
-                });
-            });
-        });
-    </script>
-    <script src="/js/dashboard.js"></script>
+    <script src="{% static 'web/js/dashboard.js' %}"></script>
 </body>
 </html>

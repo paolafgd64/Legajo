@@ -1,78 +1,74 @@
-// Validación para Iniciar Sesión
-document.addEventListener("DOMContentLoaded", () => {
-    const formLogin = document.querySelector('form[action="dashboard_admin.html"]');
+document.addEventListener('DOMContentLoaded', () => {
+    const formLogin = document.getElementById('loginForm');
     if (formLogin) {
-        formLogin.addEventListener("submit", function (e) {
-            const email = formLogin.querySelector('input[type="email"]').value.trim();
-            const password = formLogin.querySelector('input[type="password"]').value.trim();
+        formLogin.addEventListener('submit', (e) => {
+            const email = document.getElementById('correo')?.value.trim() || '';
+            const password = document.getElementById('clave')?.value.trim() || '';
 
             if (!validarEmail(email)) {
-                alert("Por favor, ingresa un correo electrónico válido.");
+                alert('Por favor, ingresa un correo electronico valido.');
                 e.preventDefault();
                 return;
             }
 
-            if (password === "") {
-                alert("Por favor, ingresa una contraseña.");
-                e.preventDefault();
-                return;
+            if (!password) {
+                alert('Por favor, ingresa una contrasena.');
             }
         });
     }
 
-    // Validación para Crear Cuenta
-    const formRegistro = document.querySelector('form[action="dashboard_usuario.html"]');
+    const formRegistro = document.getElementById('registroForm');
     if (formRegistro) {
-        formRegistro.addEventListener("submit", function (e) {
-            const nombre = document.getElementById("textoInput").value.trim();
-            const email = formRegistro.querySelector('input[type="email"]').value.trim();
-            const password = formRegistro.querySelectorAll('input[type="password"]')[0].value;
-            const confirmar = formRegistro.querySelectorAll('input[type="password"]')[1].value;
+        formRegistro.addEventListener('submit', (e) => {
+            const primerNombre = document.getElementById('primerNombre')?.value.trim() || '';
+            const email = document.getElementById('correo')?.value.trim() || '';
+            const password = document.getElementById('clave')?.value || '';
+            const confirmar = document.getElementById('confirmClave')?.value || '';
 
-            if (nombre === "") {
-                alert("Por favor, ingresa tu nombre completo.");
+            if (!primerNombre) {
+                alert('Por favor, ingresa tu primer nombre.');
                 e.preventDefault();
                 return;
             }
 
             if (!validarEmail(email)) {
-                alert("Por favor, ingresa un correo electrónico válido.");
+                alert('Por favor, ingresa un correo electronico valido.');
                 e.preventDefault();
                 return;
             }
 
-            if (password.length < 6) {
-                alert("La contraseña debe tener al menos 6 caracteres.");
+            if (password.length < 8) {
+                alert('La contrasena debe tener al menos 8 caracteres.');
                 e.preventDefault();
                 return;
             }
 
             if (password !== confirmar) {
-                alert("Las contraseñas no coinciden.");
+                alert('Las contrasenas no coinciden.');
                 e.preventDefault();
-                return;
             }
         });
     }
 });
 
-// Función para validar formato de email
 function validarEmail(correo) {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return regex.test(correo);
 }
 
-//función del ojo
 function verClave(idCampo, icono) {
     const campo = document.getElementById(idCampo);
+    if (!campo || !icono) {
+        return;
+    }
 
-    if (campo.type === "password") {
-        campo.type = "text";
-        icono.classList.remove("fa-eye");
-        icono.classList.add("fa-eye-slash");
+    if (campo.type === 'password') {
+        campo.type = 'text';
+        icono.classList.remove('fa-eye');
+        icono.classList.add('fa-eye-slash');
     } else {
-        campo.type = "password";
-        icono.classList.remove("fa-eye-slash");
-        icono.classList.add("fa-eye");
+        campo.type = 'password';
+        icono.classList.remove('fa-eye-slash');
+        icono.classList.add('fa-eye');
     }
 }

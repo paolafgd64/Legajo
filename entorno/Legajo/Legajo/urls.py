@@ -1,22 +1,13 @@
 """
 URL configuration for Legajo project.
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/4.2/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
+from django.conf import settings
+from django.conf.urls.static import static
 from django.urls import path
+
 from web import views
+
 
 urlpatterns = [
     path('', views.index, name='index'),
@@ -36,17 +27,17 @@ urlpatterns = [
     path('registrar_libro/', views.registrar_libro, name='registrar_libro'),
     path('reporte_libros/', views.reporte_libros, name='reporte_libros'),
     path('reset_password/', views.reset_password, name='reset_password'),
-<<<<<<< HEAD
-    path('api/usuarios/', views.api_usuarios, name='api_usuarios'),
-    path('api/login/', views.api_login, name='api_login'),
-    path('api/me/', views.api_me, name='api_me'),
-
-
-
-=======
     path('api/usuarios', views.api_usuarios, name='api_usuarios'),
+    path('api/usuarios/', views.api_usuarios, name='api_usuarios_slash'),
+    path('api/login/', views.api_login, name='api_login_legacy'),
     path('api/auth/login', views.api_login, name='api_login'),
->>>>>>> 00e45309638ed4bf1e4ae15a6b5121f5aa5736dd
-
-
+    path('api/me/', views.api_me, name='api_me'),
+    path('api/auth/me', views.api_me, name='api_auth_me'),
+    path('api/libros', views.api_libros, name='api_libros'),
+    path('api/libros/recomendados', views.api_libros_recomendados, name='api_libros_recomendados'),
+    path('api/libros/<int:libro_id>', views.api_libro_detalle, name='api_libro_detalle'),
+    path('api/intercambios/request', views.api_solicitar_intercambio, name='api_solicitar_intercambio'),
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
