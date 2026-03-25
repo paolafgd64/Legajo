@@ -25,6 +25,7 @@ urlpatterns = [
     path('perfil_admin/', views.perfil_admin, name='perfil_admin'),
     path('perfil/', views.perfil, name='perfil'),
     path('registrar_libro/', views.registrar_libro, name='registrar_libro'),
+    path('registrar_libro/<int:libro_id>/', views.registrar_libro, name='editar_libro'),
     path('reporte_libros/', views.reporte_libros, name='reporte_libros'),
     path('libros/reporte/pdf', views.reporte_libros_pdf, name='reporte_libros_pdf'),
     path('reset_password/', views.reset_password, name='reset_password'),
@@ -37,6 +38,9 @@ urlpatterns = [
     path('api/libros', views.api_libros, name='api_libros'),
     path('api/libros/recomendados', views.api_libros_recomendados, name='api_libros_recomendados'),
     path('api/libros/<int:libro_id>', views.api_libro_detalle, name='api_libro_detalle'),
+    path('api/notificaciones', views.api_notificaciones, name='api_notificaciones'),
+    path('api/intercambios/<int:intercambio_id>/inventario', views.api_inventario_solicitante_intercambio, name='api_inventario_solicitante_intercambio'),
+    path('api/intercambios/<int:intercambio_id>/accept', views.api_aceptar_intercambio, name='api_aceptar_intercambio'),
     path('api/intercambios/request', views.api_solicitar_intercambio, name='api_solicitar_intercambio'),
 ]
 

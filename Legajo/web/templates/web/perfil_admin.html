@@ -10,41 +10,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">    
 </head>
 <body>
-    <script>
-        // Guard cliente: validar token y rol ADMIN antes de mostrar la página
-        (async function() {
-    try {
-        const token = localStorage.getItem('jwtToken');
-
-        if (!token) {
-            window.location.href = "{% url 'login' %}";
-            return;
-        }
-
-        const resp = await fetch('/api/me/');
-
-        if (!resp.ok) {
-            window.location.href = "{% url 'login' %}";
-            return;
-        }
-
-        const user = await resp.json();
-
-        const roleName = (user.rol || '').toLowerCase();
-
-        if (!roleName.includes('admin')) {
-            window.location.href = "{% url 'dashboard_usuario' %}";
-            return;
-        }
-
-    } catch (e) {
-        console.error(e);
-        window.location.href = "{% url 'login' %}";
-    }
-        })();
-    </script>
-    <button id="toggleModo" class="modo-toggle">🌙 Modo Claro</button>
-    <!-- Sidebar -->
+    {% csrf_token %}
+    <button id="toggleModo" class="modo-toggle">☀️ Modo Claro</button>
     <nav class="sidebar">
         <div class="logo">
             <i class="fas fa-user-shield"></i>
@@ -59,7 +26,6 @@
         </ul>
     </nav>
 
-    <!-- Contenido Principal -->
     <main class="main-content">
         <header>
             <div class="header-left">
@@ -68,37 +34,31 @@
             <div class="header-right">
                 <div class="user-profile">
                     <img src="{% static 'web/imgs/profile.png' %}" alt="Admin" />
-                    <span>Administrador</span>
+                    <span>{{ perfil_usuario.nombre1 }}</span>
                 </div>
             </div>
         </header>
 
         <section class="perfil-usuario">
-            
-            <!-- Contenedor de la imagen de perfil -->
             <div class="contenedor-imagen">
                 <img src="{% static 'web/imgs/profile.png' %}" alt="Foto de perfil" class="foto-perfil">
-                <h2 class="nombre-perfil">Santiago Durán Pulido</h2>
-                    <!-- Botón de cerrar sesión -->
-                    <a href="{% url 'index' %}" class="boton-editar boton-cerrar">
+                <h2 class="nombre-perfil">{{ nombre_completo }}</h2>
+                <a href="{% url 'index' %}" class="boton-editar boton-cerrar">
                     <i class="fas fa-sign-out-alt"></i>
                     Cerrar sesión
-                    </a>
+                </a>
             </div>
 
-            <!-- Contenedor de información del usuario (más largo verticalmente) -->
             <div class="contenedor-info">
-                <p><strong>Correo:</strong> duransantiago003@gmail.com</p>
-                <p><strong>Ubicación:</strong> Bogotá, barrio Mandalay</p>
-                <p><strong>Ciudad:</strong> Bogotá</p>
-                <p><strong>Dirección:</strong> Calle 15 #12-34</p>
-                
-
-                <!-- Botón de editar -->
-                <button class="boton-editar"><i class="fa-solid fa-pen"></i> Editar información</button>
+                <p><strong>Correo:</strong> {{ perfil_usuario.email }}</p>
+                <p><strong>Teléfono:</strong> {{ perfil_usuario.telefono }}</p>
+                <p><strong>Ciudad:</strong> {{ perfil_usuario.ciudad }}</p>
+                <p><strong>Dirección:</strong> {{ perfil_usuario.direccion }}</p>
+                <button class="boton-editar js-editar-perfil"><i class="fa-solid fa-pen"></i> Editar información</button>
             </div>
-
         </section>
     </main>
     <script src="{% static 'web/js/script.js' %}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="{% static 'web/js/perfil.js' %}"></script>
 </html>
