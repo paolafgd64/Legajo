@@ -1,0 +1,124 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consulta de libros - Admin</title>
+
+    <link rel="stylesheet" href="{% static 'web/css/dashboard.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+
+<body>
+    <button id="toggleModo" class="modo-toggle">🌙 Modo Claro</button>
+<!-- Sidebar -->
+    <nav class="sidebar">
+        <div class="logo">
+            <i class="fas fa-user-shield"></i>
+            <span>AdminDash</span>
+        </div>
+        <ul class="nav-links">
+            <a href="{% url 'dashboard_admin' %}"><li><i class="fas fa-home"></i><span>Inicio</span></li></a>
+            <a href="{% url 'novedades_usuarios' %}"><li><i class="fas fa-user"></i><span>Novedades de usuarios</span></li></a>
+            <a href="{% url 'reporte_libros' %}"><li class="active"><i class="fas fa-book"></i><span>Reporte de libros</span></li></a>
+            <a href="{% url 'inventario_admi' %}"><li><i class="fas fa-box"></i><span>Inventario</span></li></a>
+            <a href="{% url 'perfil_admin' %}"><li><i class="fas fa-user-circle"></i><span>Perfil</span></li></a>
+        </ul>
+    </nav>
+
+    <main class="main-content">
+
+        <header>
+            <div class="header-left">
+                <h1>Consulta avanzada de libros</h1>
+                <p>Filtra libros por autor, género, usuario, calificación y más.</p>
+            </div>
+        </header>
+
+        <!-- FILTROS AVANZADOS -->
+        <section class="filtros">
+
+            <input type="text" id="filtroTitulo" placeholder="Título del libro">
+
+            <input type="text" id="filtroAutor" placeholder="Autor">
+
+            <input type="text" id="filtroUsuario" placeholder="Usuario que lo publicó">
+
+            <select id="filtroGenero">
+                <option value="">Género</option>
+                <option value="Ficción">Ficción</option>
+                <option value="Ciencia ficción">Ciencia ficción</option>
+                <option value="Romance">Romance</option>
+                <option value="Terror">Terror</option>
+                <option value="Fantasía">Fantasía</option>
+                <option value="Misterio">Misterio</option>
+                <option value="Autoayuda">Autoayuda</option>
+            </select>
+
+            <select id="filtroEstado">
+                <option value="">Estado</option>
+                <option value="Publicado">Publicado</option>
+                <option value="Leyendo">Leyendo</option>
+            </select>
+
+            <select id="filtroCalificacion">
+                <option value="">Calificación mínima</option>
+                <option value="1">⭐ 1</option>
+                <option value="2">⭐ 2</option>
+                <option value="3">⭐ 3</option>
+                <option value="4">⭐ 4</option>
+                <option value="5">⭐ 5</option>
+            </select>
+            
+            <button id="btnLimpiar">Limpiar filtros</button>
+             <button id="btnGenerarPDF">Generar Reporte en PDF</button>
+        </section>
+
+        <!-- TABLA -->
+        <section class="tabla-reportes">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Usuario</th>
+                        <th>Título</th>
+                        <th>Autor</th>
+                        <th>Género</th>                       
+                        <th>Estado</th>
+                        
+                    </tr>
+                </thead>
+                <tbody id="tablaLibros">
+                    <!-- Se llena con JS -->
+                </tbody>
+            </table>
+        </section>
+
+        <!-- MODAL -->
+        <div id="modalLibro" class="modal">
+            <div class="modal-content">
+                <span id="cerrarModal" class="close">&times;</span>
+
+                <img id="modalImg" class="modal-img">
+
+                <h2 id="modalTitulo"></h2>
+                <h3 id="modalAutor"></h3>
+
+                <p><b>Género:</b> <span id="modalGenero"></span></p>
+                <p><b>Publicado por:</b> <span id="modalUsuario"></span></p>
+                <p><b>Calificación:</b> <span id="modalCalificacion"></span></p>
+                <p><b>Estado:</b> <span id="modalEstado"></span></p>
+
+                <h3>Descripción:</h3>
+                <p id="modalDescripcion"></p>
+            </div>
+        </div>
+
+    </main>
+
+    <script src="{% static 'web/js/reportes.js' %}"></script>
+    <script src="{% static 'web/js/script.js' %}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+</body>
+</html>
