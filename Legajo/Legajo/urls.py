@@ -15,6 +15,8 @@ urlpatterns = [
     path('chats/', views.chats, name='chats'),
     path('crear_cuenta/', views.crear_cuenta, name='crear_cuenta'),
     path('dashboard_admin/', views.dashboard_admin, name='dashboard_admin'),
+    path('api/admin/dashboard/reported-users', views.api_admin_reported_users, name='api_admin_reported_users'),
+    path('api/admin/dashboard/completed-exchanges', views.api_admin_completed_exchanges, name='api_admin_completed_exchanges'),
     path('dashboard_usuario/', views.dashboard_usuario, name='dashboard_usuario'),
     path('forgot_password/', views.forgot_password, name='forgot_password'),
     path('inventario_admi/', views.inventario_admi, name='inventario_admi'),
@@ -37,6 +39,7 @@ urlpatterns = [
     path('api/libros', views.api_libros, name='api_libros'),
     path('api/libros/recomendados', views.api_libros_recomendados, name='api_libros_recomendados'),
     path('api/libros/<int:libro_id>', views.api_libro_detalle, name='api_libro_detalle'),
+    path('api/libros/<int:libro_id>/', views.api_libro_detalle, name='api_libro_detalle_slash'),
     path('api/intercambios/request', views.api_solicitar_intercambio, name='api_solicitar_intercambio'),
 ]
 

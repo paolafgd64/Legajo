@@ -1,26 +1,123 @@
+import calendar
 import datetime
 import json
-import os
 import textwrap
 import unicodedata
-import uuid
 
 from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model, login as auth_login
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
-from django.core.files.storage import default_storage
-from django.db.models import Q
+from django.db.models import Count
+from django.db.models.functions import TruncDate
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
+from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods
 
-from .models import Autor, Genero, Intercambio, Libro
+from .models import Intercambio, Libro, ReporteUsuario
+from .services import (
+    create_book,
+    get_book_detail,
+    list_books,
+    list_recommended_books,
+    request_exchange,
+    serialize_book,
+    soft_delete_book,
+    update_book,
+)
+from .validators import ControlledError
 
 
 User = get_user_model()
+
+
+def _admin_required_response(request):
+    if not request.user.is_authenticated:
+        return _unauthorized_response()
+    if request.user.rol != User.Rol.ADMIN:
+        return _forbidden_response()
+    return None
+
+
+def _format_trend(current_value, previous_value):
+    if previous_value == 0:
+        if current_value == 0:
+            return {'value': '0.0%', 'positive': True}
+        return {'value': '+100.0%', 'positive': True}
+
+    change = ((current_value - previous_value) / previous_value) * 100
+    return {
+        'value': f'{change:+.1f}%',
+        'positive': change >= 0,
+    }
+
+
+def _build_monthly_cumulative_series(queryset, date_field):
+    today = timezone.localdate()
+    last_day = calendar.monthrange(today.year, today.month)[1]
+
+    counts = (
+        queryset.filter(
+            **{
+                f'{date_field}__year': today.year,
+                f'{date_field}__month': today.month,
+            }
+        )
+        .annotate(day=TruncDate(date_field))
+        .values('day')
+        .annotate(total=Count('id'))
+        .order_by('day')
+    )
+
+    daily_totals = {item['day'].day: item['total'] for item in counts if item['day']}
+    cumulative = []
+    running_total = 0
+    for day in range(1, last_day + 1):
+        running_total += daily_totals.get(day, 0)
+        cumulative.append(running_total)
+
+    return {
+        'labels': [str(day) for day in range(1, last_day + 1)],
+        'data': cumulative,
+    }
+
+
+def _get_admin_dashboard_context():
+    today = timezone.localdate()
+    current_month_start = today.replace(day=1)
+    previous_month_end = current_month_start - datetime.timedelta(days=1)
+    previous_month_start = previous_month_end.replace(day=1)
+
+    usuarios_total = User.objects.filter(activo=True).count()
+    usuarios_mes = User.objects.filter(date_joined__date__gte=current_month_start, activo=True).count()
+    usuarios_mes_anterior = User.objects.filter(
+        date_joined__date__gte=previous_month_start,
+        date_joined__date__lte=previous_month_end,
+        activo=True,
+    ).count()
+
+    reportes_total = ReporteUsuario.objects.filter(activo=True).count()
+    reportes_mes = ReporteUsuario.objects.filter(
+        activo=True,
+        fecha_reporte__date__gte=current_month_start,
+    ).count()
+    reportes_mes_anterior = ReporteUsuario.objects.filter(
+        activo=True,
+        fecha_reporte__date__gte=previous_month_start,
+        fecha_reporte__date__lte=previous_month_end,
+    ).count()
+
+    return {
+        'admin_stats': {
+            'usuarios_total': usuarios_total,
+            'usuarios_trend': _format_trend(usuarios_mes, usuarios_mes_anterior),
+            'reportes_total': reportes_total,
+            'reportes_trend': _format_trend(reportes_mes, reportes_mes_anterior),
+        }
+    }
 
 
 def index(request):
@@ -36,8 +133,46 @@ def crear_cuenta(request):
     return render(request, 'web/crear_cuenta.html')
 
 
+@login_required(login_url='login')
 def dashboard_admin(request):
-    return render(request, 'web/dashboard_admin.html')
+    if request.user.rol != User.Rol.ADMIN:
+        return redirect('dashboard_usuario')
+
+    context = _get_admin_dashboard_context()
+    context['admin_name'] = request.user.nombre1 or 'Administrador'
+    return render(request, 'web/dashboard_admin.html', context)
+
+
+@login_required(login_url='login')
+@require_http_methods(["GET"])
+def api_admin_reported_users(request):
+    admin_error = _admin_required_response(request)
+    if admin_error:
+        return admin_error
+
+    data = _build_monthly_cumulative_series(
+        ReporteUsuario.objects.filter(activo=True),
+        'fecha_reporte',
+    )
+    return JsonResponse(data)
+
+
+@login_required(login_url='login')
+@require_http_methods(["GET"])
+def api_admin_completed_exchanges(request):
+    admin_error = _admin_required_response(request)
+    if admin_error:
+        return admin_error
+
+    data = _build_monthly_cumulative_series(
+        Intercambio.objects.filter(
+            activo=True,
+            estado=Intercambio.Estado.COMPLETADO,
+            fecha_completado__isnull=False,
+        ),
+        'fecha_completado',
+    )
+    return JsonResponse(data)
 
 
 @login_required(login_url='login')
@@ -50,7 +185,7 @@ def dashboard_usuario(request):
         .prefetch_related('autores', 'generos')
         .order_by('-id')
     )
-    libros_serializados = [_serialize_book(libro) for libro in libros_recomendados]
+    libros_serializados = [serialize_book(libro) for libro in libros_recomendados]
     return render(
         request,
         'web/dashboard_usuario.html',
@@ -136,7 +271,7 @@ def reporte_libros_pdf(request):
 
     rows = []
     for libro in libros:
-        serialized = _serialize_book(libro)
+        serialized = serialize_book(libro)
         rows.append([
             serialized['usuario'],
             serialized['titulo'],
@@ -167,62 +302,8 @@ def _forbidden_response():
     return JsonResponse({'message': 'No tienes permiso para esta accion.'}, status=403)
 
 
-def _split_author_name(author_name):
-    author_name = (author_name or '').strip()
-    if not author_name:
-        return '', None, '', None
-
-    parts = [part for part in author_name.split() if part]
-    if len(parts) == 1:
-        return parts[0], None, parts[0], None
-    if len(parts) == 2:
-        return parts[0], None, parts[1], None
-    if len(parts) == 3:
-        return parts[0], parts[1], parts[2], None
-
-    return parts[0], parts[1], parts[2], ' '.join(parts[3:])
-
-
-def _get_or_create_author(author_name):
-    nombre1, nombre2, apellido1, apellido2 = _split_author_name(author_name)
-    autor, _ = Autor.objects.get_or_create(
-        nombre1=nombre1,
-        nombre2=nombre2,
-        apellido1=apellido1,
-        apellido2=apellido2,
-        defaults={'apodo': None},
-    )
-    return autor
-
-
-def _save_uploaded_image(uploaded_file):
-    extension = os.path.splitext(uploaded_file.name)[1] or '.jpg'
-    filename = f"libros/{uuid.uuid4()}{extension}"
-    saved_path = default_storage.save(filename, uploaded_file)
-    return f"{settings.MEDIA_URL}{saved_path}".replace('\\', '/')
-
-
-def _serialize_book(libro):
-    autores = list(libro.autores.all())
-    generos = list(libro.generos.all())
-    autor_nombre = str(autores[0]) if autores else ''
-    propietario = libro.usuario_propietario
-
-    return {
-        'id': libro.id,
-        'idLibro': libro.id,
-        'titulo': libro.titulo,
-        'sinopsis': libro.sinopsis,
-        'estado': libro.estado,
-        'urlImagen': libro.url_imagen,
-        'url_imagen': libro.url_imagen,
-        'autor': autor_nombre,
-        'autores': [str(autor) for autor in autores],
-        'genero': generos[0].nombre if generos else '',
-        'generos': [genero.nombre for genero in generos],
-        'usuarioPropietarioId': libro.usuario_propietario_id,
-        'usuario': str(propietario) if propietario else 'Usuario desconocido',
-    }
+def _service_error_response(error):
+    return JsonResponse({'message': error.message}, status=error.status_code)
 
 
 def _normalize_pdf_text(value):
@@ -630,85 +711,32 @@ def api_libros(request):
         return _unauthorized_response()
 
     if request.method == 'GET':
-        libros = Libro.objects.filter(activo=True).prefetch_related('autores', 'generos').select_related('usuario_propietario')
+        try:
+            libros = list_books(request.user, request.GET)
+        except ControlledError as error:
+            return _service_error_response(error)
+        return JsonResponse(libros, safe=False)
 
-        if request.user.rol != User.Rol.ADMIN:
-            libros = libros.filter(usuario_propietario=request.user)
-
-        titulo = (request.GET.get('titulo') or '').strip()
-        autor = (request.GET.get('autor') or '').strip()
-        usuario = (request.GET.get('usuario') or '').strip()
-        genero = (request.GET.get('genero') or '').strip()
-        estado = (request.GET.get('estado') or '').strip()
-
-        if titulo:
-            libros = libros.filter(titulo__icontains=titulo)
-        if autor:
-            libros = libros.filter(
-                Q(autores__nombre1__icontains=autor) |
-                Q(autores__nombre2__icontains=autor) |
-                Q(autores__apellido1__icontains=autor) |
-                Q(autores__apellido2__icontains=autor) |
-                Q(autores__apodo__icontains=autor)
-            )
-        if usuario:
-            libros = libros.filter(
-                Q(usuario_propietario__nombre1__icontains=usuario) |
-                Q(usuario_propietario__nombre2__icontains=usuario) |
-                Q(usuario_propietario__apellido1__icontains=usuario) |
-                Q(usuario_propietario__apellido2__icontains=usuario) |
-                Q(usuario_propietario__email__icontains=usuario)
-            )
-        if genero:
-            libros = libros.filter(generos__nombre__icontains=genero)
-        if estado:
-            libros = libros.filter(estado__iexact=estado)
-
-        libros = libros.order_by('-id').distinct()
-        return JsonResponse([_serialize_book(libro) for libro in libros], safe=False)
-
-    titulo = (request.POST.get('titulo') or '').strip()
-    autor_nombre = (request.POST.get('autor') or '').strip()
-    sinopsis = (request.POST.get('sinopsis') or '').strip()
-    genero_nombre = (request.POST.get('genero') or '').strip()
-    estado = (request.POST.get('estado') or Libro.Estado.PUBLICADO).strip()
-
-    if not titulo or not autor_nombre or not genero_nombre:
+    try:
+        libro = create_book(
+            request.user,
+            request.POST,
+            image_file=request.FILES.get('imagen'),
+        )
+    except ControlledError as error:
         if request.content_type and request.content_type.startswith('multipart/form-data'):
             return render(
                 request,
                 'web/registrar_libro.html',
-                {'error_registro_libro': 'Titulo, autor y genero son obligatorios.'},
-                status=400,
+                {'error_registro_libro': error.message},
+                status=error.status_code,
             )
-        return JsonResponse({'message': 'Titulo, autor y genero son obligatorios.'}, status=400)
-
-    if estado not in Libro.Estado.values:
-        estado = Libro.Estado.PUBLICADO
-
-    image_file = request.FILES.get('imagen')
-    if image_file:
-        url_imagen = _save_uploaded_image(image_file)
-    else:
-        url_imagen = '/static/web/imgs/libro_de_la_selva.jpg'
-
-    libro = Libro.objects.create(
-        titulo=titulo,
-        sinopsis=sinopsis,
-        estado=estado,
-        url_imagen=url_imagen,
-        usuario_propietario=request.user,
-    )
-
-    autor = _get_or_create_author(autor_nombre)
-    genero, _ = Genero.objects.get_or_create(nombre=genero_nombre.title())
-    libro.autores.add(autor)
-    libro.generos.add(genero)
+        return _service_error_response(error)
 
     if request.content_type and request.content_type.startswith('multipart/form-data'):
         return redirect('inventario')
 
-    return JsonResponse(_serialize_book(libro), status=201)
+    return JsonResponse(libro, status=201)
 
 
 @require_http_methods(["GET"])
@@ -716,35 +744,40 @@ def api_libros_recomendados(request):
     if not request.user.is_authenticated:
         return _unauthorized_response()
 
-    libros = (
-        Libro.objects.filter(activo=True)
-        .exclude(usuario_propietario=request.user)
-        .exclude(usuario_propietario__isnull=True)
-        .select_related('usuario_propietario')
-        .prefetch_related('autores', 'generos')
-        .order_by('-id')
-    )
-    return JsonResponse([_serialize_book(libro) for libro in libros], safe=False)
+    try:
+        libros = list_recommended_books(request.user)
+    except ControlledError as error:
+        return _service_error_response(error)
+    return JsonResponse(libros, safe=False)
 
 
-@require_http_methods(["GET", "DELETE"])
+@require_http_methods(["GET", "PUT", "DELETE"])
 def api_libro_detalle(request, libro_id):
     if not request.user.is_authenticated:
         return _unauthorized_response()
 
-    try:
-        libro = Libro.objects.prefetch_related('autores', 'generos').get(id=libro_id, activo=True)
-    except Libro.DoesNotExist:
-        return JsonResponse({'message': 'Libro no encontrado.'}, status=404)
-
-    if libro.usuario_propietario_id != request.user.id and request.user.rol != User.Rol.ADMIN:
-        return JsonResponse({'message': 'No tienes permiso para este libro.'}, status=403)
-
     if request.method == 'GET':
-        return JsonResponse(_serialize_book(libro))
+        try:
+            libro = get_book_detail(request.user, libro_id)
+        except ControlledError as error:
+            return _service_error_response(error)
+        return JsonResponse(libro)
 
-    libro.activo = False
-    libro.save(update_fields=['activo'])
+    if request.method == 'PUT':
+        data = _read_json_body(request)
+        if data is None:
+            return JsonResponse({'message': 'El cuerpo de la solicitud no es JSON valido.'}, status=400)
+
+        try:
+            libro = update_book(request.user, libro_id, data)
+        except ControlledError as error:
+            return _service_error_response(error)
+        return JsonResponse(libro)
+
+    try:
+        soft_delete_book(request.user, libro_id)
+    except ControlledError as error:
+        return _service_error_response(error)
     return JsonResponse({'message': 'Libro eliminado correctamente.'})
 
 
@@ -757,36 +790,9 @@ def api_solicitar_intercambio(request):
     if data is None:
         return JsonResponse({'message': 'El cuerpo de la solicitud no es JSON valido.'}, status=400)
 
-    libro_id = data.get('libroId')
-    if not libro_id:
-        return JsonResponse({'message': 'Debes indicar el libro solicitado.'}, status=400)
-
     try:
-        libro = Libro.objects.select_related('usuario_propietario').get(id=libro_id, activo=True)
-    except Libro.DoesNotExist:
-        return JsonResponse({'message': 'El libro solicitado no existe.'}, status=404)
+        intercambio = request_exchange(request.user, data)
+    except ControlledError as error:
+        return _service_error_response(error)
 
-    if libro.usuario_propietario_id == request.user.id:
-        return JsonResponse({'message': 'No puedes solicitar intercambio por tu propio libro.'}, status=400)
-
-    existente = Intercambio.objects.filter(
-        usuario_solicitante=request.user,
-        libro_solicitado=libro,
-        estado=Intercambio.Estado.PENDIENTE,
-        activo=True,
-    ).exists()
-    if existente:
-        return JsonResponse({'message': 'Ya tienes una solicitud pendiente para este libro.'}, status=400)
-
-    intercambio = Intercambio.objects.create(
-        estado=Intercambio.Estado.PENDIENTE,
-        usuario_solicitante=request.user,
-        usuario_receptor=libro.usuario_propietario,
-        libro_solicitado=libro,
-        libro_cambio=None,
-    )
-
-    return JsonResponse({
-        'message': 'Solicitud de intercambio enviada correctamente.',
-        'idIntercambio': intercambio.id,
-    }, status=201)
+    return JsonResponse(intercambio, status=201)

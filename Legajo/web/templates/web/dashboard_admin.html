@@ -7,11 +7,10 @@
     <title>Dashboard Administrador</title>
     <link rel="stylesheet" href="{% static 'web/css/dashboard.css' %}"/>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <button id="toggleModo" class="modo-toggle">🌙 Modo Claro</button>
-    <!-- Sidebar -->
+    <button id="toggleModo" class="modo-toggle">Modo Claro</button>
     <nav class="sidebar">
         <div class="logo">
             <i class="fas fa-user-shield"></i>
@@ -26,11 +25,10 @@
         </ul>
     </nav>
 
-    <!-- Contenido Principal -->
     <main class="main-content">
         <header>
             <div class="header-left">
-                <h1>Hola David</h1>
+                <h1>Hola {{ admin_name }}</h1>
                 <p>Este es tu panel general de control</p>
             </div>
             <div class="header-right">
@@ -45,16 +43,20 @@
             <div class="summary-cards">
                 <div class="card">
                     <div class="card-info">
-                        <h3>Usuarios Registrados</h3>
-                        <p class="number">1,234</p>
-                        <p class="trend positive">+4.5% <span>último mes</span></p>
+                        <h3>Usuarios registrados</h3>
+                        <p class="number">{{ admin_stats.usuarios_total }}</p>
+                        <p class="trend {% if admin_stats.usuarios_trend.positive %}positive{% else %}negative{% endif %}">
+                            {{ admin_stats.usuarios_trend.value }} <span>ultimo mes</span>
+                        </p>
                     </div>
                 </div>
                 <div class="card">
                     <div class="card-info">
-                        <h3>Registros</h3>
-                        <p class="number">5,678</p>
-                        <p class="trend negative">-1.2% <span>último mes</span></p>
+                        <h3>Usuarios reportados</h3>
+                        <p class="number">{{ admin_stats.reportes_total }}</p>
+                        <p class="trend {% if admin_stats.reportes_trend.positive %}positive{% else %}negative{% endif %}">
+                            {{ admin_stats.reportes_trend.value }} <span>ultimo mes</span>
+                        </p>
                     </div>
                 </div>
             </div>
@@ -68,7 +70,7 @@
                 </div>
                 <div class="card card-canvas">
                     <div class="card-info">
-                        <h3>Intercamibios completados este mes</h3>
+                        <h3>Intercambios completados este mes</h3>
                         <canvas id="iC" width="400" height="200"></canvas>
                     </div>
                 </div>
@@ -76,6 +78,5 @@
         </section>
     </main>
     <script src="{% static 'web/js/script.js' %}"></script>
-    
-    
+</body>
 </html>
