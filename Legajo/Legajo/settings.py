@@ -9,6 +9,8 @@ https://docs.djangoproject.com/en/4.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
+import os
+
 import pymysql  # pyright: ignore[reportMissingModuleSource]
 pymysql.version_info = (2, 2, 8, "final", 0)
 pymysql.__version__ = "2.2.8"
@@ -81,9 +83,9 @@ WSGI_APPLICATION = 'Legajo.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'Legajo.mysql_backend',
-        'NAME': 'legajoDB',
-        'USER': 'root',
-        'PASSWORD': '1234',
+        'NAME': 'LegajoDB',
+        'USER': 'legajo_user',
+        'PASSWORD': 'legajo123',
         'HOST': 'localhost',
         'PORT': '3306',
     }
@@ -125,14 +127,19 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
 STATIC_URL = 'static/'
-
-import os
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'web', 'static'),
 ]
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+LEGAJO_CLOUDINARY = {
+    'cloud_name': os.environ.get('LEGAJO_CLOUDINARY_CLOUD_NAME', '').strip(),
+    'api_key': os.environ.get('LEGAJO_CLOUDINARY_API_KEY', '').strip(),
+    'api_secret': os.environ.get('LEGAJO_CLOUDINARY_API_SECRET', '').strip(),
+    'folder': os.environ.get('LEGAJO_CLOUDINARY_FOLDER', 'legajo/libros').strip() or 'legajo/libros',
+}
 
 
 # Default primary key field type

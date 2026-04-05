@@ -127,4 +127,66 @@ document.getElementById('btnGenerarPDF').addEventListener('click', () => {
 });
 
 // recarga al cargar la página
+const modalImportacion = document.getElementById('modalImportacionUsuarios');
+const btnAbrirImportacion = document.getElementById('btnAbrirImportacion');
+const btnCerrarImportacion = document.getElementById('cerrarModalImportacion');
+const btnCancelarImportacion = document.getElementById('cancelarImportacion');
+const inputArchivoImportacion = document.getElementById('archivo_usuarios');
+const btnSeleccionarArchivo = document.getElementById('seleccionarArchivoImportacion');
+const nombreArchivoSeleccionado = document.getElementById('nombreArchivoSeleccionado');
+const btnLimpiarArchivoImportacion = document.getElementById('limpiarArchivoImportacion');
+
+function limpiarArchivoImportacion() {
+  if (inputArchivoImportacion) {
+    inputArchivoImportacion.value = '';
+  }
+  if (nombreArchivoSeleccionado) {
+    nombreArchivoSeleccionado.textContent = 'Sin archivos seleccionados';
+  }
+}
+
+function abrirModalImportacion() {
+  if (!modalImportacion) return;
+  modalImportacion.style.display = 'flex';
+  modalImportacion.setAttribute('aria-hidden', 'false');
+}
+
+function cerrarModalImportacion() {
+  if (!modalImportacion) return;
+  limpiarArchivoImportacion();
+  modalImportacion.style.display = 'none';
+  modalImportacion.setAttribute('aria-hidden', 'true');
+}
+
+if (btnAbrirImportacion) {
+  btnAbrirImportacion.addEventListener('click', abrirModalImportacion);
+}
+
+if (btnCerrarImportacion) {
+  btnCerrarImportacion.addEventListener('click', cerrarModalImportacion);
+}
+
+if (btnCancelarImportacion) {
+  btnCancelarImportacion.addEventListener('click', cerrarModalImportacion);
+}
+
+if (inputArchivoImportacion && nombreArchivoSeleccionado) {
+  inputArchivoImportacion.addEventListener('change', () => {
+    const archivo = inputArchivoImportacion.files && inputArchivoImportacion.files[0];
+    nombreArchivoSeleccionado.textContent = archivo ? archivo.name : 'Sin archivos seleccionados';
+  });
+}
+
+if (btnLimpiarArchivoImportacion) {
+  btnLimpiarArchivoImportacion.addEventListener('click', limpiarArchivoImportacion);
+}
+
+if (modalImportacion) {
+  modalImportacion.addEventListener('click', (event) => {
+    if (event.target === modalImportacion) {
+      cerrarModalImportacion();
+    }
+  });
+}
+
 window.addEventListener('load', () => cargarLibros());

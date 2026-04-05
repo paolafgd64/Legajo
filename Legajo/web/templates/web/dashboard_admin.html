@@ -18,6 +18,7 @@
         </div>
         <ul class="nav-links">
             <a href="{% url 'dashboard_admin' %}"><li class="active"><i class="fas fa-home"></i><span>Inicio</span></li></a>
+            <a href="{% url 'usuarios_admin' %}"><li><i class="fas fa-users"></i><span>Usuarios</span></li></a>
             <a href="{% url 'novedades_usuarios' %}"><li><i class="fas fa-user"></i><span>Novedades de usuarios</span></li></a>
             <a href="{% url 'reporte_libros' %}"><li><i class="fas fa-book"></i><span>Reporte de libros</span></li></a>
             <a href="{% url 'inventario_admi' %}"><li><i class="fas fa-box"></i><span>Inventario</span></li></a>
@@ -57,6 +58,15 @@
                         <p class="trend {% if admin_stats.reportes_trend.positive %}positive{% else %}negative{% endif %}">
                             {{ admin_stats.reportes_trend.value }} <span>ultimo mes</span>
                         </p>
+                    </div>
+                </div>
+                <div class="card card-action">
+                    <div class="card-info">
+                        <h3>Gestion de usuarios</h3>
+                        <p class="card-copy">Consulta usuarios registrados, aplica filtros y realiza la importacion masiva desde un modulo administrativo dedicado.</p>
+                        <a class="admin-action-link" href="{% url 'usuarios_admin' %}">
+                            <i class="fas fa-users"></i> Ir a usuarios
+                        </a>
                     </div>
                 </div>
             </div>

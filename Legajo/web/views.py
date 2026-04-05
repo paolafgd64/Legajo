@@ -4,6 +4,7 @@ import json
 import random
 import textwrap
 import unicodedata
+from json import JSONDecodeError
 
 from django.conf import settings
 from django.contrib.auth import authenticate, get_user_model, login as auth_login, logout as auth_logout
@@ -28,6 +29,7 @@ from .models import Intercambio, Libro, ReporteUsuario
 from .services import (
     create_book,
     get_book_detail,
+    import_users_from_payload,
     list_books,
     list_recommended_books,
     request_exchange,
@@ -127,6 +129,20 @@ def _get_admin_dashboard_context():
     }
 
 
+def _serialize_admin_user(user):
+    nombre_completo = ' '.join(filter(None, [user.nombre1, user.nombre2, user.apellido1, user.apellido2]))
+    return {
+        'id': user.id,
+        'nombreCompleto': nombre_completo,
+        'correo': user.email,
+        'ciudad': user.ciudad,
+        'telefono': str(user.telefono or ''),
+        'rol': user.get_rol_display(),
+        'rolValor': user.rol,
+        'estado': 'Activo' if user.activo and user.is_active else 'Inactivo',
+    }
+
+
 def index(request):
     return render(request, 'web/index.html')
 
@@ -151,6 +167,95 @@ def dashboard_admin(request):
     context = _get_admin_dashboard_context()
     context['admin_name'] = request.user.nombre1 or 'Administrador'
     return render(request, 'web/dashboard_admin.html', context)
+
+
+@ensure_csrf_cookie
+@login_required(login_url='login')
+@never_cache
+@require_http_methods(["GET", "POST"])
+def carga_masiva_usuarios(request):
+    admin_error = _admin_required_response(request)
+    if admin_error:
+        return redirect('dashboard_usuario') if request.user.is_authenticated else redirect('login')
+
+    context = {
+        'admin_name': request.user.nombre1 or 'Administrador',
+    }
+
+    if request.method == 'POST':
+        archivo = request.FILES.get('archivo_usuarios')
+        actualizar = request.POST.get('actualizar_existentes') == 'on'
+        context['actualizar_existentes'] = actualizar
+
+        if not archivo:
+            context['error_message'] = 'Debes seleccionar un archivo JSON para importar.'
+            return render(request, 'web/carga_masiva_usuarios.html', context, status=400)
+
+        try:
+            payload = json.loads(archivo.read().decode('utf-8'))
+            resultado = import_users_from_payload(payload, actualizar=actualizar)
+        except UnicodeDecodeError:
+            context['error_message'] = 'El archivo debe estar codificado en UTF-8.'
+            return render(request, 'web/carga_masiva_usuarios.html', context, status=400)
+        except JSONDecodeError as exc:
+            context['error_message'] = f'El archivo no contiene JSON valido: {exc}'
+            return render(request, 'web/carga_masiva_usuarios.html', context, status=400)
+        except ControlledError as exc:
+            context['error_message'] = exc.message
+            return render(request, 'web/carga_masiva_usuarios.html', context, status=400)
+
+        context['success_message'] = (
+            f"Importacion completada. Creados: {resultado['creados']}, "
+            f"actualizados: {resultado['actualizados']}, omitidos: {resultado['omitidos']}."
+        )
+
+    return render(request, 'web/carga_masiva_usuarios.html', context)
+
+
+@ensure_csrf_cookie
+@login_required(login_url='login')
+@never_cache
+@require_http_methods(["GET", "POST"])
+def usuarios_admin(request):
+    admin_error = _admin_required_response(request)
+    if admin_error:
+        return redirect('dashboard_usuario') if request.user.is_authenticated else redirect('login')
+
+    context = {
+        'admin_name': request.user.nombre1 or 'Administrador',
+    }
+
+    mensaje_exito = request.session.pop('mensaje_exito_carga_usuarios', None)
+    if mensaje_exito:
+        context['mensaje_exito_carga'] = mensaje_exito
+
+    if request.method == 'POST':
+        archivo = request.FILES.get('archivo_usuarios')
+
+        if not archivo:
+            context['mensaje_error_carga'] = 'Debes seleccionar un archivo JSON para importar.'
+            return render(request, 'web/usuarios_admin.html', context, status=400)
+
+        try:
+            payload = json.loads(archivo.read().decode('utf-8'))
+            resultado = import_users_from_payload(payload, actualizar=False)
+        except UnicodeDecodeError:
+            context['mensaje_error_carga'] = 'El archivo debe estar codificado en UTF-8.'
+            return render(request, 'web/usuarios_admin.html', context, status=400)
+        except JSONDecodeError as exc:
+            context['mensaje_error_carga'] = f'El archivo no contiene JSON valido: {exc}'
+            return render(request, 'web/usuarios_admin.html', context, status=400)
+        except ControlledError as exc:
+            context['mensaje_error_carga'] = exc.message
+            return render(request, 'web/usuarios_admin.html', context, status=400)
+
+        request.session['mensaje_exito_carga_usuarios'] = (
+            f"Importacion completada. Creados: {resultado['creados']}, "
+            f"actualizados: {resultado['actualizados']}, omitidos: {resultado['omitidos']}."
+        )
+        return redirect('usuarios_admin')
+
+    return render(request, 'web/usuarios_admin.html', context)
 
 
 @login_required(login_url='login')
@@ -183,6 +288,42 @@ def api_admin_completed_exchanges(request):
         'fecha_completado',
     )
     return JsonResponse(data)
+
+
+@login_required(login_url='login')
+@require_http_methods(["GET"])
+def api_admin_users(request):
+    admin_error = _admin_required_response(request)
+    if admin_error:
+        return admin_error
+
+    usuarios = User.objects.all().order_by('-id')
+
+    nombre = (request.GET.get('nombre') or '').strip()
+    correo = (request.GET.get('correo') or '').strip()
+    ciudad = (request.GET.get('ciudad') or '').strip()
+    rol = (request.GET.get('rol') or '').strip()
+    estado = (request.GET.get('estado') or '').strip()
+
+    if nombre:
+        usuarios = usuarios.filter(
+            Q(nombre1__icontains=nombre) |
+            Q(nombre2__icontains=nombre) |
+            Q(apellido1__icontains=nombre) |
+            Q(apellido2__icontains=nombre)
+        )
+    if correo:
+        usuarios = usuarios.filter(email__icontains=correo)
+    if ciudad:
+        usuarios = usuarios.filter(ciudad__icontains=ciudad)
+    if rol:
+        usuarios = usuarios.filter(rol=rol)
+    if estado == 'activo':
+        usuarios = usuarios.filter(activo=True, is_active=True)
+    elif estado == 'inactivo':
+        usuarios = usuarios.filter(Q(activo=False) | Q(is_active=False))
+
+    return JsonResponse([_serialize_admin_user(usuario) for usuario in usuarios], safe=False)
 
 
 @login_required(login_url='login')
@@ -326,8 +467,19 @@ def logout_view(request):
     return response
 
 
+@ensure_csrf_cookie
+@login_required(login_url='login')
+@never_cache
+@require_http_methods(["GET"])
 def reporte_libros(request):
-    return render(request, 'web/reporte_libros.html')
+    admin_error = _admin_required_response(request)
+    if admin_error:
+        return redirect('dashboard_usuario') if request.user.is_authenticated else redirect('login')
+
+    context = {
+        'admin_name': request.user.nombre1 or 'Administrador',
+    }
+    return render(request, 'web/reporte_libros.html', context)
 
 
 @login_required(login_url='login')

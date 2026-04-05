@@ -9,10 +9,12 @@ from django.db.models import Q
 from ..models import Autor, Genero, Libro, Usuario
 from ..validators import (
     DatabaseServiceError,
+    ExternalServiceError,
     NotFoundServiceError,
     PermissionDeniedServiceError,
     validate_book_payload,
 )
+from .cloudinary import is_cloudinary_configured, upload_image_to_cloudinary
 from .serialization import serialize_book
 
 
@@ -45,6 +47,12 @@ def _get_or_create_author(author_name):
 
 
 def _save_uploaded_image(uploaded_file):
+    if is_cloudinary_configured():
+        try:
+            return upload_image_to_cloudinary(uploaded_file)
+        except ExternalServiceError:
+            raise
+
     extension = os.path.splitext(uploaded_file.name)[1] or '.jpg'
     filename = f"libros/{uuid.uuid4()}{extension}"
     saved_path = default_storage.save(filename, uploaded_file)

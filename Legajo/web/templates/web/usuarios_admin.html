@@ -1,0 +1,170 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Usuarios - Admin</title>
+    <link rel="stylesheet" href="{% static 'web/css/dashboard.css' %}?v=20260405c">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <button id="toggleModo" class="modo-toggle">Modo Claro</button>
+
+    <nav class="sidebar">
+        <div class="logo">
+            <i class="fas fa-user-shield"></i>
+            <span>AdminDash</span>
+        </div>
+        <ul class="nav-links">
+            <a href="{% url 'dashboard_admin' %}"><li><i class="fas fa-home"></i><span>Inicio</span></li></a>
+            <a href="{% url 'usuarios_admin' %}"><li class="active"><i class="fas fa-users"></i><span>Usuarios</span></li></a>
+            <a href="{% url 'novedades_usuarios' %}"><li><i class="fas fa-user"></i><span>Novedades de usuarios</span></li></a>
+            <a href="{% url 'reporte_libros' %}"><li><i class="fas fa-book"></i><span>Reporte de libros</span></li></a>
+            <a href="{% url 'inventario_admi' %}"><li><i class="fas fa-box"></i><span>Inventario</span></li></a>
+            <a href="{% url 'perfil_admin' %}"><li><i class="fas fa-user-circle"></i><span>Perfil</span></li></a>
+        </ul>
+    </nav>
+
+    <main class="main-content">
+        <header>
+            <div class="header-left">
+                <h1>Gestion de usuarios</h1>
+                <p>Consulta usuarios registrados, filtralos por sus datos principales e importa archivos JSON desde este modulo.</p>
+            </div>
+            <div class="header-right">
+                <div class="user-profile">
+                    <img src="{% static 'web/imgs/profile.png' %}" alt="Admin" />
+                    <span>{{ admin_name|default:"Administrador" }}</span>
+                </div>
+            </div>
+        </header>
+
+        {% if mensaje_error_carga %}
+        <div class="mass-upload-feedback error" id="mensajeCargaUsuarios">
+            <i class="fas fa-circle-exclamation"></i>
+            <span>{{ mensaje_error_carga }}</span>
+            <button type="button" class="mass-upload-feedback-close" data-dismiss-feedback aria-label="Cerrar mensaje">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        {% endif %}
+
+        {% if mensaje_exito_carga %}
+        <div class="mass-upload-feedback success" id="mensajeCargaUsuarios">
+            <i class="fas fa-circle-check"></i>
+            <span>{{ mensaje_exito_carga }}</span>
+            <button type="button" class="mass-upload-feedback-close" data-dismiss-feedback aria-label="Cerrar mensaje">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        {% endif %}
+
+        <input type="checkbox" id="toggleImportacionUsuarios" class="import-modal-toggle" hidden>
+
+        <section class="filtros">
+            <input type="text" id="filtroNombreUsuario" placeholder="Nombre o apellido">
+            <input type="text" id="filtroCorreoUsuario" placeholder="Correo electronico">
+            <input type="text" id="filtroCiudadUsuario" placeholder="Ciudad">
+
+            <select id="filtroRolUsuario">
+                <option value="">Rol</option>
+                <option value="usuario">Usuario</option>
+                <option value="admin">Admin</option>
+            </select>
+
+            <select id="filtroEstadoUsuario">
+                <option value="">Estado</option>
+                <option value="activo">Activo</option>
+                <option value="inactivo">Inactivo</option>
+            </select>
+
+            <button type="button" id="btnLimpiarUsuarios">Limpiar filtros</button>
+            <label
+                id="btnAbrirImportacionUsuarios"
+                for="toggleImportacionUsuarios"
+                class="importar-accion"
+                role="button"
+                tabindex="0"
+            >
+                <span>Importar</span>
+            </label>
+        </section>
+
+        <section class="tabla-reportes">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Correo</th>
+                        <th>Ciudad</th>
+                        <th>Telefono</th>
+                        <th>Rol</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody id="tablaUsuariosAdmin"></tbody>
+            </table>
+        </section>
+
+        <div id="modalImportacionUsuarios" class="import-modal-overlay" aria-hidden="true">
+            <div class="import-modal-card">
+                <button
+                    type="button"
+                    id="cerrarModalImportacion"
+                    class="import-modal-close"
+                    aria-label="Cerrar"
+                >
+                    <i class="fas fa-times"></i>
+                </button>
+
+                <div class="import-modal-head">
+                    <h2>Importar usuarios</h2>
+                    <p>Selecciona un archivo JSON con la lista de usuarios para cargarla en el sistema.</p>
+                </div>
+
+                <form method="post" enctype="multipart/form-data" class="mass-upload-form import-modal-form">
+                    {% csrf_token %}
+                    <input id="archivo_usuarios" name="archivo_usuarios" type="file" accept=".json,application/json" required hidden>
+                    <div class="import-file-picker">
+                        <button
+                            type="button"
+                            id="seleccionarArchivoImportacion"
+                            class="import-select-button"
+                            onclick="document.getElementById('archivo_usuarios').click();"
+                        >
+                            Seleccionar archivo
+                        </button>
+                        <div id="nombreArchivoSeleccionado" class="import-file-status">Sin archivos seleccionados</div>
+                        <button
+                            type="button"
+                            id="limpiarArchivoImportacion"
+                            class="import-clear-button"
+                            aria-label="Quitar archivo seleccionado"
+                            title="Quitar archivo"
+                        >
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+
+                    <div class="import-modal-actions">
+                        <button
+                            type="button"
+                            id="cancelarImportacion"
+                            class="import-cancel-button"
+                        >
+                            Cancelar
+                        </button>
+                        <button type="submit" class="import-submit-button">
+                            Subir archivo
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <script src="{% static 'web/js/usuarios_admin.js' %}?v=20260405c"></script>
+    <script src="{% static 'web/js/script.js' %}?v=20260405c"></script>
+</body>
+</html>

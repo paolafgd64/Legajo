@@ -25,3 +25,10 @@ class DatabaseServiceError(ControlledError):
 
     def __init__(self, message='Ocurrio un error al procesar la solicitud.'):
         super().__init__(message, status_code=self.status_code)
+
+
+class ExternalServiceError(ControlledError):
+    status_code = 502
+
+    def __init__(self, message='No se pudo completar la conexion con el servicio externo.'):
+        super().__init__(message, status_code=self.status_code)
