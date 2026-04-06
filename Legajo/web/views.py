@@ -29,6 +29,7 @@ from .models import Intercambio, Libro, ReporteUsuario
 from .services import (
     create_book,
     get_book_detail,
+    import_books_from_payload,
     import_users_from_payload,
     list_books,
     list_recommended_books,
@@ -343,7 +344,9 @@ def dashboard_usuario(request):
         'web/dashboard_usuario.html',
         {
             'libros_recomendados': libros_serializados[:8],
-            'libros_generos': libros_serializados[:8],
+            'libros_generos': [],
+            'total_libros_sistema': Libro.objects.filter(activo=True).count(),
+            'total_libros_ajenos': libros_recomendados.count(),
         },
     )
 
@@ -470,7 +473,7 @@ def logout_view(request):
 @ensure_csrf_cookie
 @login_required(login_url='login')
 @never_cache
-@require_http_methods(["GET"])
+@require_http_methods(["GET", "POST"])
 def reporte_libros(request):
     admin_error = _admin_required_response(request)
     if admin_error:
@@ -478,7 +481,44 @@ def reporte_libros(request):
 
     context = {
         'admin_name': request.user.nombre1 or 'Administrador',
+        'url_portada_predeterminada': (
+            'https://res.cloudinary.com/drc65wu6o/image/upload/v1775351180/legajo/libros/lysnrsy33skcmjojrk65.jpg'
+        ),
     }
+
+    mensaje_exito = request.session.pop('mensaje_exito_carga_libros', None)
+    if mensaje_exito:
+        context['mensaje_exito_carga'] = mensaje_exito
+
+    if request.method == 'POST':
+        archivo = request.FILES.get('archivo_libros')
+
+        if not archivo:
+            context['mensaje_error_carga'] = 'Debes seleccionar un archivo JSON para importar.'
+            return render(request, 'web/reporte_libros.html', context, status=400)
+
+        try:
+            payload = json.loads(archivo.read().decode('utf-8'))
+            resultado = import_books_from_payload(
+                payload,
+                default_url_imagen=context['url_portada_predeterminada'],
+            )
+        except UnicodeDecodeError:
+            context['mensaje_error_carga'] = 'El archivo debe estar codificado en UTF-8.'
+            return render(request, 'web/reporte_libros.html', context, status=400)
+        except JSONDecodeError as exc:
+            context['mensaje_error_carga'] = f'El archivo no contiene JSON valido: {exc}'
+            return render(request, 'web/reporte_libros.html', context, status=400)
+        except ControlledError as exc:
+            context['mensaje_error_carga'] = exc.message
+            return render(request, 'web/reporte_libros.html', context, status=400)
+
+        request.session['mensaje_exito_carga_libros'] = (
+            f"Importacion completada. Creados: {resultado['creados']}, "
+            f"actualizados: {resultado['actualizados']}, omitidos: {resultado['omitidos']}."
+        )
+        return redirect('reporte_libros')
+
     return render(request, 'web/reporte_libros.html', context)
 
 
@@ -1076,6 +1116,7 @@ def api_libros(request):
         except ControlledError as error:
             return _service_error_response(error)
         return JsonResponse(libros, safe=False)
+
     try:
         libro = create_book(
             request.user,
@@ -1090,22 +1131,6 @@ def api_libros(request):
                 {'error_registro_libro': error.message},
                 status=error.status_code,
             )
-        return _service_error_response(error)
-
-        libros = libros.order_by('-id').distinct()
-        return JsonResponse([serialize_book(libro) for libro in libros], safe=False)
-
-    payload = {
-        'titulo': (request.POST.get('titulo') or '').strip(),
-        'autor': (request.POST.get('autor') or '').strip(),
-        'sinopsis': (request.POST.get('sinopsis') or '').strip(),
-        'genero': (request.POST.get('genero') or '').strip(),
-        'estado': (request.POST.get('estado') or Libro.Estado.PUBLICADO).strip(),
-    }
-
-    try:
-        libro = create_book(request.user, payload, request.FILES.get('imagen'))
-    except ControlledError as error:
         return _service_error_response(error)
 
     return JsonResponse(libro, status=201)

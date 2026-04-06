@@ -12,6 +12,7 @@ from ..validators import (
     ExternalServiceError,
     NotFoundServiceError,
     PermissionDeniedServiceError,
+    ValidationServiceError,
     validate_book_payload,
 )
 from .cloudinary import is_cloudinary_configured, upload_image_to_cloudinary
@@ -158,6 +159,73 @@ def create_book(user, data, image_file=None):
         raise DatabaseServiceError() from exc
 
     return serialize_book(libro)
+
+
+def _normalize_import_book_payload(item, indice, default_url_imagen=''):
+    if not isinstance(item, dict):
+        raise ValidationServiceError(f'El libro en la posicion {indice} no es un objeto JSON valido.')
+
+    usuario_email = str(
+        item.get('usuario_email') or
+        item.get('email_usuario') or
+        item.get('correo_usuario') or
+        item.get('usuarioCorreo') or
+        ''
+    ).strip().lower()
+
+    if not usuario_email:
+        raise ValidationServiceError(f'El libro en la posicion {indice} no tiene el correo del usuario propietario.')
+
+    usuario = Usuario.objects.filter(email=usuario_email, activo=True, is_active=True).first()
+    if not usuario:
+        raise ValidationServiceError(f'No existe un usuario activo con el correo {usuario_email}.')
+
+    estado = str(item.get('estado') or Libro.Estado.PUBLICADO).strip()
+    estados_validos = {valor.lower(): valor for valor in Libro.Estado.values}
+    estado = estados_validos.get(estado.lower(), estado)
+
+    payload = validate_book_payload(
+        {
+            'titulo': item.get('titulo'),
+            'autor': item.get('autor'),
+            'sinopsis': item.get('sinopsis'),
+            'genero': item.get('genero'),
+            'estado': estado,
+            'url_imagen': item.get('url_imagen') or item.get('urlImagen') or default_url_imagen,
+        }
+    )
+
+    return usuario, payload
+
+
+def import_books_from_payload(payload, default_url_imagen=''):
+    if not isinstance(payload, list):
+        raise ValidationServiceError('El archivo JSON debe contener una lista de libros.')
+
+    creados = 0
+    omitidos = 0
+
+    with transaction.atomic():
+        for indice, item in enumerate(payload, start=1):
+            usuario, libro_payload = _normalize_import_book_payload(item, indice, default_url_imagen=default_url_imagen)
+
+            existe = Libro.objects.filter(
+                activo=True,
+                usuario_propietario=usuario,
+                titulo__iexact=libro_payload['titulo'],
+            ).exists()
+            if existe:
+                omitidos += 1
+                continue
+
+            create_book(usuario, libro_payload)
+            creados += 1
+
+    return {
+        'creados': creados,
+        'actualizados': 0,
+        'omitidos': omitidos,
+    }
 
 
 def update_book(user, libro_id, data):

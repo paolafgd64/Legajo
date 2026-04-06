@@ -76,11 +76,44 @@ function crearElementoLibro(libro) {
     return div;
 }
 
+function crearElementoGenero(genero) {
+    const div = document.createElement('div');
+    div.className = 'libro genero-card';
+    div.innerHTML = `
+        <img src="${genero.imagen || '/static/web/imgs/libro_de_la_selva.jpg'}" alt="${genero.genero || 'Genero'}">
+        <h3>${genero.genero || 'Genero'}</h3>
+        <p>${genero.totalLibros} libro${genero.totalLibros === 1 ? '' : 's'} disponible${genero.totalLibros === 1 ? '' : 's'}</p>
+        <div class="estrellas-display">Explorar</div>
+    `;
+    return div;
+}
+
+function construirGeneros(libros) {
+    const mapa = new Map();
+
+    libros.forEach((libro) => {
+        const generos = Array.isArray(libro.generos) && libro.generos.length ? libro.generos : [libro.genero || 'Sin genero'];
+        generos.forEach((generoNombre) => {
+            const clave = String(generoNombre || 'Sin genero').trim() || 'Sin genero';
+            if (!mapa.has(clave)) {
+                mapa.set(clave, {
+                    genero: clave,
+                    totalLibros: 0,
+                    imagen: libro.urlImagen || '/static/web/imgs/libro_de_la_selva.jpg'
+                });
+            }
+            mapa.get(clave).totalLibros += 1;
+        });
+    });
+
+    return Array.from(mapa.values()).sort((a, b) => a.genero.localeCompare(b.genero, 'es'));
+}
+
 function attachVerLibroListeners() {
     const modal = document.getElementById('modal');
     if (!modal) return;
 
-    const botonesVer = document.querySelectorAll('#recomendados .ver-libro, #generos .ver-libro');
+    const botonesVer = document.querySelectorAll('#recomendados .ver-libro');
     botonesVer.forEach((btn) => {
         btn.onclick = null;
         btn.addEventListener('click', (e) => {
@@ -210,15 +243,16 @@ async function inicializarDashboard() {
 
     if (carruselGeneros && Array.isArray(libros)) {
         carruselGeneros.innerHTML = '';
-        if (libros.length === 0) {
+        const generos = construirGeneros(libros);
+        if (generos.length === 0) {
             carruselGeneros.innerHTML = `<p style="padding:20px;">${obtenerMensajeVacio(
                 carruselGeneros,
                 'Aun no hay generos para mostrar.',
                 'Hay libros registrados, pero no hay generos de otros usuarios para mostrar en esta cuenta.'
             )}</p>`;
         } else {
-            libros.slice(0, 8).forEach((libro) => {
-                carruselGeneros.appendChild(crearElementoLibro(libro));
+            generos.forEach((genero) => {
+                carruselGeneros.appendChild(crearElementoGenero(genero));
             });
         }
     }

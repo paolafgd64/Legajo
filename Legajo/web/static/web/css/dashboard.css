@@ -2795,6 +2795,28 @@ header {
     text-decoration: none;
 }
 
+.import-button-inline {
+    border: none;
+}
+
+.import-default-note {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    color: #475569;
+    font-weight: 600;
+}
+
+.import-default-note a {
+    color: #bb1f16;
+    text-decoration: none;
+}
+
+.import-default-note a:hover {
+    text-decoration: underline;
+}
+
 .estado-usuario-badge {
     display: inline-flex;
     align-items: center;

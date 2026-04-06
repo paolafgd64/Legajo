@@ -29,6 +29,8 @@ function traducirMensajeValidacion(rawMessage) {
     'This password is too short. It must contain at least 8 characters.': 'La contrasena debe tener al menos 8 caracteres.',
     'This password is too common.': 'La contrasena es demasiado comun. Elige una mas segura.',
     'This password is entirely numeric.': 'La contrasena no puede estar compuesta solo por numeros.',
+    'The password is too similar to the email address.': 'La contrasena es demasiado parecida al correo electronico.',
+    'The password is too similar to the email.': 'La contrasena es demasiado parecida al correo electronico.',
     'The password is too similar to the first name.': 'La contrasena es demasiado parecida al primer nombre.',
     'The password is too similar to the last name.': 'La contrasena es demasiado parecida al apellido.',
     'The password is too similar to the username.': 'La contrasena es demasiado parecida a los datos del usuario.',

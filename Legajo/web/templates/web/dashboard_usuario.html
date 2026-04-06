@@ -5,7 +5,7 @@
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Dashboard Usuario</title>
-    <link rel="stylesheet" href="{% static 'web/css/dashboard.css' %}">
+    <link rel="stylesheet" href="{% static 'web/css/dashboard.css' %}?v=20260405b">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
@@ -73,23 +73,7 @@
                 <div class="carrusel-libros"
                      id="generos"
                      data-total-libros-sistema="{{ total_libros_sistema }}"
-                     data-total-libros-ajenos="{{ total_libros_ajenos }}">
-                    {% for libro in libros_generos %}
-                    <div class="libro"
-                         data-id="{{ libro.id }}"
-                         data-titulo="{{ libro.titulo }}"
-                         data-autor="{{ libro.autor }}"
-                         data-descripcion="{{ libro.sinopsis }}"
-                         data-imagen="{{ libro.urlImagen }}"
-                         data-usuario="{{ libro.usuario }}">
-                        <img src="{{ libro.urlImagen }}" alt="{{ libro.titulo }}">
-                        <h3>{{ libro.genero|default:"Genero" }}</h3>
-                        <p>{{ libro.titulo }}</p>
-                        <div class="estrellas-display">Disponible</div>
-                        <button class="ver-libro"><i class="fa fa-eye"></i> Ver</button>
-                    </div>
-                    {% endfor %}
-                </div>
+                     data-total-libros-ajenos="{{ total_libros_ajenos }}"></div>
                 <button class="flecha derecha" onclick="moverCarrusel('generos', 1)">&#10095;</button>
             </div>
         </section>
@@ -112,17 +96,33 @@
         </div>
     </main>
 
-    <script src="{% static 'web/js/script.js' %}"></script>
+    <script src="{% static 'web/js/script.js' %}?v=20260405b"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script>
         function moverCarrusel(id, direccion) {
             const carrusel = document.getElementById(id);
             if (!carrusel) return;
-            const primerLibro = carrusel.querySelector('.libro');
-            if (!primerLibro) return;
+            const libros = carrusel.querySelectorAll('.libro');
+            if (!libros.length) return;
 
-            const anchoLibro = primerLibro.offsetWidth + 16;
-            carrusel.scrollLeft += direccion * anchoLibro;
+            const anchoLibro = libros[0].offsetWidth + 16;
+            const maxScroll = Math.max(0, carrusel.scrollWidth - carrusel.clientWidth);
+            const siguiente = carrusel.scrollLeft + (direccion * anchoLibro);
+
+            if (direccion > 0 && siguiente >= maxScroll - 4) {
+                carrusel.scrollTo({ left: 0, behavior: 'smooth' });
+                return;
+            }
+
+            if (direccion < 0 && carrusel.scrollLeft <= 4) {
+                carrusel.scrollTo({ left: maxScroll, behavior: 'smooth' });
+                return;
+            }
+
+            carrusel.scrollBy({
+                left: direccion * anchoLibro,
+                behavior: 'smooth'
+            });
         }
 
         const modal = document.getElementById('modal');
@@ -140,6 +140,6 @@
             }
         });
     </script>
-    <script src="{% static 'web/js/dashboard.js' %}"></script>
+    <script src="{% static 'web/js/dashboard.js' %}?v=20260405b"></script>
 </body>
 </html>
