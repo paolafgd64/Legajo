@@ -1509,6 +1509,9 @@ button.btn-rojo {
     font-size: 2rem;
     color: #3f51b5;
     cursor: pointer;
+    position: relative;
+    z-index: 2;
+    flex: 0 0 auto;
 }
 
 /* =======================

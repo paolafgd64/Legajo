@@ -41,7 +41,7 @@
         <section class="seccion-carrusel">
             <h2 class="titulo-seccion">Recomendados</h2>
             <div class="contenedor-carrusel">
-                <button class="flecha izquierda" onclick="moverCarrusel('recomendados', -1)">&#10094;</button>
+                <button class="flecha izquierda" type="button" onclick="moverCarrusel('recomendados', -1)">&#10094;</button>
                 <div class="carrusel-libros"
                      id="recomendados"
                      data-total-libros-sistema="{{ total_libros_sistema }}"
@@ -62,19 +62,19 @@
                     </div>
                     {% endfor %}
                 </div>
-                <button class="flecha derecha" onclick="moverCarrusel('recomendados', 1)">&#10095;</button>
+                <button class="flecha derecha" type="button" onclick="moverCarrusel('recomendados', 1)">&#10095;</button>
             </div>
         </section>
 
         <section class="seccion-carrusel">
             <h2 class="titulo-seccion">Generos</h2>
             <div class="contenedor-carrusel">
-                <button class="flecha izquierda" onclick="moverCarrusel('generos', -1)">&#10094;</button>
+                <button class="flecha izquierda" type="button" onclick="moverCarrusel('generos', -1)">&#10094;</button>
                 <div class="carrusel-libros"
                      id="generos"
                      data-total-libros-sistema="{{ total_libros_sistema }}"
                      data-total-libros-ajenos="{{ total_libros_ajenos }}"></div>
-                <button class="flecha derecha" onclick="moverCarrusel('generos', 1)">&#10095;</button>
+                <button class="flecha derecha" type="button" onclick="moverCarrusel('generos', 1)">&#10095;</button>
             </div>
         </section>
 
@@ -105,22 +105,33 @@
             const libros = carrusel.querySelectorAll('.libro');
             if (!libros.length) return;
 
-            const anchoLibro = libros[0].offsetWidth + 16;
             const maxScroll = Math.max(0, carrusel.scrollWidth - carrusel.clientWidth);
-            const siguiente = carrusel.scrollLeft + (direccion * anchoLibro);
+            if (maxScroll <= 0) return;
 
-            if (direccion > 0 && siguiente >= maxScroll - 4) {
+            const estilos = window.getComputedStyle(carrusel);
+            const gap = parseInt(estilos.columnGap || estilos.gap || '16', 10) || 16;
+            const paso = Math.max(1, Math.min(maxScroll, carrusel.clientWidth - gap));
+            const siguiente = carrusel.scrollLeft + (direccion * paso);
+            const estaAlInicio = carrusel.scrollLeft <= 4;
+            const estaAlFinal = carrusel.scrollLeft >= maxScroll - 4;
+
+            if (direccion > 0 && estaAlFinal) {
                 carrusel.scrollTo({ left: 0, behavior: 'smooth' });
                 return;
             }
 
-            if (direccion < 0 && carrusel.scrollLeft <= 4) {
+            if (direccion > 0 && siguiente >= maxScroll - 4) {
+                carrusel.scrollTo({ left: maxScroll, behavior: 'smooth' });
+                return;
+            }
+
+            if (direccion < 0 && estaAlInicio) {
                 carrusel.scrollTo({ left: maxScroll, behavior: 'smooth' });
                 return;
             }
 
             carrusel.scrollBy({
-                left: direccion * anchoLibro,
+                left: direccion * paso,
                 behavior: 'smooth'
             });
         }

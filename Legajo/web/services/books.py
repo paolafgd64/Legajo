@@ -84,12 +84,22 @@ def list_books(user, filters):
         if user.rol != Usuario.Rol.ADMIN:
             libros = libros.filter(usuario_propietario=user)
 
+        search = (filters.get('q') or '').strip()
         titulo = (filters.get('titulo') or '').strip()
         autor = (filters.get('autor') or '').strip()
         usuario = (filters.get('usuario') or '').strip()
         genero = (filters.get('genero') or '').strip()
         estado = (filters.get('estado') or '').strip()
 
+        if search:
+            libros = libros.filter(
+                Q(titulo__icontains=search) |
+                Q(autores__nombre1__icontains=search) |
+                Q(autores__nombre2__icontains=search) |
+                Q(autores__apellido1__icontains=search) |
+                Q(autores__apellido2__icontains=search) |
+                Q(autores__apodo__icontains=search)
+            )
         if titulo:
             libros = libros.filter(titulo__icontains=titulo)
         if autor:

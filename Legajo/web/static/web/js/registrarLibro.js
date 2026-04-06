@@ -20,11 +20,33 @@ async function parseJsonResponseRegistrar(response) {
   }
 }
 
+async function getRedirectAfterSave(defaultRedirect) {
+  try {
+    const response = await fetch('/api/auth/me', {
+      credentials: 'same-origin',
+      headers: {
+        Accept: 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      return defaultRedirect;
+    }
+
+    const user = await response.json();
+    return user?.rol === 'admin' ? '/inventario_admi/' : '/inventario/';
+  } catch (error) {
+    return defaultRedirect;
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('registrarLibroForm');
   if (!form) return;
   const modoEdicion = document.getElementById('modoEdicion')?.value === 'true';
   const libroId = document.getElementById('libroId')?.value;
+  const redirectAfterSave = document.getElementById('redirectAfterSave')?.value || '/inventario/';
+  const currentImageUrl = document.getElementById('currentImageUrl')?.value || '';
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -39,7 +61,8 @@ document.addEventListener('DOMContentLoaded', () => {
           autor: form.querySelector('#autor')?.value || '',
           sinopsis: form.querySelector('#sinopsis')?.value || '',
           genero: form.querySelector('#genero')?.value || '',
-          estado: form.querySelector('#estado')?.value || 'Publicado'
+          estado: form.querySelector('#estado')?.value || 'Publicado',
+          url_imagen: currentImageUrl
         };
 
         res = await fetch(`${API}/${libroId}`, {
@@ -76,7 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       form.reset();
-      window.location.href = '/inventario/';
+      window.location.href = await getRedirectAfterSave(redirectAfterSave);
     } catch (err) {
       console.error('Error registrando libro:', err);
       Swal.fire({

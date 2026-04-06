@@ -379,6 +379,8 @@ def forgot_password(request):
 @login_required(login_url='login')
 @never_cache
 def inventario_admi(request):
+    if request.user.rol != User.Rol.ADMIN:
+        return redirect('dashboard_usuario')
     return render(request, 'web/inventario_admi.html')
 
 
@@ -429,7 +431,15 @@ def perfil(request):
 @login_required(login_url='login')
 @never_cache
 def registrar_libro(request, libro_id=None):
-    context = {}
+    source = (request.GET.get('source') or request.POST.get('source') or '').strip().lower()
+    is_admin = request.user.is_authenticated and request.user.rol == User.Rol.ADMIN
+    if is_admin and not source:
+        source = 'admin'
+    back_url_name = 'inventario_admi' if is_admin else 'inventario'
+    context = {
+        'source': source,
+        'back_url_name': back_url_name,
+    }
 
     if libro_id is not None:
         if not request.user.is_authenticated:
@@ -453,6 +463,7 @@ def registrar_libro(request, libro_id=None):
             'sinopsis': libro.sinopsis,
             'genero': generos[0].nombre if generos else '',
             'estado': libro.estado,
+            'url_imagen': libro.url_imagen,
         }
 
     return render(request, 'web/registrar_libro.html', context)

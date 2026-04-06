@@ -9,13 +9,16 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <a href="{% url 'inventario' %}" class="btn-volver">&larr;</a>
+    <a href="{% url back_url_name %}" class="btn-volver">&larr;</a>
     <button id="toggleModo" class="modo-toggle">Modo Claro</button>
     <div class="formulario formulario-libro">
         <form id="registrarLibroForm" action="/api/libros" method="post" enctype="multipart/form-data">
             {% csrf_token %}
             <input type="hidden" id="modoEdicion" value="{% if modo_edicion %}true{% else %}false{% endif %}">
             <input type="hidden" id="libroId" value="{% if libro_edicion %}{{ libro_edicion.id }}{% endif %}">
+            <input type="hidden" id="source" value="{{ source|default:'' }}">
+            <input type="hidden" id="redirectAfterSave" value="{% url back_url_name %}">
+            <input type="hidden" id="currentImageUrl" value="{% if libro_edicion %}{{ libro_edicion.url_imagen }}{% endif %}">
 
             <div class="book-form-icon">
                 <i class="fas fa-book-open"></i>
@@ -51,6 +54,12 @@
                 <label for="imagen" class="label-file">{% if modo_edicion %}Cambiar portada{% else %}Seleccionar portada{% endif %}</label>
                 <input type="file" id="imagen" name="imagen" accept="image/*">
             </div>
+
+            {% if libro_edicion.url_imagen %}
+            <div class="form-grupo">
+                <img src="{{ libro_edicion.url_imagen }}" alt="Portada actual" style="max-width: 180px; border-radius: 12px;">
+            </div>
+            {% endif %}
 
             <button type="submit"><i class="fas fa-save"></i> {% if modo_edicion %}Guardar cambios{% else %}Guardar Libro{% endif %}</button>
         </form>
