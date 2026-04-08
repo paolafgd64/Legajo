@@ -8,8 +8,8 @@ from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from django.utils import timezone
 
-from .models import Autor, Intercambio, Libro, ReporteUsuario
-from .views import _build_password_reset_link, _get_admin_dashboard_context, _get_password_reset_user
+from .models import Autor, Intercambio, Libro, NotificacionUsuario, ReporteUsuario
+from .views.helpers import _build_password_reset_link, _get_admin_dashboard_context, _get_password_reset_user
 
 
 class AuthApiTests(TestCase):
@@ -408,6 +408,13 @@ class AdminDashboardTests(TestCase):
         )
 
     def test_dashboard_admin_contexto_calcula_metricas_reales(self):
+        libro = Libro.objects.create(
+            titulo='Libro admin',
+            sinopsis='Disponible',
+            estado=Libro.Estado.LEYENDO,
+            url_imagen='/static/web/imgs/libro_de_la_selva.jpg',
+            usuario_propietario=self.reportado,
+        )
         ReporteUsuario.objects.create(
             motivo='Spam',
             descripcion='Descripcion',
@@ -415,11 +422,33 @@ class AdminDashboardTests(TestCase):
             usuario_reportante=self.reportante,
             usuario_reportado=self.reportado,
         )
+        Intercambio.objects.create(
+            estado=Intercambio.Estado.PENDIENTE,
+            usuario_solicitante=self.reportante,
+            usuario_receptor=self.reportado,
+            libro_solicitado=libro,
+            libro_cambio=None,
+        )
 
         context = _get_admin_dashboard_context()
 
         self.assertEqual(context['admin_stats']['usuarios_total'], self.user_model.objects.filter(activo=True).count())
+        self.assertEqual(context['admin_stats']['libros_total'], Libro.objects.filter(activo=True).count())
+        self.assertEqual(context['admin_stats']['libros_leyendo'], Libro.objects.filter(activo=True, estado=Libro.Estado.LEYENDO).count())
         self.assertEqual(context['admin_stats']['reportes_total'], ReporteUsuario.objects.filter(activo=True).count())
+        self.assertEqual(
+            context['admin_stats']['reportes_pendientes'],
+            ReporteUsuario.objects.filter(activo=True, estado=ReporteUsuario.Estado.PENDIENTE).count(),
+        )
+        self.assertEqual(
+            context['admin_stats']['intercambios_pendientes'],
+            Intercambio.objects.filter(activo=True, estado=Intercambio.Estado.PENDIENTE).count(),
+        )
+        self.assertIn('usuarios_por_mes', context['admin_charts'])
+        self.assertIn('reportes_por_mes', context['admin_charts'])
+        self.assertIn('intercambios_por_estado', context['admin_charts'])
+        self.assertIn('usuarios_por_ciudad', context['admin_charts'])
+        self.assertTrue(len(context['admin_charts']['usuarios_por_mes']['labels']) >= 6)
 
     def test_dashboard_admin_reported_users_endpoint_devuelve_datos_reales(self):
         reporte = ReporteUsuario.objects.create(
@@ -440,6 +469,179 @@ class AdminDashboardTests(TestCase):
         self.assertEqual(len(data['labels']), len(data['data']))
         self.assertEqual(data['data'][2], 1)
         self.assertGreaterEqual(data['data'][-1], 1)
+
+
+class UserReportsTests(TestCase):
+    def setUp(self):
+        self.user_model = get_user_model()
+        self.admin = self.user_model.objects.create_user(
+            email='admin-reportes@example.com',
+            password='Segura123!@#',
+            nombre1='Admin',
+            apellido1='Moderacion',
+            direccion='Calle 10',
+            ciudad='Bogota',
+            telefono=3004444444,
+            rol=self.user_model.Rol.ADMIN,
+        )
+        self.reportante = self.user_model.objects.create_user(
+            email='lector-reporta@example.com',
+            password='Segura123!@#',
+            nombre1='Lector',
+            apellido1='Reporta',
+            direccion='Calle 11',
+            ciudad='Bogota',
+            telefono=3005555555,
+        )
+        self.reportado = self.user_model.objects.create_user(
+            email='usuario-reportado@example.com',
+            password='Segura123!@#',
+            nombre1='Usuario',
+            apellido1='Conflictivo',
+            direccion='Calle 12',
+            ciudad='Medellin',
+            telefono=3006666666,
+        )
+
+    def test_usuario_puede_reportar_a_otro_usuario(self):
+        self.client.force_login(self.reportante)
+
+        response = self.client.post(
+            '/api/reportes-usuarios',
+            data=json.dumps({
+                'usuarioReportadoId': self.reportado.id,
+                'motivo': 'Incumplimiento de intercambio',
+                'descripcion': 'No entrego el libro acordado despues de aceptar el intercambio.',
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue(
+            ReporteUsuario.objects.filter(
+                usuario_reportante=self.reportante,
+                usuario_reportado=self.reportado,
+                estado=ReporteUsuario.Estado.PENDIENTE,
+            ).exists()
+        )
+
+    def test_usuario_no_puede_reportarse_a_si_mismo(self):
+        self.client.force_login(self.reportante)
+
+        response = self.client.post(
+            '/api/reportes-usuarios',
+            data=json.dumps({
+                'usuarioReportadoId': self.reportante.id,
+                'motivo': 'Mal comportamiento',
+                'descripcion': 'Intento invalidar el sistema de reportes.',
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()['message'], 'No puedes reportarte a ti mismo.')
+
+    def test_admin_puede_listar_y_actualizar_reportes(self):
+        reporte = ReporteUsuario.objects.create(
+            motivo='Spam o contenido ofensivo',
+            descripcion='Envio mensajes ofensivos repetidos en el chat.',
+            estado=ReporteUsuario.Estado.PENDIENTE,
+            usuario_reportante=self.reportante,
+            usuario_reportado=self.reportado,
+        )
+
+        self.client.force_login(self.admin)
+
+        list_response = self.client.get('/api/admin/reportes-usuarios')
+        self.assertEqual(list_response.status_code, 200)
+        self.assertEqual(len(list_response.json()), 1)
+
+        patch_response = self.client.patch(
+            f'/api/admin/reportes-usuarios/{reporte.id}',
+            data=json.dumps({'estado': 'revisado'}),
+            content_type='application/json',
+        )
+        self.assertEqual(patch_response.status_code, 200)
+
+        reporte.refresh_from_db()
+        self.assertEqual(reporte.estado, ReporteUsuario.Estado.REVISADO)
+        self.assertTrue(
+            NotificacionUsuario.objects.filter(
+                usuario=self.reportante,
+                reporte_relacionado=reporte,
+            ).exists()
+        )
+
+    def test_usuario_ve_notificacion_cuando_su_reporte_es_revisado(self):
+        reporte = ReporteUsuario.objects.create(
+            motivo='Incumplimiento de intercambio',
+            descripcion='No entrego el libro y dejo de responder.',
+            estado=ReporteUsuario.Estado.PENDIENTE,
+            usuario_reportante=self.reportante,
+            usuario_reportado=self.reportado,
+        )
+
+        self.client.force_login(self.admin)
+        self.client.patch(
+            f'/api/admin/reportes-usuarios/{reporte.id}',
+            data=json.dumps({'estado': 'revisado'}),
+            content_type='application/json',
+        )
+
+        self.client.force_login(self.reportante)
+        response = self.client.get('/api/notificaciones')
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(any(
+            item['tipo'] == 'sistema' and 'se tomaron las medidas correspondientes' in item['mensaje']
+            for item in data
+        ))
+
+    def test_usuario_ve_notificacion_cuando_su_reporte_es_descartado(self):
+        reporte = ReporteUsuario.objects.create(
+            motivo='Mal comportamiento',
+            descripcion='La situacion no tenia evidencia suficiente.',
+            estado=ReporteUsuario.Estado.PENDIENTE,
+            usuario_reportante=self.reportante,
+            usuario_reportado=self.reportado,
+        )
+
+        self.client.force_login(self.admin)
+        self.client.patch(
+            f'/api/admin/reportes-usuarios/{reporte.id}',
+            data=json.dumps({'estado': 'descartado'}),
+            content_type='application/json',
+        )
+
+        self.client.force_login(self.reportante)
+        response = self.client.get('/api/notificaciones')
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(any(
+            item['tipo'] == 'sistema' and 'no se encontraron motivos justificables' in item['mensaje']
+            for item in data
+        ))
+
+    def test_usuario_ve_notificacion_sintetica_si_no_existe_registro_persistente(self):
+        ReporteUsuario.objects.create(
+            motivo='Mal comportamiento',
+            descripcion='Se reviso el caso aunque no exista notificacion persistente.',
+            estado=ReporteUsuario.Estado.REVISADO,
+            usuario_reportante=self.reportante,
+            usuario_reportado=self.reportado,
+        )
+
+        self.client.force_login(self.reportante)
+        response = self.client.get('/api/notificaciones')
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(any(
+            item['tipo'] == 'sistema' and 'se tomaron las medidas correspondientes' in item['mensaje']
+            for item in data
+        ))
 
     def test_dashboard_admin_completed_exchanges_endpoint_devuelve_datos_reales(self):
         libro = Libro.objects.create(

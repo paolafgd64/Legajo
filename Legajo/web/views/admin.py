@@ -20,6 +20,7 @@ from json import JSONDecodeError
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
+from django.db import DatabaseError
 from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import render, redirect
@@ -27,7 +28,7 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.cache import never_cache
 
-from ..models import ReporteUsuario, Intercambio
+from ..models import ReporteUsuario, Intercambio, NotificacionUsuario
 from ..services import import_users_from_payload
 from ..validators import ControlledError
 from .helpers import (
@@ -35,6 +36,7 @@ from .helpers import (
     _get_admin_dashboard_context,
     _serialize_admin_user,
     _build_monthly_cumulative_series,
+    _read_json_body,
 )
 
 
@@ -265,3 +267,115 @@ def api_admin_users(request):
         usuarios = usuarios.filter(Q(activo=False) | Q(is_active=False))
 
     return JsonResponse([_serialize_admin_user(usuario) for usuario in usuarios], safe=False)
+
+
+def _serialize_report(report):
+    reportante = report.usuario_reportante
+    reportado = report.usuario_reportado
+    return {
+        'id': report.id,
+        'motivo': report.motivo,
+        'descripcion': report.descripcion,
+        'estado': report.estado,
+        'fechaReporte': report.fecha_reporte.strftime('%Y-%m-%d %H:%M') if report.fecha_reporte else '',
+        'usuarioReportante': str(reportante) if reportante else 'Usuario desconocido',
+        'usuarioReportanteId': report.usuario_reportante_id,
+        'usuarioReportado': str(reportado) if reportado else 'Usuario desconocido',
+        'usuarioReportadoId': report.usuario_reportado_id,
+    }
+
+
+@login_required(login_url='login')
+@require_http_methods(["GET"])
+def api_admin_user_reports(request):
+    admin_error = _admin_required_response(request)
+    if admin_error:
+        return admin_error
+
+    estado = (request.GET.get('estado') or '').strip().lower()
+    busqueda = (request.GET.get('q') or '').strip()
+    motivo = (request.GET.get('motivo') or '').strip()
+
+    reportes = (
+        ReporteUsuario.objects.filter(activo=True)
+        .select_related('usuario_reportante', 'usuario_reportado')
+        .order_by('-fecha_reporte')
+    )
+
+    estados_validos = {value for value, _ in ReporteUsuario.Estado.choices}
+    if estado in estados_validos:
+        reportes = reportes.filter(estado=estado)
+
+    if motivo:
+        reportes = reportes.filter(motivo__icontains=motivo)
+
+    if busqueda:
+        reportes = reportes.filter(
+            Q(descripcion__icontains=busqueda) |
+            Q(motivo__icontains=busqueda) |
+            Q(usuario_reportante__nombre1__icontains=busqueda) |
+            Q(usuario_reportante__apellido1__icontains=busqueda) |
+            Q(usuario_reportante__email__icontains=busqueda) |
+            Q(usuario_reportado__nombre1__icontains=busqueda) |
+            Q(usuario_reportado__apellido1__icontains=busqueda) |
+            Q(usuario_reportado__email__icontains=busqueda)
+        )
+
+    return JsonResponse([_serialize_report(reporte) for reporte in reportes], safe=False)
+
+
+@login_required(login_url='login')
+@require_http_methods(["PATCH"])
+def api_admin_update_user_report(request, report_id):
+    admin_error = _admin_required_response(request)
+    if admin_error:
+        return admin_error
+
+    data = _read_json_body(request)
+    if data is None:
+        return JsonResponse({'message': 'El cuerpo de la solicitud no es JSON valido.'}, status=400)
+
+    nuevo_estado = str(data.get('estado') or '').strip().lower()
+    estados_editables = {
+        ReporteUsuario.Estado.REVISADO,
+        ReporteUsuario.Estado.DESCARTADO,
+    }
+    if nuevo_estado not in estados_editables:
+        return JsonResponse({'message': 'El estado enviado no es valido.'}, status=400)
+
+    try:
+        reporte = ReporteUsuario.objects.get(id=report_id, activo=True)
+    except ReporteUsuario.DoesNotExist:
+        return JsonResponse({'message': 'Reporte no encontrado.'}, status=404)
+
+    reporte.estado = nuevo_estado
+    reporte.save(update_fields=['estado'])
+
+    if reporte.usuario_reportante_id:
+        nombre_reportado = str(reporte.usuario_reportado) if reporte.usuario_reportado else 'el usuario reportado'
+        if nuevo_estado == ReporteUsuario.Estado.REVISADO:
+            mensaje = (
+                f'Tu reporte sobre {nombre_reportado} ya fue revisado por el equipo administrador '
+                'y se tomaron las medidas correspondientes.'
+            )
+        else:
+            mensaje = (
+                f'Tu reporte sobre {nombre_reportado} fue descartado porque no se encontraron '
+                'motivos justificables para tomar medidas.'
+            )
+
+        try:
+            NotificacionUsuario.objects.create(
+                usuario_id=reporte.usuario_reportante_id,
+                mensaje=mensaje,
+                reporte_relacionado=reporte,
+            )
+        except DatabaseError:
+            # Permite actualizar el estado del reporte aunque la tabla de
+            # notificaciones aun no exista en una base local sin migrar.
+            pass
+
+    return JsonResponse({
+        'message': 'Estado del reporte actualizado correctamente.',
+        'reporte': _serialize_report(reporte),
+    })

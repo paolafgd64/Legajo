@@ -49,6 +49,7 @@
                     {% for libro in libros_recomendados %}
                     <div class="libro"
                          data-id="{{ libro.id }}"
+                         data-usuario-id="{{ libro.usuarioPropietarioId }}"
                          data-titulo="{{ libro.titulo }}"
                          data-autor="{{ libro.autor }}"
                          data-descripcion="{{ libro.sinopsis }}"
@@ -89,6 +90,9 @@
                     <div id="modalAcciones" style="margin-top: 12px;">
                         <button id="btnSolicitarIntercambio" class="btn-amarillo">
                             <i class="fas fa-exchange-alt"></i> Solicitar intercambio
+                        </button>
+                        <button id="btnReportarUsuario" class="btn-negativo" type="button" style="margin-left: 10px;">
+                            <i class="fas fa-flag"></i> Reportar usuario
                         </button>
                     </div>
                 </div>

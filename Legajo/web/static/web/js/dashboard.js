@@ -59,6 +59,7 @@ function crearElementoLibro(libro) {
     const div = document.createElement('div');
     div.className = 'libro';
     div.dataset.id = libro.idLibro || libro.id || '';
+    div.dataset.usuarioId = libro.usuarioPropietarioId || '';
     div.dataset.titulo = libro.titulo || '';
     div.dataset.autor = libro.autor || '';
     div.dataset.descripcion = libro.sinopsis || 'Sin descripcion disponible';
@@ -189,6 +190,41 @@ function attachVerLibroListeners() {
                     }
                 };
             }
+
+            const btnReportar = document.getElementById('btnReportarUsuario');
+            if (btnReportar) {
+                btnReportar.onclick = async () => {
+                    try {
+                        const payload = await mostrarDialogoReporte(libroDiv);
+                        if (!payload) {
+                            return;
+                        }
+
+                        const data = await enviarReporteUsuario(payload);
+
+                        if (window.Swal) {
+                            await Swal.fire({
+                                icon: 'success',
+                                title: 'Reporte enviado',
+                                text: data.message || 'El reporte fue enviado correctamente.'
+                            });
+                        } else {
+                            alert(data.message || 'El reporte fue enviado correctamente.');
+                        }
+                    } catch (error) {
+                        console.error('Error reportando usuario:', error);
+                        if (window.Swal) {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'No se pudo enviar',
+                                text: error.message || 'Ocurrio un error al enviar el reporte.'
+                            });
+                        } else {
+                            alert(error.message || 'Ocurrio un error al enviar el reporte.');
+                        }
+                    }
+                };
+            }
             modal.style.display = 'block';
         });
     });
@@ -203,6 +239,97 @@ function getCsrfToken() {
         }
     }
     return '';
+}
+
+async function mostrarDialogoReporte(libroDiv) {
+    const usuarioReportadoId = Number(libroDiv.dataset.usuarioId || 0);
+    if (!usuarioReportadoId) {
+        throw new Error('No fue posible identificar al usuario que quieres reportar.');
+    }
+
+    if (!window.Swal) {
+        const motivoManual = window.prompt('Motivo del reporte');
+        if (!motivoManual) return null;
+        const descripcionManual = window.prompt('Describe lo ocurrido');
+        if (!descripcionManual) return null;
+        return {
+            usuarioReportadoId,
+            motivo: motivoManual.trim(),
+            descripcion: descripcionManual.trim(),
+        };
+    }
+
+    const result = await Swal.fire({
+        title: 'Reportar usuario',
+        customClass: {
+            popup: 'report-swal-popup',
+            title: 'report-swal-title',
+            htmlContainer: 'report-swal-html',
+            confirmButton: 'report-swal-confirm',
+            cancelButton: 'report-swal-cancel',
+        },
+        html: `
+            <div class="report-modal-layout">
+                <div class="report-modal-intro">
+                    <h3>Usuario reportado</h3>
+                    <p class="report-modal-user">${libroDiv.dataset.usuario || 'Usuario'}</p>
+                    <p>Cuentanos que paso para que el equipo admin pueda revisar el caso.</p>
+                </div>
+                <div class="report-modal-form">
+                    <label for="swal-report-motivo">Motivo</label>
+                    <select id="swal-report-motivo" class="report-modal-input">
+                        <option value="">Selecciona un motivo</option>
+                        <option value="Mal comportamiento">Mal comportamiento</option>
+                        <option value="Incumplimiento de intercambio">Incumplimiento de intercambio</option>
+                        <option value="Spam o contenido ofensivo">Spam o contenido ofensivo</option>
+                        <option value="Suplantacion o fraude">Suplantacion o fraude</option>
+                    </select>
+                    <label for="swal-report-descripcion">Descripcion</label>
+                    <textarea id="swal-report-descripcion" class="report-modal-input report-modal-textarea" placeholder="Describe lo ocurrido con detalle"></textarea>
+                </div>
+            </div>
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        buttonsStyling: false,
+        confirmButtonText: 'Enviar reporte',
+        cancelButtonText: 'Cancelar',
+        preConfirm: () => {
+            const motivo = document.getElementById('swal-report-motivo')?.value?.trim() || '';
+            const descripcion = document.getElementById('swal-report-descripcion')?.value?.trim() || '';
+
+            if (!motivo) {
+                Swal.showValidationMessage('Selecciona un motivo.');
+                return false;
+            }
+            if (descripcion.length < 10) {
+                Swal.showValidationMessage('Describe lo ocurrido con al menos 10 caracteres.');
+                return false;
+            }
+
+            return { usuarioReportadoId, motivo, descripcion };
+        },
+    });
+
+    return result.isConfirmed ? result.value : null;
+}
+
+async function enviarReporteUsuario(payload) {
+    const resp = await fetch('/api/reportes-usuarios', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCsrfToken()
+        },
+        body: JSON.stringify(payload)
+    });
+
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok) {
+        throw new Error(data.message || 'No se pudo enviar el reporte.');
+    }
+
+    return data;
 }
 
 async function inicializarDashboard() {

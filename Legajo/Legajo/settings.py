@@ -84,8 +84,8 @@ DATABASES = {
     'default': {
         'ENGINE': 'Legajo.mysql_backend',
         'NAME': 'LegajoDB',
-        'USER': 'legajo_user',
-        'PASSWORD': 'legajo123',
+        'USER': 'root',
+        'PASSWORD': '',
         'HOST': 'localhost',
         'PORT': '3306',
     }

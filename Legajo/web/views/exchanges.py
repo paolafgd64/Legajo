@@ -12,14 +12,14 @@ import random
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
-from django.db import transaction
+from django.db import DatabaseError, transaction
 from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
-from ..models import Intercambio, Libro
+from ..models import Intercambio, Libro, NotificacionUsuario, ReporteUsuario
 from ..services import request_exchange, serialize_book
 from ..validators import ControlledError
 from .helpers import (
@@ -102,7 +102,7 @@ def api_notificaciones(request):
     if not request.user.is_authenticated:
         return _unauthorized_response()
 
-    notificaciones = (
+    notificaciones_intercambio = (
         Intercambio.objects.filter(
             usuario_receptor=request.user,
             activo=True,
@@ -112,7 +112,7 @@ def api_notificaciones(request):
     )
 
     resultado = []
-    for intercambio in notificaciones:
+    for intercambio in notificaciones_intercambio:
         solicitante = intercambio.usuario_solicitante
         libro = intercambio.libro_solicitado
         nombre_solicitante = str(solicitante) if solicitante else 'Usuario desconocido'
@@ -129,14 +129,95 @@ def api_notificaciones(request):
 
         resultado.append({
             'id': intercambio.id,
+            'tipo': 'intercambio',
             'usuario': nombre_solicitante,
             'libro': titulo_libro,
             'estado': intercambio.estado,
             'mensaje': mensaje,
             'fecha': intercambio.fecha_solicitud.strftime('%Y-%m-%d %H:%M'),
+            'timestamp': intercambio.fecha_solicitud.isoformat(),
             'esNueva': intercambio.estado == Intercambio.Estado.PENDIENTE,
             'puedeAceptar': intercambio.estado == Intercambio.Estado.PENDIENTE,
         })
+
+    try:
+        notificaciones_sistema = (
+            NotificacionUsuario.objects.filter(
+                usuario=request.user,
+                activo=True,
+            )
+            .order_by('-fecha_creacion')
+        )
+
+        for notificacion in notificaciones_sistema:
+            resultado.append({
+                'id': notificacion.id,
+                'tipo': 'sistema',
+                'usuario': 'Equipo Legajo',
+                'libro': '',
+                'reporteId': notificacion.reporte_relacionado_id,
+                'estado': 'informativo',
+                'mensaje': notificacion.mensaje,
+                'fecha': notificacion.fecha_creacion.strftime('%Y-%m-%d %H:%M'),
+                'timestamp': notificacion.fecha_creacion.isoformat(),
+                'esNueva': not notificacion.leida,
+                'puedeAceptar': False,
+            })
+    except DatabaseError:
+        # Permite seguir mostrando notificaciones de intercambios si la tabla nueva
+        # aun no existe en la base local y falta ejecutar migraciones.
+        pass
+
+    reportes_resueltos = (
+        ReporteUsuario.objects.filter(
+            usuario_reportante=request.user,
+            activo=True,
+            estado__in=[ReporteUsuario.Estado.REVISADO, ReporteUsuario.Estado.DESCARTADO],
+        )
+        .select_related('usuario_reportado')
+        .order_by('-fecha_reporte')
+    )
+
+    reportes_notificados = {
+        item.get('reporteId')
+        for item in resultado
+        if item.get('tipo') == 'sistema' and item.get('reporteId')
+    }
+
+    for reporte in reportes_resueltos:
+        if reporte.id in reportes_notificados:
+            continue
+
+        nombre_reportado = str(reporte.usuario_reportado) if reporte.usuario_reportado else 'el usuario reportado'
+        if reporte.estado == ReporteUsuario.Estado.REVISADO:
+            mensaje = (
+                f'Tu reporte sobre {nombre_reportado} ya fue revisado por el equipo administrador '
+                'y se tomaron las medidas correspondientes.'
+            )
+        else:
+            mensaje = (
+                f'Tu reporte sobre {nombre_reportado} fue descartado porque no se encontraron '
+                'motivos justificables para tomar medidas.'
+            )
+
+        resultado.append({
+            'id': f'reporte-{reporte.id}',
+            'tipo': 'sistema',
+            'usuario': 'Equipo Legajo',
+            'libro': '',
+            'reporteId': reporte.id,
+            'estado': 'informativo',
+            'mensaje': mensaje,
+            'fecha': reporte.fecha_reporte.strftime('%Y-%m-%d %H:%M'),
+            'timestamp': reporte.fecha_reporte.isoformat(),
+            'esNueva': True,
+            'puedeAceptar': False,
+        })
+
+    resultado.sort(key=lambda item: item['timestamp'], reverse=True)
+    for item in resultado:
+        item.pop('timestamp', None)
+        item.pop('reporteId', None)
 
     return JsonResponse(resultado, safe=False)
 

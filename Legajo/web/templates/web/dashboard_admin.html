@@ -44,20 +44,41 @@
             <div class="summary-cards">
                 <div class="card">
                     <div class="card-info">
-                        <h3>Usuarios registrados</h3>
+                        <h3>Usuarios activos</h3>
                         <p class="number">{{ admin_stats.usuarios_total }}</p>
                         <p class="trend {% if admin_stats.usuarios_trend.positive %}positive{% else %}negative{% endif %}">
-                            {{ admin_stats.usuarios_trend.value }} <span>ultimo mes</span>
+                            {{ admin_stats.usuarios_trend.value }} <span>vs. mes anterior</span>
+                        </p>
+                        <p class="card-copy">{{ admin_stats.usuarios_nuevos_mes }} nuevos este mes</p>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-info">
+                        <h3>Libros activos</h3>
+                        <p class="number">{{ admin_stats.libros_total }}</p>
+                        <p class="trend positive">
+                            {{ admin_stats.libros_leyendo }} <span>marcados como leyendo</span>
                         </p>
                     </div>
                 </div>
                 <div class="card">
                     <div class="card-info">
-                        <h3>Usuarios reportados</h3>
-                        <p class="number">{{ admin_stats.reportes_total }}</p>
+                        <h3>Reportes pendientes</h3>
+                        <p class="number">{{ admin_stats.reportes_pendientes }}</p>
                         <p class="trend {% if admin_stats.reportes_trend.positive %}positive{% else %}negative{% endif %}">
-                            {{ admin_stats.reportes_trend.value }} <span>ultimo mes</span>
+                            {{ admin_stats.reportes_trend.value }} <span>reportes creados este mes</span>
                         </p>
+                        <p class="card-copy">{{ admin_stats.reportes_total }} reportes acumulados</p>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-info">
+                        <h3>Intercambios pendientes</h3>
+                        <p class="number">{{ admin_stats.intercambios_pendientes }}</p>
+                        <p class="trend positive">
+                            {{ admin_stats.intercambios_completados }} <span>completados</span>
+                        </p>
+                        <p class="card-copy">Tasa de cierre: {{ admin_stats.tasa_cierre_intercambios }}%</p>
                     </div>
                 </div>
                 <div class="card card-action">
@@ -74,19 +95,35 @@
             <div class="summary-cards">
                 <div class="card card-canvas">
                     <div class="card-info">
-                        <h3>Usuarios reportados este mes</h3>
-                        <canvas id="uR" width="400" height="200"></canvas>
+                        <h3>Usuarios nuevos por mes</h3>
+                        <canvas id="usersGrowthChart" width="400" height="200"></canvas>
                     </div>
                 </div>
                 <div class="card card-canvas">
                     <div class="card-info">
-                        <h3>Intercambios completados este mes</h3>
-                        <canvas id="iC" width="400" height="200"></canvas>
+                        <h3>Reportes creados por mes</h3>
+                        <canvas id="reportsMonthlyChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="summary-cards">
+                <div class="card card-canvas">
+                    <div class="card-info">
+                        <h3>Intercambios por estado</h3>
+                        <canvas id="exchangeStatusChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+                <div class="card card-canvas">
+                    <div class="card-info">
+                        <h3>Usuarios por ciudad</h3>
+                        <canvas id="usersCityChart" width="400" height="200"></canvas>
                     </div>
                 </div>
             </div>
         </section>
     </main>
+    {{ admin_charts|json_script:"admin-dashboard-data" }}
     <script src="{% static 'web/js/script.js' %}"></script>
 </body>
 </html>

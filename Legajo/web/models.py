@@ -219,3 +219,24 @@ class ReporteUsuario(models.Model):
     )
 
     activo = models.BooleanField(default=True)
+
+
+class NotificacionUsuario(models.Model):
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    mensaje = models.TextField()
+    leida = models.BooleanField(default=False)
+    activo = models.BooleanField(default=True)
+
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='notificaciones'
+    )
+
+    reporte_relacionado = models.ForeignKey(
+        ReporteUsuario,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='notificaciones_generadas'
+    )

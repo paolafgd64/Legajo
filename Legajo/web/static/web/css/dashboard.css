@@ -1409,6 +1409,25 @@ button.btn-rojo {
     margin-top: 1rem;
 }
 
+.reporte-resolucion {
+    margin-top: 1rem;
+    padding: 0.85rem 1rem;
+    border-radius: 10px;
+    font-size: 0.96rem;
+}
+
+.reporte-resolucion.revisado {
+    background: rgba(61, 154, 99, 0.16);
+    color: #9ce0b6;
+    border: 1px solid rgba(61, 154, 99, 0.35);
+}
+
+.reporte-resolucion.descartado {
+    background: rgba(201, 75, 75, 0.16);
+    color: #ffb3b3;
+    border: 1px solid rgba(201, 75, 75, 0.35);
+}
+
 .btn-negativo,
 .btn-positivo {
     border: none;
@@ -1420,11 +1439,13 @@ button.btn-rojo {
 }
 
 .btn-negativo {
-    background-color: var(--color-negativo);
+    background-color: #c94b4b;
+    color: #fff;
 }
 
 .btn-positivo {
-    background-color: var(--color-positivo);
+    background-color: #3d9a63;
+    color: #fff;
 }
 
 .btn-negativo:hover,
@@ -2401,12 +2422,204 @@ header {
     border-color: rgba(45, 36, 29, 0.12);
 }
 
+.modo-claro .reporte-resolucion.revisado {
+    background: rgba(61, 154, 99, 0.14);
+    color: #225f3b;
+    border-color: rgba(61, 154, 99, 0.28);
+}
+
+.modo-claro .reporte-resolucion.descartado {
+    background: rgba(201, 75, 75, 0.12);
+    color: #7f2f2f;
+    border-color: rgba(201, 75, 75, 0.24);
+}
+
+.report-swal-popup {
+    width: min(640px, 92vw);
+    border-radius: 20px;
+    padding: 0;
+    overflow: hidden;
+    background: var(--color-secundario);
+    border: 1px solid var(--color-borde-suave);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+}
+
+.report-swal-title {
+    color: var(--color-texto);
+    font-size: 1.8rem;
+    padding: 28px 28px 0;
+    text-align: left;
+}
+
+.report-swal-html {
+    margin: 0;
+    padding: 22px 28px 28px;
+}
+
+.report-modal-layout {
+    display: grid;
+    grid-template-columns: 180px 1fr;
+    gap: 20px;
+    align-items: stretch;
+}
+
+.report-modal-intro,
+.report-modal-form {
+    background: var(--fondo-principal);
+    border-radius: 18px;
+    padding: 22px;
+    border: 1px solid var(--color-borde-suave);
+}
+
+.report-modal-intro h3,
+.report-modal-form label {
+    color: var(--color-texto);
+}
+
+.report-modal-intro h3 {
+    margin-bottom: 10px;
+}
+
+.report-modal-intro p {
+    color: var(--color-texto-2);
+    line-height: 1.55;
+}
+
+.report-modal-user {
+    color: var(--color-acento) !important;
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+
+.report-modal-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.report-modal-input {
+    width: 100%;
+    border: 1px solid var(--color-borde-suave);
+    border-radius: 12px;
+    padding: 12px 14px;
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--color-texto);
+    font-size: 0.98rem;
+    outline: none;
+    appearance: none;
+}
+
+.report-modal-input:focus {
+    border-color: var(--color-acento);
+    box-shadow: 0 0 0 3px rgba(242, 174, 46, 0.15);
+}
+
+.report-modal-form select.report-modal-input {
+    background-color: #13233d;
+    color: #efefef;
+}
+
+.report-modal-form select.report-modal-input option {
+    background: #13233d;
+    color: #efefef;
+}
+
+.report-modal-input::placeholder {
+    color: var(--color-texto-2);
+}
+
+.report-modal-textarea {
+    min-height: 140px;
+    resize: vertical;
+}
+
+.report-swal-confirm,
+.report-swal-cancel {
+    border: none;
+    border-radius: 12px;
+    padding: 12px 18px;
+    font-size: 0.96rem;
+    font-weight: 600;
+    cursor: pointer;
+    margin: 0 6px 24px;
+}
+
+.report-swal-confirm {
+    background: linear-gradient(135deg, var(--color-acento) 0%, #E8A81E 100%);
+    color: var(--fondo-principal);
+}
+
+.report-swal-cancel {
+    background: transparent;
+    color: var(--color-texto);
+    border: 1px solid var(--color-borde-suave);
+}
+
+.report-swal-confirm:hover,
+.report-swal-cancel:hover {
+    transform: translateY(-1px);
+}
+
+.modo-claro .report-swal-popup {
+    background: #ead7c3;
+    box-shadow: 0 24px 60px rgba(72, 45, 20, 0.18);
+}
+
+.modo-claro .report-modal-intro,
+.modo-claro .report-modal-form {
+    background: #fffaf4;
+}
+
+.modo-claro .report-modal-intro h3,
+.modo-claro .report-modal-form label,
+.modo-claro .report-swal-title {
+    color: #2d241d;
+}
+
+.modo-claro .report-modal-intro p {
+    color: #6a584b;
+}
+
+.modo-claro .report-modal-input {
+    background: #fff;
+    color: #2d241d;
+    border-color: rgba(45, 36, 29, 0.12);
+}
+
+.modo-claro .report-modal-form select.report-modal-input {
+    background: #fff;
+    color: #2d241d;
+}
+
+.modo-claro .report-modal-form select.report-modal-input option {
+    background: #fff;
+    color: #2d241d;
+}
+
+.modo-claro .report-modal-input::placeholder {
+    color: #7d6d61;
+}
+
+.modo-claro .report-swal-cancel {
+    color: #2d241d;
+    border-color: rgba(45, 36, 29, 0.12);
+}
+
+.modo-claro .btn-negativo {
+    background-color: #c94b4b;
+    color: #fff;
+}
+
 @media (max-width: 768px) {
     .perfil-modal-layout {
         grid-template-columns: 1fr;
     }
 
     .perfil-modal-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .report-modal-layout {
         grid-template-columns: 1fr;
     }
 }

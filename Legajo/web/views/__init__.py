@@ -41,6 +41,8 @@ from .admin import (
     api_admin_users,
     api_admin_reported_users,
     api_admin_completed_exchanges,
+    api_admin_user_reports,
+    api_admin_update_user_report,
     inventario_admi,
     perfil_admin,
 )
@@ -54,6 +56,7 @@ from .dashboard import (
     notificaciones,
     novedades_usuarios,
     inventario,
+    api_user_reports,
 )
 
 __all__ = [
@@ -69,9 +72,10 @@ __all__ = [
     'api_inventario_solicitante_intercambio',
     # Admin
     'dashboard_admin', 'usuarios_admin', 'carga_masiva_usuarios', 'api_admin_users',
-    'api_admin_reported_users', 'api_admin_completed_exchanges', 'inventario_admi',
+    'api_admin_reported_users', 'api_admin_completed_exchanges', 'api_admin_user_reports',
+    'api_admin_update_user_report', 'inventario_admi',
     'perfil_admin',
     # Dashboard
     'index', 'dashboard_usuario', 'chats', 'perfil', 'notificaciones',
-    'novedades_usuarios', 'inventario',
+    'novedades_usuarios', 'inventario', 'api_user_reports',
 ]
