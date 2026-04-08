@@ -1,5 +1,10 @@
 """
 Modulo administrativo: panel, vista de usuarios, carga masiva.
+
+IMPORTANTE:
+- Este archivo SI es de vistas de la app (rutas web/API que atienden requests).
+- No confundir con web/admin.py, que es solo para el Django Admin nativo.
+
 Endpoints:
 - GET /dashboard_admin (panel admin)
 - GET/POST /usuarios_admin (carga masiva de usuarios)

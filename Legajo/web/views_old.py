@@ -1,3 +1,14 @@
+"""
+ARCHIVO LEGACY / BACKUP
+
+Este archivo conserva la version monolitica anterior de views.py.
+No es el punto de entrada actual de las rutas.
+Las rutas activas importan desde el paquete web/views/ (carpeta modular).
+
+Se mantiene temporalmente como respaldo historico.
+Si ya validaste estabilidad, puede eliminarse sin afectar las rutas actuales.
+"""
+
 import calendar
 import datetime
 import json
