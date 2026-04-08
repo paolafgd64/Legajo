@@ -1,6 +1,7 @@
 from .errors import ValidationServiceError
 
 
+# Exige libroId y lo transforma a entero para que el service trabaje con tipos consistentes.
 def validate_exchange_payload(data):
     libro_id = data.get('libroId')
     if libro_id in (None, ''):

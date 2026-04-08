@@ -19,6 +19,7 @@ from .cloudinary import is_cloudinary_configured, upload_image_to_cloudinary
 from .serialization import serialize_book
 
 
+# Normaliza nombre completo de autor a la estructura del modelo (nombre/apellido separados).
 def _split_author_name(author_name):
     author_name = (author_name or '').strip()
     if not author_name:
@@ -35,6 +36,7 @@ def _split_author_name(author_name):
     return parts[0], parts[1], parts[2], ' '.join(parts[3:])
 
 
+# Busca autor existente por combinacion de nombres o lo crea si no existe.
 def _get_or_create_author(author_name):
     nombre1, nombre2, apellido1, apellido2 = _split_author_name(author_name)
     autor, _ = Autor.objects.get_or_create(
@@ -47,6 +49,7 @@ def _get_or_create_author(author_name):
     return autor
 
 
+# Guarda imagen en Cloudinary si esta configurado; si no, usa almacenamiento local.
 def _save_uploaded_image(uploaded_file):
     if is_cloudinary_configured():
         try:
@@ -60,10 +63,12 @@ def _save_uploaded_image(uploaded_file):
     return f"{settings.MEDIA_URL}{saved_path}".replace('\\', '/')
 
 
+# Queryset base reutilizable para mantener consistencia en listados de libros activos.
 def _books_queryset():
     return Libro.objects.filter(activo=True).select_related('usuario_propietario').prefetch_related('autores', 'generos')
 
 
+# Obtiene libro y valida permisos (propietario o admin).
 def _get_book_for_user(user, libro_id):
     try:
         libro = _books_queryset().get(id=libro_id)
@@ -78,6 +83,7 @@ def _get_book_for_user(user, libro_id):
     return libro
 
 
+# Lista libros aplicando filtros de busqueda y visibilidad por rol.
 def list_books(user, filters):
     try:
         libros = _books_queryset()
@@ -128,6 +134,7 @@ def list_books(user, filters):
         raise DatabaseServiceError() from exc
 
 
+# Lista libros de otros usuarios para el dashboard de recomendaciones.
 def list_recommended_books(user):
     try:
         libros = (
@@ -141,11 +148,13 @@ def list_recommended_books(user):
         raise DatabaseServiceError() from exc
 
 
+# Detalle de un libro con control de acceso por usuario.
 def get_book_detail(user, libro_id):
     libro = _get_book_for_user(user, libro_id)
     return serialize_book(libro)
 
 
+# Crea libro + relaciones (autor/genero) en una transaccion atomica.
 def create_book(user, data, image_file=None):
     payload = validate_book_payload(data)
     url_imagen = payload['url_imagen'] or '/static/web/imgs/libro_de_la_selva.jpg'
@@ -171,6 +180,7 @@ def create_book(user, data, image_file=None):
     return serialize_book(libro)
 
 
+# Normaliza y valida cada item de importacion masiva de libros.
 def _normalize_import_book_payload(item, indice, default_url_imagen=''):
     if not isinstance(item, dict):
         raise ValidationServiceError(f'El libro en la posicion {indice} no es un objeto JSON valido.')
@@ -208,6 +218,7 @@ def _normalize_import_book_payload(item, indice, default_url_imagen=''):
     return usuario, payload
 
 
+# Importa libros en lote y evita duplicados por usuario/titulo.
 def import_books_from_payload(payload, default_url_imagen=''):
     if not isinstance(payload, list):
         raise ValidationServiceError('El archivo JSON debe contener una lista de libros.')
@@ -238,6 +249,7 @@ def import_books_from_payload(payload, default_url_imagen=''):
     }
 
 
+# Actualiza datos del libro y sincroniza sus relaciones principales.
 def update_book(user, libro_id, data):
     payload = validate_book_payload(data)
     libro = _get_book_for_user(user, libro_id)
@@ -262,6 +274,7 @@ def update_book(user, libro_id, data):
     return serialize_book(_books_queryset().get(id=libro.id))
 
 
+# Borrado logico: conserva historial y evita eliminar fisicamente.
 def soft_delete_book(user, libro_id):
     libro = _get_book_for_user(user, libro_id)
 

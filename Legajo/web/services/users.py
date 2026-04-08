@@ -7,6 +7,7 @@ from ..validators import ValidationServiceError
 User = get_user_model()
 
 
+# Convierte distintas claves de entrada JSON a un formato unico y validado.
 def _normalize_user_payload(item, indice):
     if not isinstance(item, dict):
         raise ValidationServiceError(f'El usuario en la posicion {indice} no es un objeto JSON valido.')
@@ -54,6 +55,7 @@ def _normalize_user_payload(item, indice):
     }
 
 
+# Importacion masiva de usuarios con opcion de actualizar existentes.
 def import_users_from_payload(payload, actualizar=False):
     if not isinstance(payload, list):
         raise ValidationServiceError('El archivo JSON debe contener una lista de usuarios.')
@@ -74,6 +76,7 @@ def import_users_from_payload(payload, actualizar=False):
                     omitidos += 1
                     continue
 
+                # Actualiza campos y rehace hash de contrasena de forma segura.
                 for field, value in usuario_data.items():
                     setattr(existente, field, value)
                 existente.set_password(password)

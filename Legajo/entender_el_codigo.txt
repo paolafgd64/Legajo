@@ -1,0 +1,344 @@
+GUIA RAPIDA PARA SUSTENTACION (LEGAJO)
+
+Objetivo:
+Tener respuestas rapidas cuando el jurado pregunte:
+- Donde esta X funcionalidad.
+- Como funciona X funcionalidad.
+- Que archivo tocar para modificar X.
+
+====================================================
+1) ESTRUCTURA MENTAL DEL PROYECTO
+====================================================
+
+- Legajo/Legajo/urls.py
+	Mapa de rutas (pantallas y APIs). Si preguntan "por donde entra esta funcionalidad", empieza aqui.
+
+- Legajo/web/views.py
+	Capa HTTP: recibe request, valida sesion/rol, llama servicios, devuelve HTML/JSON/redirect.
+
+- Legajo/web/services/
+	Logica de negocio reutilizable.
+	- books.py: libros
+	- users.py: importacion de usuarios
+	- exchanges.py: solicitud de intercambio
+	- cloudinary.py: integracion externa de imagenes
+
+- Legajo/web/validators/
+	Reglas de validacion y errores controlados.
+
+- Legajo/web/templates/web/
+	Pantallas HTML.
+
+Regla simple para explicar al jurado:
+- views = entrada/salida web
+- services = reglas del negocio
+- validators = calidad de datos
+- templates = interfaz
+
+====================================================
+2) PREGUNTAS TIPICAS DEL JURADO Y RESPUESTA CORTA
+====================================================
+
+Q: Donde esta el enrutamiento del sistema?
+A: En Legajo/Legajo/urls.py.
+
+Q: Donde esta la autenticacion (login/logout)?
+A: En web/views.py, funciones api_login (linea 1020 aprox) y logout_view (linea 464 aprox).
+
+Q: Donde se crea usuario?
+A: En web/views.py, funcion api_usuarios (linea 966 aprox).
+
+Q: Donde esta la gestion de libros?
+A: Entrada HTTP en web/views.py (api_libros y api_libro_detalle).
+	 Logica en web/services/books.py (create_book, update_book, soft_delete_book, list_books).
+
+Q: Donde esta carga masiva de usuarios?
+A: Vista web en web/views.py: carga_masiva_usuarios (linea 177 aprox) y usuarios_admin (linea 220 aprox).
+	 Logica de importacion en web/services/users.py: import_users_from_payload.
+
+Q: Donde esta carga masiva de libros?
+A: Vista web en web/views.py: reporte_libros (linea 477 aprox, metodo POST).
+	 Logica de importacion en web/services/books.py: import_books_from_payload.
+
+Q: Donde estan reportes y filtros?
+A: Pantalla/reporte en web/views.py: reporte_libros y reporte_libros_pdf.
+	 Metricas admin en api_admin_reported_users y api_admin_completed_exchanges.
+
+Q: Donde se valida seguridad/roles?
+A: En web/views.py con login_required y helper _admin_required_response.
+
+Q: Donde esta integracion con servicios externos?
+A: En web/services/cloudinary.py (upload_image_to_cloudinary).
+
+Q: Donde se valida la informacion antes de guardar?
+A: En web/validators/books.py y web/validators/exchanges.py.
+
+====================================================
+3) MAPA DE FUNCIONALIDADES (DONDE + COMO)
+====================================================
+
+3.1 Registro y autenticacion
+- Ruta/API: /api/usuarios, /api/auth/login, /logout/
+- Donde:
+	- web/views.py -> api_usuarios, api_login, logout_view
+- Como funciona:
+	1) Recibe JSON
+	2) Valida campos
+	3) Crea/autentica usuario
+	4) Devuelve JSON o error controlado
+
+3.2 Perfil de usuario
+- Ruta/API: /api/me/
+- Donde:
+	- web/views.py -> api_me
+- Como funciona:
+	1) Verifica sesion
+	2) GET devuelve datos
+	3) PUT valida y actualiza
+
+3.3 Libros (CRUD)
+- Ruta/API: /api/libros, /api/libros/<id>
+- Donde:
+	- web/views.py -> api_libros, api_libro_detalle
+	- web/services/books.py -> create_book, list_books, update_book, soft_delete_book
+- Como funciona:
+	1) View recibe request
+	2) Delega la logica al service
+	3) Service valida negocio y persiste
+	4) View responde JSON
+
+3.4 Recomendados
+- Ruta/API: /api/libros/recomendados
+- Donde:
+	- web/views.py -> api_libros_recomendados
+	- web/services/books.py -> list_recommended_books
+
+3.5 Intercambios
+- Ruta/API:
+	- /api/intercambios
+	- /api/intercambios/request
+	- /api/intercambios/<id>/accept
+	- /api/intercambios/<id>/confirm
+- Donde:
+	- web/views.py -> api_intercambios, api_solicitar_intercambio, api_aceptar_intercambio, api_confirmar_intercambio_pin
+	- web/services/exchanges.py -> request_exchange
+	- web/validators/exchanges.py -> validate_exchange_payload
+- Como funciona:
+	1) Se solicita intercambio
+	2) Receptor acepta y se genera PIN
+	3) Se confirma PIN y se completa intercambio
+
+3.6 Notificaciones
+- Ruta/API: /api/notificaciones
+- Donde:
+	- web/views.py -> api_notificaciones
+
+3.7 Carga masiva usuarios
+- Pantalla: /carga_masiva_usuarios/ y /usuarios_admin/
+- Donde:
+	- web/views.py -> carga_masiva_usuarios y usuarios_admin
+	- web/services/users.py -> import_users_from_payload
+- Como funciona:
+	1) Sube JSON
+	2) Se parsea
+	3) Service crea/actualiza/omite
+	4) Se muestra resumen
+
+3.8 Carga masiva libros
+- Pantalla: /reporte_libros/ (POST)
+- Donde:
+	- web/views.py -> reporte_libros
+	- web/services/books.py -> import_books_from_payload
+- Como funciona:
+	1) Sube JSON
+	2) Se valida formato y negocio
+	3) Se crea lote de libros
+	4) Se retorna mensaje de resultado
+
+3.9 Reportes y estadisticas
+- Pantalla/API:
+	- /reporte_libros/
+	- /libros/reporte/pdf
+	- /api/admin/dashboard/reported-users
+	- /api/admin/dashboard/completed-exchanges
+- Donde:
+	- web/views.py -> reporte_libros, reporte_libros_pdf, api_admin_reported_users, api_admin_completed_exchanges
+- Como funciona:
+	1) Aplica filtros
+	2) Consulta DB
+	3) Devuelve tabla/JSON/PDF
+
+3.10 Integracion externa
+- Donde:
+	- web/services/cloudinary.py -> upload_image_to_cloudinary
+	- web/services/books.py -> _save_uploaded_image
+- Como funciona:
+	1) Si hay configuracion Cloudinary, sube imagen al servicio
+	2) Si no, guarda localmente
+
+====================================================
+4) SI TE PREGUNTAN POR LAS 1000+ LINEAS DE views.py
+====================================================
+
+Respuesta recomendada:
+"La vista central esta grande, pero la logica de negocio ya esta separada en services y validators. La view orquesta HTTP (request/response), y como mejora de mantenibilidad el siguiente paso es separar views por modulos (auth, libros, intercambios, reportes) sin romper funcionalidad."
+
+Esto muestra criterio tecnico:
+- Reconoces mejora pendiente.
+- Demuestras que ya hay desacople real.
+- Presentas plan claro de refactor.
+
+====================================================
+5) CHECKLIST DE PREPARACION ANTES DE SUSTENTAR
+====================================================
+
+1. Abrir Legajo/Legajo/urls.py y ubicar todas las rutas clave.
+2. Abrir web/views.py y ubicar las funciones principales por bloques.
+3. Abrir web/services/books.py, users.py y exchanges.py.
+4. Abrir web/validators para explicar validaciones.
+5. Probar en vivo:
+	 - login
+	 - registro
+	 - crear libro
+	 - solicitar/aceptar/confirmar intercambio
+	 - carga masiva usuarios/libros
+	 - generar PDF
+
+====================================================
+6) FRASE DE DEFENSA DE ARQUITECTURA (MEMORIZAR)
+====================================================
+
+"El sistema usa Django con arquitectura por capas: URLs para enrutar, Views para manejar HTTP, Services para reglas de negocio, Validators para calidad de datos y Templates para la interfaz. Eso me permite escalar funcionalidades sin acoplar toda la logica en un solo lugar." 
+
+====================================================
+7) SERVICES Y VALIDATORS (EXPLICACION PROFUNDA)
+====================================================
+
+7.1 Que problema resuelve cada capa
+
+- Service (web/services):
+	- Recibe datos ya parseados por la view.
+	- Aplica reglas de negocio del dominio (quien puede, cuando, bajo que estado).
+	- Orquesta modelos y transacciones.
+	- Devuelve datos listos para responder (dict/list) o lanza error controlado.
+
+- Validator (web/validators):
+	- Revisa formato y consistencia minima de entrada.
+	- Normaliza texto/tipos para evitar basura en DB.
+	- Lanza ValidationServiceError con mensaje claro para frontend.
+
+Resumen corto para jurado:
+- validator = "esto tiene forma valida"
+- service = "esto tiene sentido de negocio"
+
+7.2 Contrato entre view -> service -> validator
+
+1) La view recibe HTTP y parsea (JSON/POST/FILES).
+2) La view llama un service.
+3) El service llama validator(es) para limpiar/validar payload.
+4) Si todo esta bien, el service persiste en DB.
+5) Si hay error, se levanta ControlledError y la view responde JSON con status correcto.
+
+Por que esto es bueno:
+- Evita duplicar validaciones en varias views.
+- Permite reutilizar negocio desde endpoints distintos.
+- Facilita testing unitario por capa.
+
+7.3 Services del proyecto (que hace cada uno)
+
+A) web/services/books.py
+- list_books(user, filters):
+	- Construye consulta base de libros activos.
+	- Si no es admin, restringe a libros del propietario autenticado.
+	- Aplica filtros (q, titulo, autor, usuario, genero, estado).
+	- Retorna lista serializada para frontend.
+
+- create_book(user, data, image_file=None):
+	- Valida payload con validate_book_payload.
+	- Resuelve URL de imagen (Cloudinary o local).
+	- Crea libro, autor y genero dentro de transaction.atomic.
+	- Devuelve libro serializado.
+
+- update_book(user, libro_id, data):
+	- Verifica permiso con _get_book_for_user.
+	- Revalida campos y actualiza entidades relacionadas.
+	- Mantiene consistencia autor/genero usando set().
+
+- soft_delete_book(user, libro_id):
+	- No borra fisico: marca activo=False (borrado logico).
+
+- import_books_from_payload(payload):
+	- Carga masiva con control de duplicados por (usuario, titulo).
+	- Cuenta creados/omitidos para feedback administrativo.
+
+B) web/services/users.py
+- _normalize_user_payload:
+	- Convierte aliases de campos del JSON a formato interno.
+	- Verifica requeridos, telefono numerico y rol valido.
+
+- import_users_from_payload(payload, actualizar=False):
+	- Recorre lista y crea o actualiza usuarios segun bandera.
+	- Maneja password con set_password/create_user (hash seguro).
+	- Retorna resumen: creados, actualizados, omitidos.
+
+C) web/services/exchanges.py
+- request_exchange(user, data):
+	- Valida libroId.
+	- Verifica que el libro exista y no sea del mismo usuario.
+	- Evita duplicar solicitudes pendientes al mismo libro.
+	- Crea intercambio en estado PENDIENTE.
+
+7.4 Validators del proyecto (que protege cada uno)
+
+A) web/validators/books.py
+- validate_required_fields:
+	- Requeridos obligatorios cuando aplica.
+- validate_book_payload:
+	- Normaliza campos y estado por defecto.
+	- Controla longitud maxima de titulo/genero/url.
+	- Entrega payload limpio para persistencia.
+
+B) web/validators/exchanges.py
+- validate_exchange_payload:
+	- Exige libroId y lo convierte a entero.
+	- Si falla, lanza ValidationServiceError explicito.
+
+C) web/validators/errors.py
+- Jerarquia de errores controlados:
+	- ValidationServiceError -> 400
+	- PermissionDeniedServiceError -> 403
+	- NotFoundServiceError -> 404
+	- DatabaseServiceError -> 500
+	- ExternalServiceError -> 502
+
+Idea clave para defender:
+"No devolvemos trazas tecnicas al cliente; devolvemos errores controlados, entendibles y con codigo HTTP correcto."
+
+7.5 Ejemplo completo (registro de libro)
+
+Flujo real:
+1) view api_libros (POST) recibe request.POST + request.FILES.
+2) llama create_book(...) en service.
+3) create_book llama validate_book_payload(...).
+4) validator limpia y valida reglas basicas.
+5) service guarda libro/autor/genero en transaccion.
+6) devuelve serialize_book(...).
+7) view responde 201 JSON.
+
+Si hay error:
+- validator/service lanza ControlledError
+- view responde mensaje + status correspondiente
+
+7.6 Señales de buen diseno que puedes mencionar
+
+- Existe desacople real entre HTTP y negocio.
+- Se usan transacciones en operaciones criticas.
+- Se aplica borrado logico para trazabilidad.
+- La validacion no esta mezclada con templates.
+- Hay manejo uniforme de errores de servicio.
+
+====================================================
+8) GUIA EXPRESS PARA EXPLICAR EN 1 MINUTO
+====================================================
+
+"En este proyecto, las views no contienen toda la logica: solo reciben la peticion y responden. Las reglas del sistema viven en services, por ejemplo books.py para CRUD y carga masiva, users.py para importacion y exchanges.py para solicitudes de intercambio. Antes de guardar, los validators limpian y validan los datos. Si algo falla, se usan errores controlados con codigo HTTP correcto. Asi mantenemos el codigo mas mantenible, testeable y seguro."

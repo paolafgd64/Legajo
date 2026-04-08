@@ -68,7 +68,7 @@ class Usuario(AbstractUser):
     # 🔹 Sobrescribimos username si quieres usar correo
     username = None
 
-    # 🔹 Nombres y apellidos (según tu diagrama)
+    # 🔹 Nombres y apellidos 
     nombre1 = models.CharField(max_length=30)
     nombre2 = models.CharField(max_length=30, blank=True, null=True)
 

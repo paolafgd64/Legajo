@@ -2,18 +2,21 @@ from ..models import Libro
 from .errors import ValidationServiceError
 
 
+# Limpieza basica para evitar None y espacios sobrantes en validaciones.
 def _clean_text(value):
     if value is None:
         return ''
     return str(value).strip()
 
 
+# Verifica campos obligatorios genericos para no repetir validacion en cada endpoint.
 def validate_required_fields(data, required_fields):
     for field, message in required_fields.items():
         if _clean_text(data.get(field)) == '':
             raise ValidationServiceError(message)
 
 
+# Valida y normaliza payload de libros antes de llegar a la capa de persistencia.
 def validate_book_payload(data, require_all=True):
     required_fields = {
         'titulo': 'El titulo es obligatorio.',

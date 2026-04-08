@@ -44,6 +44,7 @@ from .validators import ControlledError
 User = get_user_model()
 
 
+# Helper: centraliza la validacion de acceso de administrador para vistas y APIs.
 def _admin_required_response(request):
     if not request.user.is_authenticated:
         return _unauthorized_response()
@@ -52,6 +53,7 @@ def _admin_required_response(request):
     return None
 
 
+# Helper: calcula el porcentaje de crecimiento entre dos periodos para tarjetas del dashboard.
 def _format_trend(current_value, previous_value):
     if previous_value == 0:
         if current_value == 0:
@@ -65,6 +67,7 @@ def _format_trend(current_value, previous_value):
     }
 
 
+# Helper: construye una serie acumulada diaria del mes actual (grafica de linea).
 def _build_monthly_cumulative_series(queryset, date_field):
     today = timezone.localdate()
     last_day = calendar.monthrange(today.year, today.month)[1]
@@ -95,6 +98,7 @@ def _build_monthly_cumulative_series(queryset, date_field):
     }
 
 
+# Arma el contexto estadistico del dashboard admin reutilizando consultas agregadas.
 def _get_admin_dashboard_context():
     today = timezone.localdate()
     current_month_start = today.replace(day=1)
@@ -130,6 +134,7 @@ def _get_admin_dashboard_context():
     }
 
 
+# Serializer simple para devolver usuarios en JSON legible por el frontend admin.
 def _serialize_admin_user(user):
     nombre_completo = ' '.join(filter(None, [user.nombre1, user.nombre2, user.apellido1, user.apellido2]))
     return {
@@ -156,6 +161,7 @@ def chats(request):
 
 @ensure_csrf_cookie
 def crear_cuenta(request):
+    # Solo renderiza la pagina de registro. La creacion real ocurre en api_usuarios.
     return render(request, 'web/crear_cuenta.html')
 
 
@@ -193,7 +199,7 @@ def carga_masiva_usuarios(request):
             return render(request, 'web/carga_masiva_usuarios.html', context, status=400)
 
         try:
-            payload = json.loads(archivo.read().decode('utf-8'))
+            payload = json.loads(archivo.read().decode('utf-8-sig'))
             resultado = import_users_from_payload(payload, actualizar=actualizar)
         except UnicodeDecodeError:
             context['error_message'] = 'El archivo debe estar codificado en UTF-8.'
@@ -238,7 +244,7 @@ def usuarios_admin(request):
             return render(request, 'web/usuarios_admin.html', context, status=400)
 
         try:
-            payload = json.loads(archivo.read().decode('utf-8'))
+            payload = json.loads(archivo.read().decode('utf-8-sig'))
             resultado = import_users_from_payload(payload, actualizar=False)
         except UnicodeDecodeError:
             context['mensaje_error_carga'] = 'El archivo debe estar codificado en UTF-8.'
@@ -509,7 +515,7 @@ def reporte_libros(request):
             return render(request, 'web/reporte_libros.html', context, status=400)
 
         try:
-            payload = json.loads(archivo.read().decode('utf-8'))
+            payload = json.loads(archivo.read().decode('utf-8-sig'))
             resultado = import_books_from_payload(
                 payload,
                 default_url_imagen=context['url_portada_predeterminada'],
@@ -621,6 +627,7 @@ def reset_password(request):
 
 
 def _read_json_body(request):
+    # Estandariza lectura de JSON para evitar repetir try/except en cada endpoint.
     try:
         return json.loads(request.body or '{}')
     except json.JSONDecodeError:
@@ -975,6 +982,7 @@ def _build_pdf_response(title, rows, filename):
 
 @require_http_methods(["POST"])
 def api_usuarios(request):
+    # Endpoint de registro: valida payload, crea usuario y guarda hash de contrasena.
     data = _read_json_body(request)
     if data is None:
         return JsonResponse({'message': 'El cuerpo de la solicitud no es JSON valido.'}, status=400)
@@ -997,6 +1005,7 @@ def api_usuarios(request):
         if value is None or str(value).strip() == '':
             return JsonResponse({'message': message}, status=400)
 
+    # Regla de unicidad: no se permiten correos duplicados.
     if User.objects.filter(email=email).exists():
         return JsonResponse({'message': 'Ya existe un usuario registrado con ese correo.'}, status=400)
 
@@ -1017,10 +1026,12 @@ def api_usuarios(request):
     )
 
     try:
+        # Reutiliza validadores de Django (longitud, similitud, complejidad, etc.).
         validate_password(password, user=user)
     except ValidationError as exc:
         return JsonResponse({'message': _normalize_validation_messages(exc.messages)}, status=400)
 
+    # Nunca se guarda texto plano: set_password aplica hashing seguro.
     user.set_password(password)
     user.save()
 
@@ -1029,6 +1040,7 @@ def api_usuarios(request):
 
 @require_http_methods(["POST"])
 def api_login(request):
+    # Login por correo+contrasena usando el backend de autenticacion de Django.
     data = _read_json_body(request)
     if data is None:
         return JsonResponse({'message': 'El cuerpo de la solicitud no es JSON valido.'}, status=400)
@@ -1046,6 +1058,7 @@ def api_login(request):
     if not user.is_active or not getattr(user, 'activo', True):
         return JsonResponse({'message': 'Tu cuenta esta inactiva.'}, status=403)
 
+    # Crea la sesion del usuario autenticado (cookie de sesion en respuesta).
     auth_login(request, user)
 
     redirect_url = '/dashboard_admin/' if user.rol == User.Rol.ADMIN else '/dashboard_usuario/'
@@ -1059,6 +1072,7 @@ def api_login(request):
 
 @require_http_methods(["GET", "PUT"])
 def api_me(request):
+    # Perfil del usuario logueado: GET consulta, PUT actualiza.
     if not request.user.is_authenticated:
         return _unauthorized_response()
 
@@ -1118,17 +1132,20 @@ def api_me(request):
 
 @require_http_methods(["GET", "POST"])
 def api_libros(request):
+    # Libros del usuario: GET lista con filtros; POST registra un libro nuevo.
     if not request.user.is_authenticated:
         return _unauthorized_response()
 
     if request.method == 'GET':
         try:
+            # La logica de negocio vive en services/books.py
             libros = list_books(request.user, request.GET)
         except ControlledError as error:
             return _service_error_response(error)
         return JsonResponse(libros, safe=False)
 
     try:
+        # Para multipart/form-data se combinan campos POST + archivo de imagen.
         libro = create_book(
             request.user,
             request.POST,
@@ -1161,6 +1178,7 @@ def api_libros_recomendados(request):
 
 @require_http_methods(["GET", "PUT", "DELETE"])
 def api_libro_detalle(request, libro_id):
+    # CRUD por id: GET detalle, PUT edicion, DELETE borrado logico.
     if not request.user.is_authenticated:
         return _unauthorized_response()
 
@@ -1191,6 +1209,7 @@ def api_libro_detalle(request, libro_id):
 
 @require_http_methods(["GET"])
 def api_intercambios(request):
+    # Lista intercambios donde participa el usuario (como solicitante o receptor).
     if not request.user.is_authenticated:
         return _unauthorized_response()
 
@@ -1210,6 +1229,7 @@ def api_intercambios(request):
 
     resultado = []
     for intercambio in intercambios:
+        # Traduce modelo a JSON de lectura simple para la UI.
         es_solicitante = intercambio.usuario_solicitante_id == request.user.id
         contraparte = intercambio.usuario_receptor if es_solicitante else intercambio.usuario_solicitante
         nombre_contraparte = str(contraparte) if contraparte else 'Usuario desconocido'
@@ -1315,6 +1335,7 @@ def api_inventario_solicitante_intercambio(request, intercambio_id):
 
 @require_http_methods(["POST"])
 def api_aceptar_intercambio(request, intercambio_id):
+    # El receptor acepta la solicitud, elige libro de cambio y se genera PIN.
     if not request.user.is_authenticated:
         return _unauthorized_response()
 
@@ -1353,6 +1374,7 @@ def api_aceptar_intercambio(request, intercambio_id):
     intercambio.libro_cambio = libro_cambio
     intercambio.estado = Intercambio.Estado.ACEPTADO
     intercambio.fecha_confirmacion = timezone.now()
+    # PIN de 6 digitos para confirmar presencialmente el intercambio.
     intercambio.pin_validacion = f'{random.randint(0, 999999):06d}'
     intercambio.save(update_fields=['libro_cambio', 'estado', 'fecha_confirmacion', 'pin_validacion'])
 
@@ -1380,6 +1402,7 @@ def api_aceptar_intercambio(request, intercambio_id):
 
 @require_http_methods(["POST"])
 def api_confirmar_intercambio_pin(request, intercambio_id):
+    # Confirmacion final: valida PIN y realiza intercambio de propietarios en transaccion.
     if not request.user.is_authenticated:
         return _unauthorized_response()
 
@@ -1416,6 +1439,7 @@ def api_confirmar_intercambio_pin(request, intercambio_id):
     if not intercambio.usuario_solicitante or not intercambio.usuario_receptor:
         return JsonResponse({'message': 'El intercambio no tiene usuarios validos para completar.'}, status=400)
 
+    # Atomicidad: o se actualiza todo (libros + intercambio) o no se actualiza nada.
     with transaction.atomic():
         libro_solicitado = intercambio.libro_solicitado
         libro_cambio = intercambio.libro_cambio
@@ -1439,6 +1463,7 @@ def api_confirmar_intercambio_pin(request, intercambio_id):
 
 @require_http_methods(["POST"])
 def api_solicitar_intercambio(request):
+    # Crea una solicitud de intercambio delegando reglas de negocio al servicio.
     if not request.user.is_authenticated:
         return _unauthorized_response()
 

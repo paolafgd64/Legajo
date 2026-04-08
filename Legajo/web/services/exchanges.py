@@ -4,6 +4,7 @@ from ..models import Intercambio, Libro
 from ..validators import DatabaseServiceError, NotFoundServiceError, ValidationServiceError, validate_exchange_payload
 
 
+# Crea una solicitud de intercambio validando existencia, propiedad y duplicados pendientes.
 def request_exchange(user, data):
     payload = validate_exchange_payload(data)
 
