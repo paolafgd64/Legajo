@@ -79,13 +79,13 @@ async function cargarIntercambios() {
       const item = document.createElement('div');
       const estadoClase = intercambio.yaCompletado
         ? 'estado-completado'
-        : intercambio.pinRequerido
+        : intercambio.requiereConfirmacionDoble
           ? 'estado-validacion'
           : 'estado-proceso';
       const estadoTexto = intercambio.yaCompletado
         ? 'Completado'
-        : intercambio.pinRequerido
-          ? 'Pendiente de PIN'
+        : intercambio.requiereConfirmacionDoble
+          ? 'Pendiente de confirmacion'
           : 'En proceso';
 
       item.className = `chat-item intercambio-card${intercambio.estado === 'aceptado' ? ' no-leido' : ''}`;
@@ -112,14 +112,20 @@ async function cargarIntercambios() {
               <strong>${intercambio.libroCambio}</strong>
             </div>
           </div>
-          ${intercambio.pinRequerido ? `
+          ${intercambio.requiereConfirmacionDoble ? `
             <div class="pin-confirmacion">
               <div class="pin-copy">
-                <span class="pin-copy-label">Validacion segura</span>
-                <p>Ingresa el PIN compartido en WhatsApp para cerrar el intercambio.</p>
+                <span class="pin-copy-label">Confirmacion doble</span>
+                <p>${intercambio.confirmoActual
+                  ? 'Ya marcaste este intercambio como completado. Falta la otra persona.'
+                  : 'Marca este intercambio como completado cuando ya hayas entregado y recibido el libro.'}</p>
+                <p>${intercambio.confirmoContraparte
+                  ? 'La otra persona ya confirmo.'
+                  : 'La otra persona aun no confirma.'}</p>
               </div>
-              <input type="text" maxlength="6" class="pin-input" data-intercambio-id="${intercambio.id}" placeholder="Ingresa PIN de validacion">
-              <button class="btn-verde btn-confirmar-pin" data-intercambio-id="${intercambio.id}">Confirmar intercambio</button>
+              ${intercambio.confirmoActual
+                ? '<button class="btn-verde" type="button" disabled>Ya confirmaste</button>'
+                : `<button class="btn-verde btn-confirmar-intercambio" data-intercambio-id="${intercambio.id}">Marcar intercambio completado</button>`}
             </div>
           ` : ''}
           ${intercambio.yaCompletado ? '<div class="intercambio-completado"><i class="fas fa-circle-check"></i> Intercambio completado</div>' : ''}
@@ -128,7 +134,7 @@ async function cargarIntercambios() {
       lista.appendChild(item);
     });
 
-    lista.querySelectorAll('.btn-confirmar-pin').forEach((button) => {
+    lista.querySelectorAll('.btn-confirmar-intercambio').forEach((button) => {
       button.addEventListener('click', () => confirmarIntercambio(button.dataset.intercambioId));
     });
   } catch (error) {
@@ -144,17 +150,16 @@ async function cargarIntercambios() {
 }
 
 async function confirmarIntercambio(intercambioId) {
-  const input = document.querySelector(`.pin-input[data-intercambio-id="${intercambioId}"]`);
-  const pin = input?.value?.trim() || '';
+  const confirmacion = await Swal.fire({
+    icon: 'question',
+    title: 'Confirmar intercambio',
+    text: 'Marca esta accion solo si el intercambio ya se realizo presencialmente.',
+    showCancelButton: true,
+    confirmButtonText: 'Si, marcar completado',
+    cancelButtonText: 'Cancelar'
+  });
 
-  if (!pin) {
-    Swal.fire({
-      icon: 'warning',
-      title: 'PIN requerido',
-      text: 'Ingresa el PIN de validacion antes de confirmar.'
-    });
-    return;
-  }
+  if (!confirmacion.isConfirmed) return;
 
   try {
     const response = await fetch(`/api/intercambios/${intercambioId}/confirm`, {
@@ -164,7 +169,7 @@ async function confirmarIntercambio(intercambioId) {
         'Content-Type': 'application/json',
         'X-CSRFToken': getCsrfTokenChats()
       },
-      body: JSON.stringify({ pin })
+      body: JSON.stringify({})
     });
 
     const data = await parseJsonResponseChats(response);
@@ -174,8 +179,8 @@ async function confirmarIntercambio(intercambioId) {
 
     await Swal.fire({
       icon: 'success',
-      title: 'Intercambio confirmado',
-      text: data.message || 'El intercambio se confirmo correctamente.'
+      title: data.completado ? 'Intercambio completado' : 'Confirmacion registrada',
+      text: data.message || 'La confirmacion fue registrada correctamente.'
     });
 
     cargarIntercambios();

@@ -1,15 +1,13 @@
 """
-Modulo de intercambios: solicitudes, aceptacion, confirmacion con PIN.
+Modulo de intercambios: solicitudes, aceptacion y confirmacion doble.
 Endpoints:
 - GET /api/intercambios (lista de intercambios del usuario)
 - GET /api/notificaciones (intercambios pendientes)
 - GET /api/inventario_solicitante_intercambio/<id> (libros para seleccionar)
 - POST /api/aceptar_intercambio/<id> (receptor acepta y selecciona libro)
-- POST /api/confirmar_intercambio_pin/<id> (confirma con PIN)
+- POST /api/confirmar_intercambio_pin/<id> (confirma el intercambio desde la cuenta actual)
 - POST /api/solicitar_intercambio (crea solicitud)
 """
-import random
-
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.db import DatabaseError, transaction
@@ -71,11 +69,27 @@ def api_intercambios(request):
         if intercambio.estado == Intercambio.Estado.PENDIENTE:
             descripcion = f'Pendiente por "{libro_solicitado}".'
         elif intercambio.estado == Intercambio.Estado.ACEPTADO:
-            descripcion = f'Aceptado: "{libro_solicitado}" por "{libro_cambio}".'
+            total_confirmaciones = (
+                (1 if intercambio.confirmacion_solicitante else 0) +
+                (1 if intercambio.confirmacion_receptor else 0)
+            )
+            descripcion = (
+                f'Aceptado: "{libro_solicitado}" por "{libro_cambio}". '
+                f'Confirmaciones registradas: {total_confirmaciones}/2.'
+            )
         elif intercambio.estado == Intercambio.Estado.COMPLETADO:
             descripcion = f'Completado: "{libro_solicitado}" por "{libro_cambio}".'
         else:
             descripcion = f'Estado: {intercambio.estado}.'
+
+        confirmo_actual = (
+            intercambio.confirmacion_solicitante if es_solicitante
+            else intercambio.confirmacion_receptor
+        )
+        confirmo_contraparte = (
+            intercambio.confirmacion_receptor if es_solicitante
+            else intercambio.confirmacion_solicitante
+        )
 
         resultado.append({
             'id': intercambio.id,
@@ -86,8 +100,10 @@ def api_intercambios(request):
             'fecha': intercambio.fecha_solicitud.strftime('%Y-%m-%d %H:%M'),
             'libroSolicitado': libro_solicitado,
             'libroCambio': libro_cambio,
-            'pinRequerido': intercambio.estado == Intercambio.Estado.ACEPTADO,
+            'requiereConfirmacionDoble': intercambio.estado == Intercambio.Estado.ACEPTADO,
             'yaCompletado': intercambio.estado == Intercambio.Estado.COMPLETADO,
+            'confirmoActual': confirmo_actual,
+            'confirmoContraparte': confirmo_contraparte,
         })
 
     return JsonResponse(resultado, safe=False)
@@ -257,14 +273,13 @@ def api_inventario_solicitante_intercambio(request, intercambio_id):
 @require_http_methods(["POST"])
 def api_aceptar_intercambio(request, intercambio_id):
     """
-    El receptor acepta la solicitud, elige libro de cambio y se genera PIN.
+    El receptor acepta la solicitud y elige libro de cambio.
     POST /api/aceptar_intercambio/<id>/
     Body:
         {
             "libroCambioId": 42
         }
-    
-    Respuesta incluye PIN y mensaje WhatsApp para contatoar al solicitante.
+    Respuesta incluye mensaje WhatsApp sin PIN para coordinar el encuentro.
     """
     if not request.user.is_authenticated:
         return _unauthorized_response()
@@ -304,9 +319,19 @@ def api_aceptar_intercambio(request, intercambio_id):
     intercambio.libro_cambio = libro_cambio
     intercambio.estado = Intercambio.Estado.ACEPTADO
     intercambio.fecha_confirmacion = timezone.now()
-    # PIN de 6 digitos para confirmar presencialmente el intercambio.
-    intercambio.pin_validacion = f'{random.randint(0, 999999):06d}'
-    intercambio.save(update_fields=['libro_cambio', 'estado', 'fecha_confirmacion', 'pin_validacion'])
+    intercambio.confirmacion_solicitante = False
+    intercambio.confirmacion_receptor = False
+    intercambio.pin_validacion = None
+    intercambio.save(
+        update_fields=[
+            'libro_cambio',
+            'estado',
+            'fecha_confirmacion',
+            'confirmacion_solicitante',
+            'confirmacion_receptor',
+            'pin_validacion',
+        ]
+    )
 
     solicitante = intercambio.usuario_solicitante
     receptor = intercambio.usuario_receptor
@@ -317,7 +342,7 @@ def api_aceptar_intercambio(request, intercambio_id):
         f'Hola {str(solicitante) if solicitante else ""}, '
         f'{nombre_receptor} acepto tu solicitud de intercambio por "{titulo_solicitado}". '
         f'El libro seleccionado para el intercambio es "{libro_cambio.titulo}". '
-        f'Tu PIN de validacion es {intercambio.pin_validacion}. Ponganse de acuerdo para continuar.'
+        'Ya pueden coordinar la entrega y luego ambos deben marcar el intercambio como completado dentro de la app.'
     )
 
     return JsonResponse({
@@ -326,19 +351,15 @@ def api_aceptar_intercambio(request, intercambio_id):
         'libroCambio': libro_cambio.titulo,
         'telefonoWhatsapp': telefono_solicitante,
         'mensajeWhatsapp': mensaje_whatsapp,
-        'pinValidacion': intercambio.pin_validacion,
     })
 
 
 @require_http_methods(["POST"])
 def api_confirmar_intercambio_pin(request, intercambio_id):
     """
-    Confirmacion final: valida PIN y realiza intercambio de propietarios en transaccion atomica.
+    Confirmacion final: cada participante confirma desde su cuenta y el sistema
+    completa el intercambio solo cuando ambos lo hayan hecho.
     POST /api/confirmar_intercambio_pin/<id>/
-    Body:
-        {
-            "pin": "123456"
-        }
     """
     if not request.user.is_authenticated:
         return _unauthorized_response()
@@ -363,38 +384,53 @@ def api_confirmar_intercambio_pin(request, intercambio_id):
     if intercambio.estado != Intercambio.Estado.ACEPTADO:
         return JsonResponse({'message': 'Este intercambio no esta listo para confirmacion.'}, status=400)
 
-    pin = str(data.get('pin') or '').strip()
-    if not pin:
-        return JsonResponse({'message': 'Debes ingresar el PIN de validacion.'}, status=400)
-
-    if pin != (intercambio.pin_validacion or ''):
-        return JsonResponse({'message': 'El PIN ingresado no es valido.'}, status=400)
-
     if not intercambio.libro_solicitado or not intercambio.libro_cambio:
         return JsonResponse({'message': 'El intercambio no tiene ambos libros asignados.'}, status=400)
 
     if not intercambio.usuario_solicitante or not intercambio.usuario_receptor:
         return JsonResponse({'message': 'El intercambio no tiene usuarios validos para completar.'}, status=400)
 
-    # Atomicidad: o se actualiza todo (libros + intercambio) o no se actualiza nada.
     with transaction.atomic():
-        libro_solicitado = intercambio.libro_solicitado
-        libro_cambio = intercambio.libro_cambio
-        usuario_solicitante = intercambio.usuario_solicitante
-        usuario_receptor = intercambio.usuario_receptor
+        if request.user.id == intercambio.usuario_solicitante_id:
+            if intercambio.confirmacion_solicitante:
+                return JsonResponse({'message': 'Ya marcaste este intercambio como completado.'}, status=400)
+            intercambio.confirmacion_solicitante = True
+        else:
+            if intercambio.confirmacion_receptor:
+                return JsonResponse({'message': 'Ya marcaste este intercambio como completado.'}, status=400)
+            intercambio.confirmacion_receptor = True
 
-        libro_solicitado.usuario_propietario = usuario_solicitante
-        libro_cambio.usuario_propietario = usuario_receptor
-        libro_solicitado.save(update_fields=['usuario_propietario'])
-        libro_cambio.save(update_fields=['usuario_propietario'])
+        ambos_confirmaron = intercambio.confirmacion_solicitante and intercambio.confirmacion_receptor
 
-        intercambio.estado = Intercambio.Estado.COMPLETADO
-        intercambio.fecha_completado = timezone.now()
-        intercambio.save(update_fields=['estado', 'fecha_completado'])
+        update_fields = ['confirmacion_solicitante', 'confirmacion_receptor']
+        if ambos_confirmaron:
+            libro_solicitado = intercambio.libro_solicitado
+            libro_cambio = intercambio.libro_cambio
+            usuario_solicitante = intercambio.usuario_solicitante
+            usuario_receptor = intercambio.usuario_receptor
+
+            libro_solicitado.usuario_propietario = usuario_solicitante
+            libro_cambio.usuario_propietario = usuario_receptor
+            libro_solicitado.save(update_fields=['usuario_propietario'])
+            libro_cambio.save(update_fields=['usuario_propietario'])
+
+            intercambio.estado = Intercambio.Estado.COMPLETADO
+            intercambio.fecha_completado = timezone.now()
+            update_fields.extend(['estado', 'fecha_completado'])
+
+        intercambio.save(update_fields=update_fields)
+
+    if ambos_confirmaron:
+        return JsonResponse({
+            'message': 'Ambos usuarios confirmaron. El intercambio se completo correctamente.',
+            'idIntercambio': intercambio.id,
+            'completado': True,
+        })
 
     return JsonResponse({
-        'message': 'Intercambio confirmado correctamente.',
+        'message': 'Tu confirmacion fue registrada. Falta la confirmacion de la otra persona para completar el intercambio.',
         'idIntercambio': intercambio.id,
+        'completado': False,
     })
 
 

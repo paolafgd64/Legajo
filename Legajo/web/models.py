@@ -158,6 +158,8 @@ class Intercambio(models.Model):
     fecha_confirmacion = models.DateTimeField(null=True, blank=True)
     fecha_completado = models.DateTimeField(null=True, blank=True)
     pin_validacion = models.CharField(max_length=6, null=True, blank=True)
+    confirmacion_solicitante = models.BooleanField(default=False)
+    confirmacion_receptor = models.BooleanField(default=False)
 
     estado = models.CharField(max_length=20, choices=Estado.choices)
 

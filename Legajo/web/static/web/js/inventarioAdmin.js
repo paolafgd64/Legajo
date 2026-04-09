@@ -1,5 +1,5 @@
 const API = '/api/libros';
-const DEFAULT_BOOK_IMAGE = '/static/web/imgs/libro_de_la_selva.jpg';
+const DEFAULT_BOOK_IMAGE = '/static/web/imgs/libropredeterminado1.png';
 
 function escapeHtml(text) {
   const div = document.createElement('div');

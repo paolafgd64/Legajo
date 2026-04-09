@@ -106,9 +106,7 @@ def reporte_libros(request):
 
     context = {
         'admin_name': request.user.nombre1 or 'Administrador',
-        'url_portada_predeterminada': (
-            'https://res.cloudinary.com/drc65wu6o/image/upload/v1775351180/legajo/libros/lysnrsy33skcmjojrk65.jpg'
-        ),
+        'url_portada_predeterminada': '/static/web/imgs/libropredeterminado1.png',
     }
 
     mensaje_exito = request.session.pop('mensaje_exito_carga_libros', None)

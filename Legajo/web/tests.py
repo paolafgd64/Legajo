@@ -176,14 +176,14 @@ class InventarioApiTests(TestCase):
             titulo='Libro mio',
             sinopsis='Propio',
             estado='Publicado',
-            url_imagen='/static/web/imgs/libro_de_la_selva.jpg',
+            url_imagen='/static/web/imgs/libropredeterminado1.png',
             usuario_propietario=self.user,
         )
         Libro.objects.create(
             titulo='Libro ajeno',
             sinopsis='Ajeno',
             estado='Publicado',
-            url_imagen='/static/web/imgs/libro_de_la_selva.jpg',
+            url_imagen='/static/web/imgs/libropredeterminado1.png',
             usuario_propietario=other_user,
         )
 
@@ -201,7 +201,7 @@ class InventarioApiTests(TestCase):
             titulo='Libro temporal',
             sinopsis='Temporal',
             estado='Publicado',
-            url_imagen='/static/web/imgs/libro_de_la_selva.jpg',
+            url_imagen='/static/web/imgs/libropredeterminado1.png',
             usuario_propietario=self.user,
         )
 
@@ -217,7 +217,7 @@ class InventarioApiTests(TestCase):
             titulo='Libro original',
             sinopsis='Version inicial',
             estado='Publicado',
-            url_imagen='/static/web/imgs/libro_de_la_selva.jpg',
+            url_imagen='/static/web/imgs/libropredeterminado1.png',
             usuario_propietario=self.user,
         )
 
@@ -249,7 +249,7 @@ class InventarioApiTests(TestCase):
             titulo='Libro original',
             sinopsis='Version inicial',
             estado='Publicado',
-            url_imagen='/static/web/imgs/libro_de_la_selva.jpg',
+            url_imagen='/static/web/imgs/libropredeterminado1.png',
             usuario_propietario=self.user,
         )
 
@@ -282,7 +282,7 @@ class InventarioApiTests(TestCase):
             titulo='Libro protegido',
             sinopsis='Privado',
             estado='Publicado',
-            url_imagen='/static/web/imgs/libro_de_la_selva.jpg',
+            url_imagen='/static/web/imgs/libropredeterminado1.png',
             usuario_propietario=other_user,
         )
 
@@ -320,14 +320,14 @@ class InventarioApiTests(TestCase):
             titulo='Libro propio',
             sinopsis='Propio',
             estado='Publicado',
-            url_imagen='/static/web/imgs/libro_de_la_selva.jpg',
+            url_imagen='/static/web/imgs/libropredeterminado1.png',
             usuario_propietario=self.user,
         )
         Libro.objects.create(
             titulo='Libro recomendado',
             sinopsis='De otro usuario',
             estado='Publicado',
-            url_imagen='/static/web/imgs/libro_de_la_selva.jpg',
+            url_imagen='/static/web/imgs/libropredeterminado1.png',
             usuario_propietario=other_user,
         )
 
@@ -353,7 +353,7 @@ class InventarioApiTests(TestCase):
             titulo='Libro solicitado',
             sinopsis='Disponible para intercambio',
             estado='Publicado',
-            url_imagen='/static/web/imgs/libro_de_la_selva.jpg',
+            url_imagen='/static/web/imgs/libropredeterminado1.png',
             usuario_propietario=other_user,
         )
 
@@ -412,7 +412,7 @@ class AdminDashboardTests(TestCase):
             titulo='Libro admin',
             sinopsis='Disponible',
             estado=Libro.Estado.LEYENDO,
-            url_imagen='/static/web/imgs/libro_de_la_selva.jpg',
+            url_imagen='/static/web/imgs/libropredeterminado1.png',
             usuario_propietario=self.reportado,
         )
         ReporteUsuario.objects.create(
@@ -648,7 +648,7 @@ class UserReportsTests(TestCase):
             titulo='Libro intercambio',
             sinopsis='Disponible',
             estado='Publicado',
-            url_imagen='/static/web/imgs/libro_de_la_selva.jpg',
+            url_imagen='/static/web/imgs/libropredeterminado1.png',
             usuario_propietario=self.reportado,
         )
         intercambio = Intercambio.objects.create(

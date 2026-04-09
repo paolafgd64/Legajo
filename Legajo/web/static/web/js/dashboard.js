@@ -63,11 +63,11 @@ function crearElementoLibro(libro) {
     div.dataset.titulo = libro.titulo || '';
     div.dataset.autor = libro.autor || '';
     div.dataset.descripcion = libro.sinopsis || 'Sin descripcion disponible';
-    div.dataset.imagen = libro.urlImagen || '/static/web/imgs/libro_de_la_selva.jpg';
+    div.dataset.imagen = libro.urlImagen || '/static/web/imgs/libropredeterminado1.png';
     div.dataset.usuario = libro.usuario || 'Propietario desconocido';
 
     div.innerHTML = `
-        <img src="${libro.urlImagen || '/static/web/imgs/libro_de_la_selva.jpg'}" alt="${libro.titulo || 'Libro'}">
+        <img src="${libro.urlImagen || '/static/web/imgs/libropredeterminado1.png'}" alt="${libro.titulo || 'Libro'}">
         <h3>${libro.titulo || 'Sin titulo'}</h3>
         <p>${libro.autor || 'Autor desconocido'}</p>
         <div class="estrellas-display">Disponible</div>
@@ -81,7 +81,7 @@ function crearElementoGenero(genero) {
     const div = document.createElement('div');
     div.className = 'libro genero-card';
     div.innerHTML = `
-        <img src="${genero.imagen || '/static/web/imgs/libro_de_la_selva.jpg'}" alt="${genero.genero || 'Genero'}">
+        <img src="${genero.imagen || '/static/web/imgs/libropredeterminado1.png'}" alt="${genero.genero || 'Genero'}">
         <h3>${genero.genero || 'Genero'}</h3>
         <p>${genero.totalLibros} libro${genero.totalLibros === 1 ? '' : 's'} disponible${genero.totalLibros === 1 ? '' : 's'}</p>
         <div class="estrellas-display">Explorar</div>
@@ -100,7 +100,7 @@ function construirGeneros(libros) {
                 mapa.set(clave, {
                     genero: clave,
                     totalLibros: 0,
-                    imagen: libro.urlImagen || '/static/web/imgs/libro_de_la_selva.jpg'
+                    imagen: libro.urlImagen || '/static/web/imgs/libropredeterminado1.png'
                 });
             }
             mapa.get(clave).totalLibros += 1;
@@ -124,7 +124,7 @@ function attachVerLibroListeners() {
             if (!libroDiv) return;
 
             const modalImgEl = document.getElementById('modalImg');
-            if (modalImgEl) modalImgEl.src = libroDiv.dataset.imagen || '/static/web/imgs/libro_de_la_selva.jpg';
+            if (modalImgEl) modalImgEl.src = libroDiv.dataset.imagen || '/static/web/imgs/libropredeterminado1.png';
             const modalTituloEl = document.getElementById('modalTitulo');
             if (modalTituloEl) modalTituloEl.textContent = libroDiv.dataset.titulo || 'Sin titulo';
             const modalAutorEl = document.getElementById('modalAutor');

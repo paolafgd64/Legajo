@@ -50,7 +50,7 @@ async function cargarInventario() {
       item.className = 'item-inventario';
       item.dataset.libroId = libro.id;
       item.innerHTML = `
-        <img src="${escapeHtml(libro.urlImagen || '/static/web/imgs/libro_de_la_selva.jpg')}" alt="Libro">
+        <img src="${escapeHtml(libro.urlImagen || '/static/web/imgs/libropredeterminado1.png')}" alt="Libro">
         <h3>${escapeHtml(libro.titulo)}</h3>
         <h4>${escapeHtml(libro.autor)}</h4>
         <p class="descripcion">${escapeHtml(libro.sinopsis)}</p>
@@ -82,7 +82,7 @@ async function verLibro(id) {
     const modalAutor = document.getElementById('modalAutor');
     const modalDescripcion = document.getElementById('modalDescripcion');
 
-    if (modalImg) modalImg.src = libro.urlImagen || '/static/web/imgs/libro_de_la_selva.jpg';
+    if (modalImg) modalImg.src = libro.urlImagen || '/static/web/imgs/libropredeterminado1.png';
     if (modalTitulo) modalTitulo.textContent = libro.titulo || '';
     if (modalAutor) modalAutor.textContent = libro.autor || '';
     if (modalDescripcion) modalDescripcion.textContent = libro.sinopsis || '';

@@ -5,7 +5,7 @@
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Dashboard Usuario</title>
-    <link rel="stylesheet" href="{% static 'web/css/dashboard.css' %}">
+    <link rel="stylesheet" href="{% static 'web/css/dashboard.css' %}?v=20260409b">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -30,7 +30,7 @@
         <header>
             <div class="header-left">
                 <h1>Tus Intercambios</h1>
-                <p>Da seguimiento a cada solicitud, valida el PIN y completa tus cambios de forma segura.</p>
+                <p>Da seguimiento a cada solicitud y completa tus intercambios con confirmacion doble desde ambas cuentas.</p>
             </div>
             <div class="header-right">
                 <div class="user-profile">
@@ -47,7 +47,7 @@
             <div class="intercambios-hero-copy">
                 <span class="intercambios-badge">Gestion activa</span>
                 <h2>Conecta, valida y completa tus intercambios</h2>
-                <p>Encuentra a la otra persona, revisa los libros vinculados y confirma el proceso con tu PIN de seguridad.</p>
+                <p>Encuentra a la otra persona, revisa los libros vinculados y marca el intercambio como completado cuando ambos hayan entregado.</p>
             </div>
         </section>
 
@@ -58,8 +58,8 @@
             </div>
         </section>
     </main>
-    <script src="{% static 'web/js/script.js' %}"></script>
+    <script src="{% static 'web/js/script.js' %}?v=20260409a"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="{% static 'web/js/chats.js' %}"></script>
+    <script src="{% static 'web/js/chats.js' %}?v=20260409a"></script>
 </body>
 </html>

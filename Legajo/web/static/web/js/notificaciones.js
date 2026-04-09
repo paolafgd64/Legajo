@@ -143,7 +143,7 @@ async function abrirInventarioSolicitante(intercambioId, nombreUsuario) {
         <div class="inventory-grid">
           ${libros.map((libro) => `
             <button type="button" class="inventory-item js-select-libro${String(libroSeleccionadoId) === String(libro.id) ? ' selected' : ''}" data-libro-id="${libro.id}">
-              <img class="inventory-img" src="${escapeHtml(libro.urlImagen || '/static/web/imgs/libro_de_la_selva.jpg')}" alt="${escapeHtml(libro.titulo)}">
+              <img class="inventory-img" src="${escapeHtml(libro.urlImagen || '/static/web/imgs/libropredeterminado1.png')}" alt="${escapeHtml(libro.titulo)}">
               <div class="inventory-meta">
                 <strong class="inventory-title">${escapeHtml(libro.titulo)}</strong>
                 <div class="inventory-author">${escapeHtml(libro.autor || 'Autor desconocido')}</div>
