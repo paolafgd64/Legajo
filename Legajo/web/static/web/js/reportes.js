@@ -125,6 +125,7 @@ document.getElementById('btnGenerarPDF')?.addEventListener('click', () => {
   const usuario = document.getElementById('filtroUsuario')?.value.trim() || '';
   const genero = document.getElementById('filtroGenero')?.value || '';
   const estado = document.getElementById('filtroEstado')?.value || '';
+  const calificacionMin = document.getElementById('filtroCalificacion')?.value || '';
 
   const params = new URLSearchParams();
   if (titulo) params.append('titulo', titulo);
@@ -132,6 +133,7 @@ document.getElementById('btnGenerarPDF')?.addEventListener('click', () => {
   if (usuario) params.append('usuario', usuario);
   if (genero) params.append('genero', genero);
   if (estado) params.append('estado', estado);
+  if (calificacionMin) params.append('calificacion_min', calificacionMin);
 
   const url = params.toString() ? `/libros/reporte/pdf?${params.toString()}` : '/libros/reporte/pdf';
   window.location.href = url;

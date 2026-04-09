@@ -378,7 +378,7 @@ def _load_pdf_logo():
     }
 
 
-def _build_pdf_response(title, rows, filename):
+def _build_pdf_response(title, rows, filename, report_context=None, columns=None):
     page_width = 612
     page_height = 792
     margin = 36
@@ -396,7 +396,8 @@ def _build_pdf_response(title, rows, filename):
     row_alt = (248, 248, 248)
     logo = _load_pdf_logo()
 
-    columns = [
+    report_context = report_context or {}
+    columns = columns or [
         ('Usuario', 120),
         ('Titulo', 150),
         ('Autor', 120),
@@ -442,13 +443,7 @@ def _build_pdf_response(title, rows, filename):
             )
         )
 
-        table_top = page_height - header_height - 18
-        current_commands.append(_pdf_rect(table_x, table_top - 26, table_width, 26, fill_color=gold))
-        x_cursor = table_x
-        for label, width in columns:
-            current_commands.append(_pdf_text_block(x_cursor + 6, table_top - 17, [label], 'F2', header_font_size, navy))
-            x_cursor += width
-        current_y = table_top - 26
+        current_y = page_height - header_height - 18
         page_number += 1
 
     def finish_page():
@@ -457,7 +452,139 @@ def _build_pdf_response(title, rows, filename):
         current_commands.append(_pdf_text_block(margin, footer_y, ['Legajo - Reporte administrativo'], 'F1', 8, body_color))
         pages_commands.append('\n'.join(command for command in current_commands if command))
 
+    def ensure_space(required_height):
+        nonlocal current_y
+        if current_y - required_height < margin + footer_height:
+            finish_page()
+            start_page()
+
+    def draw_section_title(text):
+        nonlocal current_y
+        ensure_space(22)
+        current_commands.append(_pdf_text_block(margin, current_y - 4, [text], 'F2', 12, navy))
+        current_y -= 20
+
+    def draw_wrapped_lines(lines, font_size=9, indent=0):
+        nonlocal current_y
+        usable_width = page_width - (margin * 2) - indent
+        approx_chars = max(20, int(usable_width / max(font_size * 0.52, 1)))
+        wrapped_lines = []
+        for line in lines:
+            pieces = textwrap.wrap(_normalize_pdf_text(line) or '-', width=approx_chars) or ['-']
+            wrapped_lines.extend(pieces)
+        block_height = max(16, len(wrapped_lines) * (font_size + 3))
+        ensure_space(block_height + 4)
+        current_commands.append(_pdf_text_block(margin + indent, current_y - 4, wrapped_lines, 'F1', font_size, body_color))
+        current_y -= block_height
+
+    def draw_summary_cards(cards):
+        nonlocal current_y
+        if not cards:
+            return
+        card_gap = 12
+        card_width = (page_width - (margin * 2) - card_gap) / 2
+        card_height = 42
+        for index in range(0, len(cards), 2):
+            row_cards = cards[index:index + 2]
+            ensure_space(card_height + 10)
+            row_y = current_y - card_height
+            for offset, card in enumerate(row_cards):
+                card_x = margin + offset * (card_width + card_gap)
+                current_commands.append(
+                    _pdf_rect(card_x, row_y, card_width, card_height, fill_color=soft_gold, stroke_color=light_border)
+                )
+                current_commands.append(_pdf_text_block(card_x + 8, row_y + 24, [card.get('value', '-')], 'F2', 14, navy))
+                current_commands.append(_pdf_text_block(card_x + 8, row_y + 10, [card.get('label', '')], 'F1', 8, body_color))
+            current_y -= card_height + 10
+
+    def draw_stat_table(section):
+        nonlocal current_y
+        headers = section.get('headers') or []
+        stat_rows = section.get('rows') or []
+        if not headers:
+            return
+
+        draw_section_title(section.get('title', 'Consulta estadistica'))
+        if not stat_rows:
+            draw_wrapped_lines(['Sin datos para esta consulta con los filtros actuales.'])
+            current_y -= 4
+            return
+
+        col_count = len(headers)
+        stat_table_width = page_width - (margin * 2)
+        stat_col_width = stat_table_width / max(col_count, 1)
+        header_height = 20
+
+        ensure_space(header_height + 24)
+        current_commands.append(
+            _pdf_rect(margin, current_y - header_height, stat_table_width, header_height, fill_color=gold, stroke_color=light_border)
+        )
+        x_cursor = margin
+        for header in headers:
+            current_commands.append(_pdf_text_block(x_cursor + 6, current_y - 13, [header], 'F2', 9, navy))
+            x_cursor += stat_col_width
+        current_y -= header_height
+
+        for row_index, row in enumerate(stat_rows):
+            wrapped_cells = []
+            max_lines = 1
+            for value in row:
+                wrapped = _wrap_pdf_cell(value, stat_col_width - 10, 8)
+                wrapped_cells.append(wrapped)
+                max_lines = max(max_lines, len(wrapped))
+            row_height = max(22, max_lines * 11 + 8)
+            ensure_space(row_height + 2)
+            fill = white if row_index % 2 == 0 else row_alt
+            current_commands.append(
+                _pdf_rect(margin, current_y - row_height, stat_table_width, row_height, fill_color=fill, stroke_color=light_border)
+            )
+            x_cursor = margin
+            for column_index, wrapped in enumerate(wrapped_cells):
+                if column_index > 0:
+                    current_commands.append(_pdf_rect(x_cursor, current_y - row_height, 0.7, row_height, fill_color=light_border))
+                current_commands.append(_pdf_text_block(x_cursor + 6, current_y - 12, wrapped, 'F1', 8, body_color))
+                x_cursor += stat_col_width
+            current_y -= row_height
+        current_y -= 8
+
+    def draw_table_header():
+        nonlocal current_y
+        ensure_space(30)
+        current_commands.append(_pdf_rect(table_x, current_y - 26, table_width, 26, fill_color=gold))
+        x_cursor = table_x
+        for label, width in columns:
+            current_commands.append(_pdf_text_block(x_cursor + 6, current_y - 17, [label], 'F2', header_font_size, navy))
+            x_cursor += width
+        current_y -= 26
+
     start_page()
+
+    filters_lines = report_context.get('filters_lines') or []
+    summary_cards = report_context.get('summary_cards') or []
+    stat_sections = report_context.get('stat_sections') or []
+    insights = report_context.get('insights') or []
+
+    if filters_lines:
+        draw_section_title('Filtros aplicados')
+        draw_wrapped_lines(filters_lines)
+        current_y -= 6
+
+    if summary_cards:
+        draw_section_title('Resumen ejecutivo')
+        draw_summary_cards(summary_cards)
+        current_y -= 4
+
+    if stat_sections:
+        for section in stat_sections:
+            draw_stat_table(section)
+
+    if insights:
+        draw_section_title('Hallazgos para toma de decisiones')
+        draw_wrapped_lines([f'- {insight}' for insight in insights], indent=8)
+        current_y -= 8
+
+    draw_section_title('Detalle de registros')
+    draw_table_header()
 
     if not rows:
         row_height = 28
@@ -479,6 +606,7 @@ def _build_pdf_response(title, rows, filename):
             if current_y - row_height < margin + footer_height:
                 finish_page()
                 start_page()
+                draw_table_header()
 
             fill = white if row_index % 2 == 0 else row_alt
             current_commands.append(_pdf_rect(table_x, current_y - row_height, table_width, row_height, fill_color=fill, stroke_color=light_border))

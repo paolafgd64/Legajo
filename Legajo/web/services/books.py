@@ -4,7 +4,7 @@ import uuid
 from django.conf import settings
 from django.core.files.storage import default_storage
 from django.db import DatabaseError, transaction
-from django.db.models import Q
+from django.db.models import Avg, Count, Q
 
 from ..models import Autor, Genero, Libro, Usuario
 from ..validators import (
@@ -65,7 +65,23 @@ def _save_uploaded_image(uploaded_file):
 
 # Queryset base reutilizable para mantener consistencia en listados de libros activos.
 def _books_queryset():
-    return Libro.objects.filter(activo=True).select_related('usuario_propietario').prefetch_related('autores', 'generos')
+    return (
+        Libro.objects.filter(activo=True)
+        .select_related('usuario_propietario')
+        .prefetch_related('autores', 'generos')
+        .annotate(
+            promedio_calificacion=Avg(
+                'calificacionlibro__calificacion',
+                filter=Q(calificacionlibro__activo=True),
+                distinct=True,
+            ),
+            total_calificaciones=Count(
+                'calificacionlibro',
+                filter=Q(calificacionlibro__activo=True),
+                distinct=True,
+            ),
+        )
+    )
 
 
 # Obtiene libro y valida permisos (propietario o admin).

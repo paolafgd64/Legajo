@@ -13,14 +13,14 @@ from json import JSONDecodeError
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
-from django.db.models import Q
+from django.db.models import Avg, Count, Q
 from django.http import JsonResponse
 from django.shortcuts import render, redirect
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.cache import never_cache
 
-from ..models import Libro
+from ..models import CalificacionLibro, Libro
 from ..services import (
     create_book,
     get_book_detail,
@@ -258,6 +258,7 @@ def reporte_libros_pdf(request):
     - usuario
     - genero
     - estado
+    - calificacion_min
     """
     if request.user.rol != User.Rol.ADMIN:
         return _forbidden_response()
@@ -266,6 +267,18 @@ def reporte_libros_pdf(request):
         Libro.objects.filter(activo=True)
         .select_related('usuario_propietario')
         .prefetch_related('autores', 'generos')
+        .annotate(
+            promedio_calificacion=Avg(
+                'calificacionlibro__calificacion',
+                filter=Q(calificacionlibro__activo=True),
+                distinct=True,
+            ),
+            total_calificaciones=Count(
+                'calificacionlibro',
+                filter=Q(calificacionlibro__activo=True),
+                distinct=True,
+            ),
+        )
         .order_by('-id')
     )
 
@@ -274,17 +287,192 @@ def reporte_libros_pdf(request):
     usuario = (request.GET.get('usuario') or '').strip()
     genero = (request.GET.get('genero') or '').strip()
     estado = (request.GET.get('estado') or '').strip()
+    calificacion_min = (request.GET.get('calificacion_min') or '').strip()
 
     if titulo:
         libros = libros.filter(titulo__icontains=titulo)
     if autor:
-        libros = libros.filter(autores__nombre1__icontains=autor).distinct()
+        libros = libros.filter(
+            Q(autores__nombre1__icontains=autor) |
+            Q(autores__nombre2__icontains=autor) |
+            Q(autores__apellido1__icontains=autor) |
+            Q(autores__apellido2__icontains=autor) |
+            Q(autores__apodo__icontains=autor)
+        ).distinct()
     if usuario:
-        libros = libros.filter(usuario_propietario__nombre1__icontains=usuario).distinct()
+        libros = libros.filter(
+            Q(usuario_propietario__nombre1__icontains=usuario) |
+            Q(usuario_propietario__nombre2__icontains=usuario) |
+            Q(usuario_propietario__apellido1__icontains=usuario) |
+            Q(usuario_propietario__apellido2__icontains=usuario) |
+            Q(usuario_propietario__email__icontains=usuario)
+        ).distinct()
     if genero:
         libros = libros.filter(generos__nombre__icontains=genero).distinct()
     if estado:
-        libros = libros.filter(estado__icontains=estado)
+        libros = libros.filter(estado__iexact=estado)
+    if calificacion_min:
+        try:
+            libros = libros.filter(promedio_calificacion__gte=float(calificacion_min))
+        except ValueError:
+            pass
+
+    libros = libros.distinct()
+
+    filtros = {
+        'Titulo': titulo or 'Todos',
+        'Autor': autor or 'Todos',
+        'Usuario': usuario or 'Todos',
+        'Genero': genero or 'Todos',
+        'Estado': estado or 'Todos',
+        'Calificacion minima': f'{calificacion_min}/5' if calificacion_min else 'Sin restriccion',
+    }
+
+    total_libros = libros.count()
+    total_usuarios = (
+        libros.exclude(usuario_propietario_id__isnull=True)
+        .values('usuario_propietario_id')
+        .distinct()
+        .count()
+    )
+    total_generos = (
+        libros.exclude(generos__id__isnull=True)
+        .values('generos__id')
+        .distinct()
+        .count()
+    )
+
+    calificaciones = CalificacionLibro.objects.filter(activo=True, libro__in=libros)
+    resumen_calificaciones = calificaciones.aggregate(
+        promedio=Avg('calificacion'),
+        total=Count('id'),
+    )
+
+    consulta_estados = list(
+        libros.values('estado')
+        .annotate(total=Count('id'))
+        .order_by('-total', 'estado')
+    )
+    consulta_generos = list(
+        libros.exclude(generos__nombre__isnull=True)
+        .values('generos__nombre')
+        .annotate(total=Count('id'))
+        .order_by('-total', 'generos__nombre')[:5]
+    )
+    consulta_usuarios = list(
+        libros.exclude(usuario_propietario_id__isnull=True)
+        .values(
+            'usuario_propietario__nombre1',
+            'usuario_propietario__nombre2',
+            'usuario_propietario__apellido1',
+            'usuario_propietario__apellido2',
+            'usuario_propietario__email',
+        )
+        .annotate(total=Count('id'))
+        .order_by('-total', 'usuario_propietario__nombre1', 'usuario_propietario__apellido1')[:5]
+    )
+    distribucion_calificaciones = list(
+        calificaciones.values('calificacion')
+        .annotate(total=Count('id'))
+        .order_by('-calificacion')
+    )
+
+    genero_dominante = consulta_generos[0] if consulta_generos else None
+    estado_dominante = consulta_estados[0] if consulta_estados else None
+    usuario_mayor_inventario = consulta_usuarios[0] if consulta_usuarios else None
+    promedio_calificacion = resumen_calificaciones['promedio'] or 0
+
+    hallazgos = [
+        (
+            f"Se analizaron {total_libros} libros publicados por {total_usuarios} usuarios activos "
+            f"bajo los filtros configurados."
+        )
+    ]
+    if genero_dominante:
+        hallazgos.append(
+            f"El genero con mayor presencia es {genero_dominante['generos__nombre']} "
+            f"con {genero_dominante['total']} registros."
+        )
+    if estado_dominante:
+        hallazgos.append(
+            f"El estado predominante es {estado_dominante['estado']} con {estado_dominante['total']} libros, "
+            "lo que ayuda a identificar disponibilidad real del inventario."
+        )
+    if usuario_mayor_inventario:
+        nombre_usuario = ' '.join(
+            filter(
+                None,
+                [
+                    usuario_mayor_inventario['usuario_propietario__nombre1'],
+                    usuario_mayor_inventario['usuario_propietario__nombre2'],
+                    usuario_mayor_inventario['usuario_propietario__apellido1'],
+                    usuario_mayor_inventario['usuario_propietario__apellido2'],
+                ],
+            )
+        ).strip() or usuario_mayor_inventario['usuario_propietario__email']
+        hallazgos.append(
+            f"El usuario con mayor inventario en la consulta es {nombre_usuario} "
+            f"con {usuario_mayor_inventario['total']} libros."
+        )
+    if resumen_calificaciones['total']:
+        hallazgos.append(
+            f"La calificacion promedio de los libros filtrados es {promedio_calificacion:.1f}/5 "
+            f"basada en {resumen_calificaciones['total']} resenas activas."
+        )
+    else:
+        hallazgos.append(
+            "No hay resenas activas en el subconjunto filtrado, por lo que conviene incentivar calificaciones "
+            "para fortalecer el analisis de satisfaccion."
+        )
+
+    report_context = {
+        'filters_lines': [f'{clave}: {valor}' for clave, valor in filtros.items()],
+        'summary_cards': [
+            {'label': 'Libros filtrados', 'value': str(total_libros)},
+            {'label': 'Usuarios involucrados', 'value': str(total_usuarios)},
+            {'label': 'Generos presentes', 'value': str(total_generos)},
+            {
+                'label': 'Promedio calificacion',
+                'value': f'{promedio_calificacion:.1f}/5' if resumen_calificaciones['total'] else 'Sin datos',
+            },
+        ],
+        'stat_sections': [
+            {
+                'title': 'Consulta estadistica por estado',
+                'headers': ['Estado', 'Total'],
+                'rows': [[item['estado'], item['total']] for item in consulta_estados],
+            },
+            {
+                'title': 'Consulta estadistica por genero',
+                'headers': ['Genero', 'Total'],
+                'rows': [[item['generos__nombre'], item['total']] for item in consulta_generos],
+            },
+            {
+                'title': 'Consulta estadistica por usuario',
+                'headers': ['Usuario', 'Total libros'],
+                'rows': [[
+                    ' '.join(
+                        filter(
+                            None,
+                            [
+                                item['usuario_propietario__nombre1'],
+                                item['usuario_propietario__nombre2'],
+                                item['usuario_propietario__apellido1'],
+                                item['usuario_propietario__apellido2'],
+                            ],
+                        )
+                    ).strip() or item['usuario_propietario__email'],
+                    item['total'],
+                ] for item in consulta_usuarios],
+            },
+            {
+                'title': 'Consulta estadistica de calificaciones',
+                'headers': ['Estrellas', 'Total resenas'],
+                'rows': [[f"{item['calificacion']}/5", item['total']] for item in distribucion_calificaciones],
+            },
+        ],
+        'insights': hallazgos,
+    }
 
     rows = []
     for libro in libros:
@@ -295,6 +483,20 @@ def reporte_libros_pdf(request):
             serialized['autor'],
             serialized['genero'],
             serialized['estado'],
+            f"{serialized['calificacion']:.1f}/5" if serialized['totalCalificaciones'] else 'Sin resenas',
         ])
 
-    return _build_pdf_response('Reporte de libros registrados', rows, 'reporte_libros.pdf')
+    return _build_pdf_response(
+        'Reporte analitico de libros registrados',
+        rows,
+        'reporte_libros.pdf',
+        report_context=report_context,
+        columns=[
+            ('Usuario', 102),
+            ('Titulo', 140),
+            ('Autor', 108),
+            ('Genero', 82),
+            ('Estado', 58),
+            ('Calif.', 50),
+        ],
+    )
