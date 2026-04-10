@@ -47,6 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const libroId = document.getElementById('libroId')?.value;
   const redirectAfterSave = document.getElementById('redirectAfterSave')?.value || '/inventario/';
   const currentImageUrl = document.getElementById('currentImageUrl')?.value || '';
+  const imageInput = form.querySelector('#imagen');
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -56,24 +57,46 @@ document.addEventListener('DOMContentLoaded', () => {
       let res;
 
       if (modoEdicion && libroId) {
-        const payload = {
-          titulo: form.querySelector('#titulo')?.value || '',
-          autor: form.querySelector('#autor')?.value || '',
-          sinopsis: form.querySelector('#sinopsis')?.value || '',
-          genero: form.querySelector('#genero')?.value || '',
-          estado: form.querySelector('#estado')?.value || 'Publicado',
-          url_imagen: currentImageUrl
-        };
+        const hasNewImage = Boolean(imageInput?.files?.[0]);
 
-        res = await fetch(`${API}/${libroId}`, {
-          method: 'PUT',
-          credentials: 'same-origin',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': csrfToken
-          },
-          body: JSON.stringify(payload)
-        });
+        if (hasNewImage) {
+          const formData = new FormData();
+          formData.append('titulo', form.querySelector('#titulo')?.value || '');
+          formData.append('autor', form.querySelector('#autor')?.value || '');
+          formData.append('sinopsis', form.querySelector('#sinopsis')?.value || '');
+          formData.append('genero', form.querySelector('#genero')?.value || '');
+          formData.append('estado', form.querySelector('#estado')?.value || 'Publicado');
+          formData.append('url_imagen', currentImageUrl);
+          formData.append('imagen', imageInput.files[0]);
+
+          res = await fetch(`${API}/${libroId}`, {
+            method: 'PUT',
+            credentials: 'same-origin',
+            headers: {
+              'X-CSRFToken': csrfToken
+            },
+            body: formData
+          });
+        } else {
+          const payload = {
+            titulo: form.querySelector('#titulo')?.value || '',
+            autor: form.querySelector('#autor')?.value || '',
+            sinopsis: form.querySelector('#sinopsis')?.value || '',
+            genero: form.querySelector('#genero')?.value || '',
+            estado: form.querySelector('#estado')?.value || 'Publicado',
+            url_imagen: currentImageUrl
+          };
+
+          res = await fetch(`${API}/${libroId}`, {
+            method: 'PUT',
+            credentials: 'same-origin',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify(payload)
+          });
+        }
       } else {
         const formData = new FormData(form);
         res = await fetch(API, {

@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
+from django.test.client import BOUNDARY, MULTIPART_CONTENT, encode_multipart
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from django.utils import timezone
@@ -242,6 +243,44 @@ class InventarioApiTests(TestCase):
         self.assertEqual(libro.url_imagen, '/media/libros/actualizado.jpg')
         self.assertEqual(str(libro.autores.first()), 'Isabel Allende')
         self.assertEqual(libro.generos.first().nombre, 'Novela')
+
+    def test_actualiza_libro_con_nueva_imagen(self):
+        self.client.force_login(self.user)
+        libro = Libro.objects.create(
+            titulo='Libro original',
+            sinopsis='Version inicial',
+            estado='Publicado',
+            url_imagen='/static/web/imgs/libropredeterminado1.png',
+            usuario_propietario=self.user,
+        )
+
+        portada = SimpleUploadedFile('nueva-portada.jpg', b'fake-image-content', content_type='image/jpeg')
+        payload = encode_multipart(
+            BOUNDARY,
+            {
+                'titulo': 'Libro con portada nueva',
+                'autor': 'Laura Restrepo',
+                'sinopsis': 'Version actualizada con imagen',
+                'genero': 'Novela',
+                'estado': 'Publicado',
+                'url_imagen': libro.url_imagen,
+                'imagen': portada,
+            },
+        )
+
+        response = self.client.generic(
+            'PUT',
+            f'/api/libros/{libro.id}',
+            data=payload,
+            content_type=MULTIPART_CONTENT,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        libro.refresh_from_db()
+        self.assertEqual(libro.titulo, 'Libro con portada nueva')
+        self.assertEqual(str(libro.autores.first()), 'Laura Restrepo')
+        self.assertTrue(libro.url_imagen.startswith('/media/libros/'))
+        self.assertNotEqual(libro.url_imagen, '/static/web/imgs/libropredeterminado1.png')
 
     def test_actualizacion_invalida_retorna_error_controlado(self):
         self.client.force_login(self.user)

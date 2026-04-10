@@ -266,7 +266,7 @@ def import_books_from_payload(payload, default_url_imagen=''):
 
 
 # Actualiza datos del libro y sincroniza sus relaciones principales.
-def update_book(user, libro_id, data):
+def update_book(user, libro_id, data, image_file=None):
     payload = validate_book_payload(data)
     libro = _get_book_for_user(user, libro_id)
 
@@ -275,7 +275,9 @@ def update_book(user, libro_id, data):
             libro.titulo = payload['titulo']
             libro.sinopsis = payload['sinopsis']
             libro.estado = payload['estado']
-            if payload['url_imagen']:
+            if image_file:
+                libro.url_imagen = _save_uploaded_image(image_file)
+            elif payload['url_imagen']:
                 libro.url_imagen = payload['url_imagen']
             libro.save(update_fields=['titulo', 'sinopsis', 'estado', 'url_imagen'])
 

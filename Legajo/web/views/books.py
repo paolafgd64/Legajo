@@ -15,6 +15,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.db.models import Avg, Count, Q
 from django.http import JsonResponse
+from django.http.multipartparser import MultiPartParser, MultiPartParserError
 from django.shortcuts import render, redirect
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods
@@ -42,6 +43,22 @@ from .helpers import (
 
 
 User = get_user_model()
+
+
+def _read_update_payload(request):
+    content_type = request.content_type or ''
+    if content_type.startswith('multipart/form-data'):
+        try:
+            parser = MultiPartParser(request.META, request, request.upload_handlers, request.encoding)
+            data, files = parser.parse()
+            return data, files
+        except MultiPartParserError:
+            return None, None
+
+    data = _read_json_body(request)
+    if data is None:
+        return None, None
+    return data, None
 
 
 # ============================================================================
@@ -226,12 +243,17 @@ def api_libro_detalle(request, libro_id):
         return JsonResponse(libro)
 
     if request.method == 'PUT':
-        data = _read_json_body(request)
+        data, files = _read_update_payload(request)
         if data is None:
             return JsonResponse({'message': 'El cuerpo de la solicitud no es JSON valido.'}, status=400)
 
         try:
-            libro = update_book(request.user, libro_id, data)
+            libro = update_book(
+                request.user,
+                libro_id,
+                data,
+                image_file=files.get('imagen') if files else None,
+            )
         except ControlledError as error:
             return _service_error_response(error)
         return JsonResponse(libro)
