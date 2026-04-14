@@ -1,8 +1,3 @@
-import os
-import uuid
-
-from django.conf import settings
-from django.core.files.storage import default_storage
 from django.db import DatabaseError, transaction
 from django.db.models import Avg, Count, Q
 
@@ -17,6 +12,19 @@ from ..validators import (
 )
 from .cloudinary import is_cloudinary_configured, upload_image_to_cloudinary
 from .serialization import serialize_book
+
+
+def _extract_books_payload(payload):
+    if isinstance(payload, list):
+        return payload
+
+    if isinstance(payload, dict):
+        for key in ('libros', 'books', 'items', 'data', 'resultado'):
+            candidate = payload.get(key)
+            if isinstance(candidate, list):
+                return candidate
+
+    raise ValidationServiceError('El archivo JSON debe contener una lista de libros.')
 
 
 # Normaliza nombre completo de autor a la estructura del modelo (nombre/apellido separados).
@@ -51,16 +59,15 @@ def _get_or_create_author(author_name):
 
 # Guarda imagen en Cloudinary si esta configurado; si no, usa almacenamiento local.
 def _save_uploaded_image(uploaded_file):
-    if is_cloudinary_configured():
-        try:
-            return upload_image_to_cloudinary(uploaded_file)
-        except ExternalServiceError:
-            raise
+    if not is_cloudinary_configured():
+        raise ExternalServiceError(
+            'Cloudinary no esta configurado. Agrega tus credenciales en el archivo .env para subir imagenes.'
+        )
 
-    extension = os.path.splitext(uploaded_file.name)[1] or '.jpg'
-    filename = f"libros/{uuid.uuid4()}{extension}"
-    saved_path = default_storage.save(filename, uploaded_file)
-    return f"{settings.MEDIA_URL}{saved_path}".replace('\\', '/')
+    try:
+        return upload_image_to_cloudinary(uploaded_file)
+    except ExternalServiceError:
+        raise
 
 
 # Queryset base reutilizable para mantener consistencia en listados de libros activos.
@@ -201,13 +208,19 @@ def _normalize_import_book_payload(item, indice, default_url_imagen=''):
     if not isinstance(item, dict):
         raise ValidationServiceError(f'El libro en la posicion {indice} no es un objeto JSON valido.')
 
-    usuario_email = str(
-        item.get('usuario_email') or
-        item.get('email_usuario') or
-        item.get('correo_usuario') or
-        item.get('usuarioCorreo') or
-        ''
-    ).strip().lower()
+    usuario = item.get('usuario') or item.get('owner') or item.get('propietario')
+    usuario_email = item.get('usuario_email') or item.get('email_usuario') or item.get('correo_usuario') or item.get('usuarioCorreo')
+    if not usuario_email and isinstance(usuario, dict):
+        usuario_email = (
+            usuario.get('email') or
+            usuario.get('correo') or
+            usuario.get('usuario_email') or
+            usuario.get('correo_usuario')
+        )
+    elif not usuario_email and isinstance(usuario, str):
+        usuario_email = usuario
+
+    usuario_email = str(usuario_email or item.get('email') or item.get('correo') or '').strip().lower()
 
     if not usuario_email:
         raise ValidationServiceError(f'El libro en la posicion {indice} no tiene el correo del usuario propietario.')
@@ -222,12 +235,20 @@ def _normalize_import_book_payload(item, indice, default_url_imagen=''):
 
     payload = validate_book_payload(
         {
-            'titulo': item.get('titulo'),
-            'autor': item.get('autor'),
-            'sinopsis': item.get('sinopsis'),
-            'genero': item.get('genero'),
+            'titulo': item.get('titulo') or item.get('nombre') or item.get('title'),
+            'autor': item.get('autor') or item.get('autores') or item.get('author'),
+            'sinopsis': item.get('sinopsis') or item.get('descripcion') or item.get('resumen') or item.get('synopsis'),
+            'genero': item.get('genero') or item.get('categoria') or item.get('genre'),
             'estado': estado,
-            'url_imagen': item.get('url_imagen') or item.get('urlImagen') or default_url_imagen,
+            'url_imagen': (
+                item.get('url_imagen') or
+                item.get('urlImagen') or
+                item.get('imagen') or
+                item.get('imagen_url') or
+                item.get('portada') or
+                item.get('cover') or
+                default_url_imagen
+            ),
         }
     )
 
@@ -236,14 +257,13 @@ def _normalize_import_book_payload(item, indice, default_url_imagen=''):
 
 # Importa libros en lote y evita duplicados por usuario/titulo.
 def import_books_from_payload(payload, default_url_imagen=''):
-    if not isinstance(payload, list):
-        raise ValidationServiceError('El archivo JSON debe contener una lista de libros.')
+    books_payload = _extract_books_payload(payload)
 
     creados = 0
     omitidos = 0
 
     with transaction.atomic():
-        for indice, item in enumerate(payload, start=1):
+        for indice, item in enumerate(books_payload, start=1):
             usuario, libro_payload = _normalize_import_book_payload(item, indice, default_url_imagen=default_url_imagen)
 
             existe = Libro.objects.filter(

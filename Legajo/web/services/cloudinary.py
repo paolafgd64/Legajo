@@ -10,10 +10,22 @@ from django.conf import settings
 from ..validators import ExternalServiceError
 
 
+_CLOUDINARY_PLACEHOLDER_VALUES = {
+    '',
+    'tu_cloud_name',
+    'tu_api_key',
+    'tu_api_secret',
+}
+
+
+def _is_valid_cloudinary_value(value):
+    return (value or '').strip() not in _CLOUDINARY_PLACEHOLDER_VALUES
+
+
 def is_cloudinary_configured():
     config = getattr(settings, 'LEGAJO_CLOUDINARY', {})
     return all(
-        config.get(key)
+        _is_valid_cloudinary_value(config.get(key))
         for key in ('cloud_name', 'api_key', 'api_secret')
     )
 

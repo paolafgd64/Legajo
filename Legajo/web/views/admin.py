@@ -43,6 +43,12 @@ from .helpers import (
 User = get_user_model()
 
 
+def _wants_json_response(request):
+    accept = request.headers.get('Accept', '')
+    requested_with = request.headers.get('X-Requested-With', '')
+    return 'application/json' in accept or requested_with == 'XMLHttpRequest'
+
+
 # ============================================================================
 # VISTAS HTML (PAGES)
 # ============================================================================
@@ -85,26 +91,44 @@ def usuarios_admin(request):
         archivo = request.FILES.get('archivo_usuarios')
 
         if not archivo:
-            context['mensaje_error_carga'] = 'Debes seleccionar un archivo JSON para importar.'
+            message = 'Debes seleccionar un archivo JSON para importar.'
+            if _wants_json_response(request):
+                return JsonResponse({'message': message}, status=400)
+            context['mensaje_error_carga'] = message
             return render(request, 'web/usuarios_admin.html', context, status=400)
 
         try:
             payload = json.loads(archivo.read().decode('utf-8-sig'))
             resultado = import_users_from_payload(payload, actualizar=False)
         except UnicodeDecodeError:
-            context['mensaje_error_carga'] = 'El archivo debe estar codificado en UTF-8.'
+            message = 'El archivo debe estar codificado en UTF-8.'
+            if _wants_json_response(request):
+                return JsonResponse({'message': message}, status=400)
+            context['mensaje_error_carga'] = message
             return render(request, 'web/usuarios_admin.html', context, status=400)
         except JSONDecodeError as exc:
-            context['mensaje_error_carga'] = f'El archivo no contiene JSON valido: {exc}'
+            message = f'El archivo no contiene JSON valido: {exc}'
+            if _wants_json_response(request):
+                return JsonResponse({'message': message}, status=400)
+            context['mensaje_error_carga'] = message
             return render(request, 'web/usuarios_admin.html', context, status=400)
         except ControlledError as exc:
+            if _wants_json_response(request):
+                return JsonResponse({'message': exc.message}, status=exc.status_code)
             context['mensaje_error_carga'] = exc.message
             return render(request, 'web/usuarios_admin.html', context, status=400)
 
-        request.session['mensaje_exito_carga_usuarios'] = (
+        success_message = (
             f"Importacion completada. Creados: {resultado['creados']}, "
             f"actualizados: {resultado['actualizados']}, omitidos: {resultado['omitidos']}."
         )
+        if _wants_json_response(request):
+            return JsonResponse({
+                'message': success_message,
+                'resultado': resultado,
+            })
+
+        request.session['mensaje_exito_carga_usuarios'] = success_message
         return redirect('usuarios_admin')
 
     return render(request, 'web/usuarios_admin.html', context)

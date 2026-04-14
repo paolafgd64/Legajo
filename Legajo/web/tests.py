@@ -1,4 +1,8 @@
 import json
+import os
+from importlib import import_module, reload
+from pathlib import Path
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
@@ -11,6 +15,73 @@ from django.utils import timezone
 
 from .models import Autor, Intercambio, Libro, NotificacionUsuario, ReporteUsuario
 from .views.helpers import _build_password_reset_link, _get_admin_dashboard_context, _get_password_reset_user
+
+
+class CloudinarySettingsTests(TestCase):
+    def setUp(self):
+        self.settings_module = import_module('Legajo.settings')
+        self.env_path = Path(self.settings_module.BASE_DIR) / '.env'
+        self.original_env = {
+            key: os.environ.get(key)
+            for key in (
+                'CLOUDINARY_URL',
+                'LEGAJO_CLOUDINARY_CLOUD_NAME',
+                'LEGAJO_CLOUDINARY_API_KEY',
+                'LEGAJO_CLOUDINARY_API_SECRET',
+                'LEGAJO_CLOUDINARY_FOLDER',
+            )
+        }
+        self.original_env_file = self.env_path.read_text(encoding='utf-8') if self.env_path.exists() else None
+
+    def tearDown(self):
+        for key, value in self.original_env.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+
+        if self.original_env_file is None:
+            if self.env_path.exists():
+                self.env_path.unlink()
+        else:
+            self.env_path.write_text(self.original_env_file, encoding='utf-8')
+
+        reload(self.settings_module)
+
+    def test_cloudinary_settings_accept_cloudinary_url(self):
+        os.environ.pop('LEGAJO_CLOUDINARY_CLOUD_NAME', None)
+        os.environ.pop('LEGAJO_CLOUDINARY_API_KEY', None)
+        os.environ.pop('LEGAJO_CLOUDINARY_API_SECRET', None)
+        os.environ['CLOUDINARY_URL'] = 'cloudinary://mi_api_key:mi_api_secret@mi_cloud_name'
+        os.environ['LEGAJO_CLOUDINARY_FOLDER'] = 'legajo/pruebas'
+
+        config = self.settings_module._get_cloudinary_settings()
+
+        self.assertEqual(config['cloud_name'], 'mi_cloud_name')
+        self.assertEqual(config['api_key'], 'mi_api_key')
+        self.assertEqual(config['api_secret'], 'mi_api_secret')
+        self.assertEqual(config['folder'], 'legajo/pruebas')
+
+    def test_local_env_file_loads_cloudinary_variables(self):
+        for key in self.original_env:
+            os.environ.pop(key, None)
+
+        self.env_path.write_text(
+            '\n'.join([
+                'LEGAJO_CLOUDINARY_CLOUD_NAME=demo-cloud',
+                'LEGAJO_CLOUDINARY_API_KEY=demo-key',
+                'LEGAJO_CLOUDINARY_API_SECRET=demo-secret',
+                'LEGAJO_CLOUDINARY_FOLDER=legajo/env-file',
+            ]),
+            encoding='utf-8',
+        )
+
+        reloaded_settings = reload(self.settings_module)
+
+        self.assertEqual(reloaded_settings.LEGAJO_CLOUDINARY['cloud_name'], 'demo-cloud')
+        self.assertEqual(reloaded_settings.LEGAJO_CLOUDINARY['api_key'], 'demo-key')
+        self.assertEqual(reloaded_settings.LEGAJO_CLOUDINARY['api_secret'], 'demo-secret')
+        self.assertEqual(reloaded_settings.LEGAJO_CLOUDINARY['folder'], 'legajo/env-file')
 
 
 class AuthApiTests(TestCase):
@@ -275,11 +346,55 @@ class InventarioApiTests(TestCase):
             content_type=MULTIPART_CONTENT,
         )
 
+        self.assertEqual(response.status_code, 502)
+        self.assertEqual(
+            response.json()['message'],
+            'Cloudinary no esta configurado. Agrega tus credenciales en el archivo .env para subir imagenes.',
+        )
+        libro.refresh_from_db()
+        self.assertEqual(libro.titulo, 'Libro original')
+        self.assertEqual(libro.url_imagen, '/static/web/imgs/libropredeterminado1.png')
+
+    @patch('web.services.books.upload_image_to_cloudinary')
+    @patch('web.services.books.is_cloudinary_configured', return_value=True)
+    def test_actualiza_libro_con_nueva_imagen_en_cloudinary(self, _, mocked_upload):
+        self.client.force_login(self.user)
+        libro = Libro.objects.create(
+            titulo='Libro original',
+            sinopsis='Version inicial',
+            estado='Publicado',
+            url_imagen='/static/web/imgs/libropredeterminado1.png',
+            usuario_propietario=self.user,
+        )
+
+        mocked_upload.return_value = 'https://res.cloudinary.com/demo/image/upload/v1/legajo/libros/nueva-portada.jpg'
+
+        portada = SimpleUploadedFile('nueva-portada.jpg', b'fake-image-content', content_type='image/jpeg')
+        payload = encode_multipart(
+            BOUNDARY,
+            {
+                'titulo': 'Libro con portada nueva',
+                'autor': 'Laura Restrepo',
+                'sinopsis': 'Version actualizada con imagen',
+                'genero': 'Novela',
+                'estado': 'Publicado',
+                'url_imagen': libro.url_imagen,
+                'imagen': portada,
+            },
+        )
+
+        response = self.client.generic(
+            'PUT',
+            f'/api/libros/{libro.id}',
+            data=payload,
+            content_type=MULTIPART_CONTENT,
+        )
+
         self.assertEqual(response.status_code, 200)
         libro.refresh_from_db()
         self.assertEqual(libro.titulo, 'Libro con portada nueva')
         self.assertEqual(str(libro.autores.first()), 'Laura Restrepo')
-        self.assertTrue(libro.url_imagen.startswith('/media/libros/'))
+        self.assertTrue(libro.url_imagen.startswith('https://res.cloudinary.com/'))
         self.assertNotEqual(libro.url_imagen, '/static/web/imgs/libropredeterminado1.png')
 
     def test_actualizacion_invalida_retorna_error_controlado(self):
@@ -412,6 +527,134 @@ class InventarioApiTests(TestCase):
                 estado=Intercambio.Estado.PENDIENTE,
             ).exists()
         )
+
+
+class ImportacionMasivaLibrosTests(TestCase):
+    def setUp(self):
+        self.user_model = get_user_model()
+        self.admin = self.user_model.objects.create_user(
+            email='admin-libros@example.com',
+            password='Segura123!@#',
+            nombre1='Admin',
+            apellido1='Libros',
+            direccion='Calle 1',
+            ciudad='Bogota',
+            telefono=3001112233,
+            rol=self.user_model.Rol.ADMIN,
+        )
+        self.owner = self.user_model.objects.create_user(
+            email='dueno-libro@example.com',
+            password='Segura123!@#',
+            nombre1='Dueno',
+            apellido1='Libro',
+            direccion='Calle 2',
+            ciudad='Bogota',
+            telefono=3001112244,
+        )
+
+    def test_importacion_masiva_libros_acepta_json_envuelto_y_aliases(self):
+        self.client.force_login(self.admin)
+        archivo = SimpleUploadedFile(
+            'libros.json',
+            json.dumps({
+                'libros': [
+                    {
+                        'nombre': 'Pedro Paramo',
+                        'author': 'Juan Rulfo',
+                        'descripcion': 'Novela latinoamericana.',
+                        'categoria': 'Ficcion',
+                        'correo': 'dueno-libro@example.com',
+                        'portada': 'https://res.cloudinary.com/demo/image/upload/v1/pedro-paramo.jpg',
+                    }
+                ]
+            }).encode('utf-8'),
+            content_type='application/json',
+        )
+
+        response = self.client.post('/reporte_libros/', data={'archivo_libros': archivo}, follow=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Importacion completada. Creados: 1, actualizados: 0, omitidos: 0.')
+        libro = Libro.objects.get(titulo='Pedro Paramo')
+        self.assertEqual(libro.usuario_propietario, self.owner)
+        self.assertEqual(libro.generos.first().nombre, 'Ficcion')
+        self.assertEqual(str(libro.autores.first()), 'Juan Rulfo')
+        self.assertEqual(libro.url_imagen, 'https://res.cloudinary.com/demo/image/upload/v1/pedro-paramo.jpg')
+
+    def test_importacion_masiva_libros_omite_duplicados(self):
+        Libro.objects.create(
+            titulo='El Aleph',
+            sinopsis='Ya existe',
+            estado='Publicado',
+            url_imagen='/static/web/imgs/libropredeterminado1.png',
+            usuario_propietario=self.owner,
+        )
+        self.client.force_login(self.admin)
+        archivo = SimpleUploadedFile(
+            'libros.json',
+            json.dumps([
+                {
+                    'titulo': 'El Aleph',
+                    'autor': 'Jorge Luis Borges',
+                    'sinopsis': 'Duplicado',
+                    'genero': 'Ficcion',
+                    'usuario': {'email': 'dueno-libro@example.com'},
+                }
+            ]).encode('utf-8'),
+            content_type='application/json',
+        )
+
+        response = self.client.post('/reporte_libros/', data={'archivo_libros': archivo}, follow=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Importacion completada. Creados: 0, actualizados: 0, omitidos: 1.')
+        self.assertEqual(Libro.objects.filter(titulo='El Aleph', usuario_propietario=self.owner).count(), 1)
+
+
+class ImportacionMasivaUsuariosAjaxTests(TestCase):
+    def setUp(self):
+        self.user_model = get_user_model()
+        self.admin = self.user_model.objects.create_user(
+            email='admin-ajax@example.com',
+            password='Segura123!@#',
+            nombre1='Admin',
+            apellido1='Ajax',
+            direccion='Calle 10',
+            ciudad='Bogota',
+            telefono=3009991111,
+            rol=self.user_model.Rol.ADMIN,
+        )
+
+    def test_importacion_usuarios_ajax_retorna_json_de_exito(self):
+        self.client.force_login(self.admin)
+        archivo = SimpleUploadedFile(
+            'usuarios.json',
+            json.dumps([
+                {
+                    'correo': 'nuevo-ajax@example.com',
+                    'primerNombre': 'Nuevo',
+                    'primerApellido': 'Ajax',
+                    'direccion': 'Calle 11',
+                    'ciudad': 'Bogota',
+                    'telefono': '3005554444',
+                    'clave': 'Segura123!@#',
+                }
+            ]).encode('utf-8'),
+            content_type='application/json',
+        )
+
+        response = self.client.post(
+            '/usuarios_admin/',
+            data={'archivo_usuarios': archivo},
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+            HTTP_ACCEPT='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn('Importacion completada.', data['message'])
+        self.assertEqual(data['resultado']['creados'], 1)
+        self.assertTrue(self.user_model.objects.filter(email='nuevo-ajax@example.com').exists())
 
 
 class AdminDashboardTests(TestCase):

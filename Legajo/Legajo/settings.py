@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 import os
+from urllib.parse import urlparse
 
 import pymysql  # pyright: ignore[reportMissingModuleSource]
 pymysql.version_info = (2, 2, 8, "final", 0)
@@ -20,6 +21,47 @@ from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+
+def _load_local_env_file():
+    env_path = BASE_DIR / '.env'
+    if not env_path.exists():
+        return
+
+    for raw_line in env_path.read_text(encoding='utf-8').splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith('#') or '=' not in line:
+            continue
+
+        key, value = line.split('=', 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key:
+            os.environ.setdefault(key, value)
+
+
+def _get_cloudinary_settings():
+    cloudinary_url = os.environ.get('CLOUDINARY_URL', '').strip()
+    cloud_name = os.environ.get('LEGAJO_CLOUDINARY_CLOUD_NAME', '').strip()
+    api_key = os.environ.get('LEGAJO_CLOUDINARY_API_KEY', '').strip()
+    api_secret = os.environ.get('LEGAJO_CLOUDINARY_API_SECRET', '').strip()
+
+    if cloudinary_url:
+        parsed = urlparse(cloudinary_url)
+        if parsed.scheme == 'cloudinary':
+            cloud_name = parsed.hostname or cloud_name
+            api_key = parsed.username or api_key
+            api_secret = parsed.password or api_secret
+
+    return {
+        'cloud_name': cloud_name,
+        'api_key': api_key,
+        'api_secret': api_secret,
+        'folder': os.environ.get('LEGAJO_CLOUDINARY_FOLDER', 'legajo/libros').strip() or 'legajo/libros',
+    }
+
+
+_load_local_env_file()
 
 
 # Quick-start development settings - unsuitable for production
@@ -131,12 +173,7 @@ STATICFILES_DIRS = [
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-LEGAJO_CLOUDINARY = {
-    'cloud_name': os.environ.get('LEGAJO_CLOUDINARY_CLOUD_NAME', '').strip(),
-    'api_key': os.environ.get('LEGAJO_CLOUDINARY_API_KEY', '').strip(),
-    'api_secret': os.environ.get('LEGAJO_CLOUDINARY_API_SECRET', '').strip(),
-    'folder': os.environ.get('LEGAJO_CLOUDINARY_FOLDER', 'legajo/libros').strip() or 'legajo/libros',
-}
+LEGAJO_CLOUDINARY = _get_cloudinary_settings()
 
 
 # Default primary key field type
