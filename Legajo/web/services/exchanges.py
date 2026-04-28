@@ -1,3 +1,5 @@
+"""Servicios de negocio para solicitudes de intercambio."""
+
 from django.db import DatabaseError
 
 from ..models import Intercambio, Libro

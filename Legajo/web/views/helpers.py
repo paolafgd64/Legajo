@@ -366,7 +366,7 @@ def _get_jpeg_size(image_bytes):
 
 
 def _load_pdf_logo():
-    logo_path = settings.BASE_DIR / 'web' / 'static' / 'web' / 'imgs' / 'logo_oscuro1.jpg'
+    logo_path = settings.BASE_DIR / 'web' / 'usuarios' / 'static' / 'usuarios' / 'imgs' / 'logo_oscuro1.jpg'
     if not logo_path.exists():
         return None
     image_bytes = logo_path.read_bytes()

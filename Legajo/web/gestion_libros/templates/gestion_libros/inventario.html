@@ -1,0 +1,103 @@
+﻿{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Dashboard Usuario</title>
+    <link rel="stylesheet" href="{% static 'usuarios/css/dashboard.css' %}"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    {% csrf_token %}
+    <button id="toggleModo" class="modo-toggle">ðŸŒ™ Modo Claro</button>
+    <!-- Sidebar -->
+    <nav class="sidebar">
+        <div class="logo">
+            <i class="fas fa-user"></i>
+            <span>Panel de <p id="n2">nombre</p></span>
+        </div>
+        <ul class="nav-links">
+            <a href="{% url 'dashboard_usuario' %}"><li><i class="fas fa-home"></i><span>Inicio</span></li></a>
+            <a href="{% url 'chats' %}"><li><i class="fas fa-message"></i><span>Intercambios</span></li></a>
+            <a href="{% url 'inventario' %}"><li class="active"><i class="fas fa-box"></i><span>Inventario</span></li></a>
+            <a href="{% url 'notificaciones' %}"><li><i class="fas fa-check"></i><span>Notificaciones</span></li></a>
+            <a href="{% url 'perfil' %}"><li><i class="fas fa-user-circle"></i><span>Perfil</span></li></a>
+        </ul>
+    </nav>
+
+    <!-- Contenido Principal -->
+    <main class="main-content">
+        <header>
+            <div class="header-left">
+                <h1>Tu inventario</h1>
+                
+            </div>
+            <div class="header-right">
+                <div class="user-profile">
+                <img src="{% static 'usuarios/imgs/profile.png' %}" alt="Usuario" />
+                <span id="n3">Usuario</span>
+                </div>
+            </div>
+        </header>
+
+        <!------
+        INVENTARIO
+        -------->
+
+        <section>
+            <div class="inventario">
+                <div class="grid-inventario">
+                    <!-- Los libros se cargarÃ¡n dinÃ¡micamente aquÃ­ desde inventario.js -->
+                </div>
+
+                <!-- BotÃ³n de acciÃ³n (esquina inferior derecha) -->
+                <a href="{% url 'registrar_libro' %}"><button class="btn-agregar">+</button></a>
+            </div>
+        </section>
+
+        <!-- Modal de CalificaciÃ³n -->
+        <div id="modalCalificacion" class="modal-calificacion">
+            <div class="modal-calificacion-content">
+                <button onclick="cerrarModalCalificacion()" class="btn-cerrar-modal">Ã—</button>
+                <h2>Califica tu libro</h2>
+                <p class="subtitulo-modal">Selecciona las estrellas</p>
+                
+                <div class="contenedor-estrellas">
+                    <span class="estrella" onclick="seleccionarEstrella(1)" onmouseover="previewEstrella(1)" onmouseout="limpiarPreviewEstrella()">â˜…</span>
+                    <span class="estrella" onclick="seleccionarEstrella(2)" onmouseover="previewEstrella(2)" onmouseout="limpiarPreviewEstrella()">â˜…</span>
+                    <span class="estrella" onclick="seleccionarEstrella(3)" onmouseover="previewEstrella(3)" onmouseout="limpiarPreviewEstrella()">â˜…</span>
+                    <span class="estrella" onclick="seleccionarEstrella(4)" onmouseover="previewEstrella(4)" onmouseout="limpiarPreviewEstrella()">â˜…</span>
+                    <span class="estrella" onclick="seleccionarEstrella(5)" onmouseover="previewEstrella(5)" onmouseout="limpiarPreviewEstrella()">â˜…</span>
+                </div>
+                
+                <div class="botones-modal">
+                    <button onclick="enviarCalificacion()" class="btn-enviar-calificacion">Enviar CalificaciÃ³n</button>
+                    <button onclick="cerrarModalCalificacion()" class="btn-cancelar-calificacion">Cancelar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal para Ver Detalles del Libro -->
+        <div id="modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <button id="closeModal" class="btn-cerrar-modal">Ã—</button>
+                <div class="modal-text">
+                    <img id="modalImg" src="" alt="Libro" class="modal-img">
+                    <h2 id="modalTitulo"></h2>
+                    <h4 id="modalAutor"></h4>
+                    <p id="modalDescripcion"></p>
+                </div>
+            </div>
+        </div>
+    </main>
+    <script src="{% static 'usuarios/js/script.js' %}"></script>
+    <script src="{% static 'gestion_libros/js/inventario.js' %}"></script>
+    <script src="{% static 'gestion_libros/js/calificaciones.js' %}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    
+</body>
+</html>
+

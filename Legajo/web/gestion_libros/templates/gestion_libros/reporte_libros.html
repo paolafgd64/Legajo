@@ -1,0 +1,189 @@
+﻿{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reporte de libros - Admin</title>
+    <link rel="stylesheet" href="{% static 'usuarios/css/dashboard.css' %}?v=20260405d">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <button id="toggleModo" class="modo-toggle">Modo Claro</button>
+
+    <nav class="sidebar">
+        <div class="logo">
+            <i class="fas fa-user-shield"></i>
+            <span>AdminDash</span>
+        </div>
+        <ul class="nav-links">
+            <a href="{% url 'dashboard_admin' %}"><li><i class="fas fa-home"></i><span>Inicio</span></li></a>
+            <a href="{% url 'usuarios_admin' %}"><li><i class="fas fa-users"></i><span>Usuarios</span></li></a>
+            <a href="{% url 'novedades_usuarios' %}"><li><i class="fas fa-user"></i><span>Novedades de usuarios</span></li></a>
+            <a href="{% url 'reporte_libros' %}"><li class="active"><i class="fas fa-book"></i><span>Reporte de libros</span></li></a>
+            <a href="{% url 'inventario_admi' %}"><li><i class="fas fa-box"></i><span>Inventario</span></li></a>
+            <a href="{% url 'perfil_admin' %}"><li><i class="fas fa-user-circle"></i><span>Perfil</span></li></a>
+        </ul>
+    </nav>
+
+    <main class="main-content">
+        <header>
+            <div class="header-left">
+                <h1>Reporte de libros</h1>
+                <p>Genera reportes analiticos en PDF con filtros multicriterio, consultas estadisticas e indicadores utiles para la toma de decisiones.</p>
+            </div>
+            <div class="header-right">
+                <div class="user-profile">
+                    <img src="{% static 'usuarios/imgs/profile.png' %}" alt="Admin" />
+                    <span>{{ admin_name|default:"Administrador" }}</span>
+                </div>
+            </div>
+        </header>
+
+        {% if mensaje_error_carga %}
+        <div class="mass-upload-feedback error" id="mensajeCargaLibros">
+            <i class="fas fa-circle-exclamation"></i>
+            <span>{{ mensaje_error_carga }}</span>
+            <button type="button" class="mass-upload-feedback-close" data-dismiss-feedback aria-label="Cerrar mensaje">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        {% endif %}
+
+        {% if mensaje_exito_carga %}
+        <div class="mass-upload-feedback success" id="mensajeCargaLibros">
+            <i class="fas fa-circle-check"></i>
+            <span>{{ mensaje_exito_carga }}</span>
+            <button type="button" class="mass-upload-feedback-close" data-dismiss-feedback aria-label="Cerrar mensaje">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        {% endif %}
+
+        <section class="filtros">
+            <input type="text" id="filtroTitulo" placeholder="Titulo del libro">
+            <input type="text" id="filtroAutor" placeholder="Autor">
+            <input type="text" id="filtroUsuario" placeholder="Usuario que lo publico">
+
+            <select id="filtroGenero">
+                <option value="">Genero</option>
+                <option value="Ficcion">Ficcion</option>
+                <option value="Ciencia ficcion">Ciencia ficcion</option>
+                <option value="Romance">Romance</option>
+                <option value="Terror">Terror</option>
+                <option value="Fantasia">Fantasia</option>
+                <option value="Misterio">Misterio</option>
+                <option value="Autoayuda">Autoayuda</option>
+            </select>
+
+            <select id="filtroEstado">
+                <option value="">Estado</option>
+                <option value="Publicado">Publicado</option>
+                <option value="Leyendo">Leyendo</option>
+            </select>
+
+            <select id="filtroCalificacion">
+                <option value="">Calificacion minima</option>
+                <option value="1">1 estrella</option>
+                <option value="2">2 estrellas</option>
+                <option value="3">3 estrellas</option>
+                <option value="4">4 estrellas</option>
+                <option value="5">5 estrellas</option>
+            </select>
+
+            <button id="btnLimpiar">Limpiar filtros</button>
+            <button id="btnGenerarPDF">Generar reporte en PDF</button>
+            <button type="button" id="btnAbrirImportacionLibros" class="importar-accion import-button-inline">Importar</button>
+        </section>
+
+        <section class="tabla-reportes">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Usuario</th>
+                        <th>Titulo</th>
+                        <th>Autor</th>
+                        <th>Genero</th>
+                        <th>Estado</th>
+                    </tr>
+                </thead>
+                <tbody id="tablaLibros"></tbody>
+            </table>
+        </section>
+
+        <div id="modalLibro" class="modal">
+            <div class="modal-content">
+                <span id="cerrarModal" class="close">&times;</span>
+                <img id="modalImg" class="modal-img" alt="Portada del libro">
+                <h2 id="modalTitulo"></h2>
+                <h3 id="modalAutor"></h3>
+                <p><b>Genero:</b> <span id="modalGenero"></span></p>
+                <p><b>Publicado por:</b> <span id="modalUsuario"></span></p>
+                <p><b>Calificacion:</b> <span id="modalCalificacion"></span></p>
+                <p><b>Estado:</b> <span id="modalEstado"></span></p>
+                <h3>Descripcion:</h3>
+                <p id="modalDescripcion"></p>
+            </div>
+        </div>
+
+        <div id="modalImportacionLibros" class="import-modal-overlay" aria-hidden="true">
+            <div class="import-modal-card">
+                <button
+                    type="button"
+                    id="cerrarModalImportacionLibros"
+                    class="import-modal-close"
+                    aria-label="Cerrar"
+                >
+                    <i class="fas fa-times"></i>
+                </button>
+
+                <div class="import-modal-head">
+                    <h2>Importar libros</h2>
+                    <p>Selecciona un archivo JSON. Si un libro no trae portada, usaremos la portada predeterminada de carga masiva.</p>
+                </div>
+
+                <form method="post" enctype="multipart/form-data" class="mass-upload-form import-modal-form">
+                    {% csrf_token %}
+                    <input id="archivo_libros" name="archivo_libros" type="file" accept=".json,application/json" required hidden>
+                    <div class="import-file-picker">
+                        <button
+                            type="button"
+                            id="seleccionarArchivoImportacionLibros"
+                            class="import-select-button"
+                        >
+                            Seleccionar archivo
+                        </button>
+                        <div id="nombreArchivoLibrosSeleccionado" class="import-file-status">Sin archivos seleccionados</div>
+                        <button
+                            type="button"
+                            id="limpiarArchivoImportacionLibros"
+                            class="import-clear-button"
+                            aria-label="Quitar archivo seleccionado"
+                            title="Quitar archivo"
+                        >
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+
+                    <div class="import-modal-actions">
+                        <button
+                            type="button"
+                            id="cancelarImportacionLibros"
+                            class="import-cancel-button"
+                        >
+                            Cancelar
+                        </button>
+                        <button type="submit" class="import-submit-button">
+                            Subir archivo
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <script src="{% static 'gestion_libros/js/reportes.js' %}?v=20260405d"></script>
+    <script src="{% static 'usuarios/js/script.js' %}?v=20260405d"></script>
+</body>
+</html>
+

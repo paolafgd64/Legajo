@@ -1,0 +1,207 @@
+﻿{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crear Cuenta</title>
+    <link rel="stylesheet" href="{% static 'usuarios/css/styles.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+    <a href="{% url 'index' %}" class="btn-volver">&larr;</a>
+    <button id="toggleModo" class="modo-toggle">Modo Claro</button>
+
+    <section class="formulario formulario-crear">
+        <form class="form-crear" id="registroForm" action="{% url 'dashboard_usuario' %}">
+            {% csrf_token %}
+            <div class="logo-crear"></div>
+            <h2>Crear cuenta</h2>
+            <p class="form-heading-copy">Completa tus datos y crea una contrasena segura. Si algo falta o no cumple las reglas, te lo mostraremos aqui de forma clara.</p>
+
+            <input type="text" id="primerNombre" name="primerNombre" placeholder="Primer nombre" required>
+            <input type="text" id="segundoNombre" name="segundoNombre" placeholder="Segundo nombre">
+            <input type="text" id="primerApellido" name="primerApellido" placeholder="Primer apellido" required>
+            <input type="text" id="segundoApellido" name="segundoApellido" placeholder="Segundo apellido">
+            <input type="email" id="correo" name="correo" placeholder="Correo electronico" required>
+            <input type="text" id="direccion" name="direccion" placeholder="Direccion" required>
+            <select id="ciudad" name="ciudad" required>
+                <option value="">Selecciona una ciudad</option>
+                <option value="Bogota">Bogota</option>
+                <option value="Medellin">Medellin</option>
+                <option value="Cali">Cali</option>
+                <option value="Barranquilla">Barranquilla</option>
+                <option value="Bucaramanga">Bucaramanga</option>
+                <option value="Cartagena">Cartagena</option>
+                <option value="Manizales">Manizales</option>
+                <option value="Pereira">Pereira</option>
+                <option value="Santa Marta">Santa Marta</option>
+                <option value="Tunja">Tunja</option>
+            </select>
+            <input type="tel" id="telefono" name="telefono" placeholder="Telefono" required>
+
+            <div class="input-pass">
+                <input type="password" id="clave" name="clave" placeholder="Contrasena" required>
+                <i class="toggle-pass fas fa-eye" onclick="verClave('clave', this)"></i>
+            </div>
+            <div class="input-pass">
+                <input type="password" id="confirmClave" name="confirmClave" placeholder="Confirmar contrasena" required>
+                <i class="toggle-pass fas fa-eye" onclick="verClave('confirmClave', this)"></i>
+            </div>
+
+            <div id="passwordChecklist" class="password-checklist"></div>
+            <button type="submit">Registrar</button>
+            <div id="mensaje" class="form-status" role="alert" aria-live="polite"></div>
+        </form>
+    </section>
+
+    <script src="{% static 'usuarios/js/script.js' %}"></script>
+    <script src="{% static 'usuarios/js/validaciones.js' %}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const form = document.getElementById('registroForm');
+            const mensaje = document.getElementById('mensaje');
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const passwordInput = document.getElementById('clave');
+            const confirmInput = document.getElementById('confirmClave');
+            const emailInput = document.getElementById('correo');
+            const checklist = document.getElementById('passwordChecklist');
+
+            const inputs = {
+                primerNombre: document.getElementById('primerNombre'),
+                primerApellido: document.getElementById('primerApellido'),
+                correo: emailInput,
+                direccion: document.getElementById('direccion'),
+                ciudad: document.getElementById('ciudad'),
+                telefono: document.getElementById('telefono'),
+                clave: passwordInput,
+                confirmClave: confirmInput,
+            };
+
+            const extractErrorMessage = (responseText, fallbackText) => {
+                if (!responseText) return fallbackText;
+                try {
+                    const parsed = JSON.parse(responseText);
+                    if (typeof parsed === 'string') return parsed;
+                    if (parsed.message) return parsed.message;
+                    if (parsed.mensaje) return parsed.mensaje;
+                } catch (error) {}
+                return responseText || fallbackText;
+            };
+
+            const actualizarChecklist = () => {
+                renderPasswordChecklist(checklist, passwordInput.value, emailInput.value);
+            };
+
+            [passwordInput, emailInput].forEach((input) => {
+                input.addEventListener('input', actualizarChecklist);
+            });
+
+            form.querySelectorAll('input').forEach((input) => {
+                input.addEventListener('input', () => {
+                    input.classList.remove('input-error');
+                    limpiarMensajeFormulario(mensaje);
+                });
+            });
+
+            actualizarChecklist();
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                limpiarMensajeFormulario(mensaje);
+                marcarCamposInvalidos([]);
+
+                if (!inputs.primerNombre.value.trim()) {
+                    marcarCamposInvalidos([inputs.primerNombre]);
+                    mostrarMensajeFormulario(mensaje, 'Ingresa tu primer nombre para continuar.');
+                    return;
+                }
+
+                if (!inputs.primerApellido.value.trim()) {
+                    marcarCamposInvalidos([inputs.primerApellido]);
+                    mostrarMensajeFormulario(mensaje, 'Ingresa tu primer apellido para continuar.');
+                    return;
+                }
+
+                if (!validarEmail(inputs.correo.value)) {
+                    marcarCamposInvalidos([inputs.correo]);
+                    mostrarMensajeFormulario(mensaje, 'Ingresa un correo electronico valido.');
+                    return;
+                }
+
+                if (!inputs.direccion.value.trim() || !inputs.ciudad.value.trim() || !inputs.telefono.value.trim()) {
+                    marcarCamposInvalidos([inputs.direccion, inputs.ciudad, inputs.telefono].filter((field) => !field.value.trim()));
+                    mostrarMensajeFormulario(mensaje, 'Completa direccion, ciudad y telefono para terminar el registro.');
+                    return;
+                }
+
+                if (!/^\d+$/.test(inputs.telefono.value.trim())) {
+                    marcarCamposInvalidos([inputs.telefono]);
+                    mostrarMensajeFormulario(mensaje, 'El telefono solo debe contener numeros.');
+                    return;
+                }
+
+                if (!renderPasswordChecklist(checklist, inputs.clave.value, inputs.correo.value)) {
+                    marcarCamposInvalidos([inputs.clave]);
+                    mostrarMensajeFormulario(mensaje, 'La contrasena aun no cumple con los requisitos de seguridad.');
+                    return;
+                }
+
+                if (inputs.clave.value !== inputs.confirmClave.value) {
+                    marcarCamposInvalidos([inputs.clave, inputs.confirmClave]);
+                    mostrarMensajeFormulario(mensaje, 'Las contrasenas no coinciden.');
+                    return;
+                }
+
+                const payload = {
+                    primerNombre: inputs.primerNombre.value,
+                    segundoNombre: document.getElementById('segundoNombre').value,
+                    primerApellido: inputs.primerApellido.value,
+                    segundoApellido: document.getElementById('segundoApellido').value,
+                    correo: inputs.correo.value,
+                    direccion: inputs.direccion.value,
+                    ciudad: inputs.ciudad.value,
+                    telefono: inputs.telefono.value || null,
+                    clave: inputs.clave.value,
+                };
+
+                try {
+                    submitBtn.disabled = true;
+                    const csrfToken = form.querySelector('[name=csrfmiddlewaretoken]').value;
+                    const res = await fetch('/api/usuarios', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': csrfToken
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!res.ok) {
+                        const responseText = await res.text();
+                        const errText = extractErrorMessage(responseText, res.statusText);
+                        mostrarMensajeFormulario(mensaje, traducirMensajeValidacion(errText));
+                        return;
+                    }
+
+                    await Swal.fire({
+                        icon: 'success',
+                        title: 'Registro completado',
+                        text: 'Tu cuenta fue creada correctamente. Ahora puedes iniciar sesion.',
+                        confirmButtonText: 'Continuar'
+                    });
+
+                    window.location.href = "{% url 'login' %}";
+                } catch (err) {
+                    console.error(err);
+                    mostrarMensajeFormulario(mensaje, 'Error de red: ' + err.message);
+                } finally {
+                    submitBtn.disabled = false;
+                }
+            });
+        });
+    </script>
+</body>
+</html>
+

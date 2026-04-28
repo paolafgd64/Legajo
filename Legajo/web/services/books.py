@@ -1,3 +1,9 @@
+"""Servicios de negocio para libros.
+
+Las views delegan aqui validaciones, consultas y operaciones de escritura para
+mantener los endpoints mas pequeños y faciles de entender.
+"""
+
 from django.db import DatabaseError, transaction
 from django.db.models import Avg, Count, Q
 
@@ -180,7 +186,7 @@ def get_book_detail(user, libro_id):
 # Crea libro + relaciones (autor/genero) en una transaccion atomica.
 def create_book(user, data, image_file=None):
     payload = validate_book_payload(data)
-    url_imagen = payload['url_imagen'] or '/static/web/imgs/libropredeterminado1.png'
+    url_imagen = payload['url_imagen'] or '/static/gestion_libros/imgs/libropredeterminado1.png'
     if image_file:
         url_imagen = _save_uploaded_image(image_file)
 
