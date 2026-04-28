@@ -36,6 +36,7 @@ urlpatterns = [
     path('reporte_libros/', views.reporte_libros, name='reporte_libros'),
     path('libros/reporte/pdf', views.reporte_libros_pdf, name='reporte_libros_pdf'),
     path('reset_password/', views.reset_password, name='reset_password'),
+    path('activar/<uidb64>/<token>/', views.activate_account, name='activate_account'),
     path('api/usuarios', views.api_usuarios, name='api_usuarios'),
     path('api/usuarios/', views.api_usuarios, name='api_usuarios_slash'),
     path('api/login/', views.api_login, name='api_login_legacy'),

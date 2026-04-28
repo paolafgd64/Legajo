@@ -11,6 +11,7 @@ from .auth import (
     api_me,
     forgot_password,
     reset_password,
+    activate_account,
 )
 
 # Books Views (Gestión de Libros)
@@ -62,7 +63,7 @@ from .dashboard import (
 __all__ = [
     # Auth
     'crear_cuenta', 'login', 'logout_view', 'api_usuarios', 'api_login', 'api_me',
-    'forgot_password', 'reset_password',
+    'forgot_password', 'reset_password', 'activate_account',
     # Books
     'api_libros', 'api_libros_recomendados', 'api_libro_detalle', 'registrar_libro',
     'reporte_libros', 'reporte_libros_pdf',

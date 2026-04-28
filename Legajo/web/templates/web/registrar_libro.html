@@ -55,11 +55,18 @@
                 <input type="file" id="imagen" name="imagen" accept="image/*">
             </div>
 
-            {% if libro_edicion.url_imagen %}
-            <div class="form-grupo">
-                <img src="{{ libro_edicion.url_imagen }}" alt="Portada actual" style="max-width: 180px; border-radius: 12px;">
+            <div
+                class="form-grupo book-cover-preview-wrap"
+                style="width:160px; height:220px; min-width:160px; min-height:220px; max-width:160px; max-height:220px; overflow:hidden; border-radius:6px; margin-left:auto; margin-right:auto;"
+            >
+                <img
+                    id="portadaPreview"
+                    class="book-cover-preview"
+                    src="{% if libro_edicion.url_imagen %}{{ libro_edicion.url_imagen }}{% endif %}"
+                    style="{% if libro_edicion.url_imagen %}display:block;{% else %}display:none;{% endif %} width:160px !important; height:220px !important; min-width:160px !important; min-height:220px !important; max-width:160px !important; max-height:220px !important; object-fit:cover !important;"
+                    alt="Portada seleccionada"
+                >
             </div>
-            {% endif %}
 
             <button type="submit"><i class="fas fa-save"></i> {% if modo_edicion %}Guardar cambios{% else %}Guardar Libro{% endif %}</button>
         </form>
@@ -67,5 +74,28 @@
     <script src="{% static 'web/js/script.js' %}"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="{% static 'web/js/registrarLibro.js' %}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const inputImagen = document.getElementById('imagen');
+            const imagenForm = document.getElementById('portadaPreview');
+            if (!inputImagen || !imagenForm) return;
+
+            inputImagen.addEventListener('change', function () {
+                const archivo = inputImagen.files && inputImagen.files[0];
+                if (!archivo) {
+                    imagenForm.style.display = 'none';
+                    imagenForm.removeAttribute('src');
+                    return;
+                }
+
+                const lector = new FileReader();
+                lector.onload = function (evento) {
+                    imagenForm.src = evento.target.result;
+                    imagenForm.style.display = 'block';
+                };
+                lector.readAsDataURL(archivo);
+            });
+        });
+    </script>
 </body>
 </html>

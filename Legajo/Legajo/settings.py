@@ -178,3 +178,14 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 LEGAJO_CLOUDINARY = _get_cloudinary_settings()
+
+
+# Email (SMTP Gmail)
+EMAIL_BACKEND = os.environ.get('LEGAJO_EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
+EMAIL_HOST = os.environ.get('LEGAJO_EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = int(os.environ.get('LEGAJO_EMAIL_PORT', 587))
+EMAIL_HOST_USER = os.environ.get('LEGAJO_EMAIL_HOST_USER', '').strip()
+EMAIL_HOST_PASSWORD = os.environ.get('LEGAJO_EMAIL_HOST_PASSWORD', '').strip()
+EMAIL_USE_TLS = os.environ.get('LEGAJO_EMAIL_USE_TLS', 'true').strip().lower() == 'true'
+EMAIL_USE_SSL = os.environ.get('LEGAJO_EMAIL_USE_SSL', 'false').strip().lower() == 'true'
+DEFAULT_FROM_EMAIL = os.environ.get('LEGAJO_DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'no-reply@legajo.local')

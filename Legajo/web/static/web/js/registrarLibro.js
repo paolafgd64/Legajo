@@ -48,6 +48,39 @@ document.addEventListener('DOMContentLoaded', () => {
   const redirectAfterSave = document.getElementById('redirectAfterSave')?.value || '/inventario/';
   const currentImageUrl = document.getElementById('currentImageUrl')?.value || '';
   const imageInput = form.querySelector('#imagen');
+  const portadaPreview = document.getElementById('portadaPreview');
+
+  function updatePreviewState(src) {
+    if (!portadaPreview) return;
+    if (!src) {
+      portadaPreview.removeAttribute('src');
+      portadaPreview.style.display = 'none';
+      return;
+    }
+    portadaPreview.src = src;
+    portadaPreview.style.display = 'block';
+  }
+
+  function handleImagePreview() {
+    if (!imageInput || !portadaPreview) return;
+    const selectedFile = imageInput.files?.[0];
+
+    if (!selectedFile) {
+      updatePreviewState(currentImageUrl);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      updatePreviewState(event.target?.result || '');
+    };
+    reader.readAsDataURL(selectedFile);
+  }
+
+  if (imageInput) {
+    imageInput.addEventListener('change', handleImagePreview);
+    handleImagePreview();
+  }
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
