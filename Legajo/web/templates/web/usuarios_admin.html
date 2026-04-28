@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Usuarios - Admin</title>
-    <link rel="stylesheet" href="{% static 'web/css/dashboard.css' %}?v=20260405c">
+    <link rel="stylesheet" href="{% static 'web/css/dashboard.css' %}?v=20260416a">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
@@ -30,7 +30,10 @@
         <header>
             <div class="header-left">
                 <h1>Gestion de usuarios</h1>
-                <p>Consulta usuarios registrados, filtralos por sus datos principales e importa archivos JSON desde este modulo.</p>
+                <p>Consulta usuarios registrados, filtralos por sus datos principales e importa archivos JSON o Excel desde este modulo.</p>
+                <p style="margin-top:8px; font-weight:700; color:#e2e8f0;">
+                    Total de usuarios cargados: <span style="color:#ffffff;">{{ total_usuarios_cargados }}</span>
+                </p>
             </div>
             <div class="header-right">
                 <div class="user-profile">
@@ -120,12 +123,12 @@
 
                 <div class="import-modal-head">
                     <h2>Importar usuarios</h2>
-                    <p>Selecciona un archivo JSON con la lista de usuarios para cargarla en el sistema.</p>
+                    <p>Selecciona un archivo JSON o Excel (.xlsx) con la lista de usuarios para cargarla en el sistema.</p>
                 </div>
 
                 <form method="post" enctype="multipart/form-data" class="mass-upload-form import-modal-form">
                     {% csrf_token %}
-                    <input id="archivo_usuarios" name="archivo_usuarios" type="file" accept=".json,application/json" required hidden>
+                    <input id="archivo_usuarios" name="archivo_usuarios" type="file" accept=".json,.xlsx,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required hidden>
                     <div class="import-file-picker">
                         <button
                             type="button"
@@ -147,6 +150,16 @@
                         </button>
                     </div>
 
+                    <label style="display:flex; align-items:center; gap:10px; margin-top:14px; color:#0f172a; font-weight:600;">
+                        <input
+                            type="checkbox"
+                            id="actualizarExistentes"
+                            name="actualizar_existentes"
+                            style="width:18px; height:18px; accent-color:#2563eb;"
+                        >
+                        Actualizar usuarios existentes si el correo ya esta registrado
+                    </label>
+
                     <div class="import-modal-actions">
                         <button
                             type="button"
@@ -165,7 +178,7 @@
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="{% static 'web/js/usuarios_admin.js' %}?v=20260405c"></script>
-    <script src="{% static 'web/js/script.js' %}?v=20260405c"></script>
+    <script src="{% static 'web/js/usuarios_admin.js' %}?v=20260416a"></script>
+    <script src="{% static 'web/js/script.js' %}?v=20260416a"></script>
 </body>
 </html>

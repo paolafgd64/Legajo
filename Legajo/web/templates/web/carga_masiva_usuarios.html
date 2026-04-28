@@ -45,7 +45,7 @@
                 <div class="mass-upload-copy">
                     <span class="mass-upload-badge">Administracion</span>
                     <h2>Archivo de usuarios</h2>
-                    <p>El archivo debe estar en formato JSON y contener una lista de usuarios con correo, nombre, apellido, direccion, ciudad, telefono, contrasena y rol.</p>
+                    <p>El archivo debe estar en formato JSON o Excel (.xlsx) y contener usuarios con correo, nombre, apellido, direccion, ciudad, telefono, contrasena y rol.</p>
                     <div class="mass-upload-hint">
                         <strong>Archivo de ejemplo:</strong>
                         <code>Legajo/datos/usuarios_ejemplo.json</code>
@@ -69,8 +69,8 @@
                     </div>
                     {% endif %}
 
-                    <label class="mass-upload-label" for="archivo_usuarios">Selecciona el archivo JSON</label>
-                    <input id="archivo_usuarios" name="archivo_usuarios" type="file" accept=".json,application/json" required>
+                    <label class="mass-upload-label" for="archivo_usuarios">Selecciona el archivo JSON o Excel</label>
+                    <input id="archivo_usuarios" name="archivo_usuarios" type="file" accept=".json,.xlsx,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
 
                     <label class="mass-upload-checkbox">
                         <input type="checkbox" name="actualizar_existentes" {% if actualizar_existentes %}checked{% endif %}>

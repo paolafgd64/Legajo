@@ -55,6 +55,17 @@ def _normalize_user_payload(item, indice):
     }
 
 
+def _user_has_changes(usuario, nuevos_datos, password):
+    for field, value in nuevos_datos.items():
+        if getattr(usuario, field) != value:
+            return True
+
+    if not usuario.check_password(password):
+        return True
+
+    return False
+
+
 # Importacion masiva de usuarios con opcion de actualizar existentes.
 def import_users_from_payload(payload, actualizar=False):
     if not isinstance(payload, list):
@@ -63,6 +74,9 @@ def import_users_from_payload(payload, actualizar=False):
     creados = 0
     actualizados = 0
     omitidos = 0
+    detalles_creados = []
+    detalles_actualizados = []
+    detalles_omitidos = []
 
     with transaction.atomic():
         for indice, item in enumerate(payload, start=1):
@@ -74,6 +88,18 @@ def import_users_from_payload(payload, actualizar=False):
             if existente:
                 if not actualizar:
                     omitidos += 1
+                    detalles_omitidos.append({
+                        'email': email,
+                        'motivo': 'Ya existe un usuario registrado con ese correo.',
+                    })
+                    continue
+
+                if not _user_has_changes(existente, usuario_data, password):
+                    omitidos += 1
+                    detalles_omitidos.append({
+                        'email': email,
+                        'motivo': 'El usuario ya existe y no presenta cambios para actualizar.',
+                    })
                     continue
 
                 # Actualiza campos y rehace hash de contrasena de forma segura.
@@ -82,6 +108,10 @@ def import_users_from_payload(payload, actualizar=False):
                 existente.set_password(password)
                 existente.save()
                 actualizados += 1
+                detalles_actualizados.append({
+                    'email': email,
+                    'motivo': 'Usuario existente actualizado correctamente.',
+                })
                 continue
 
             User.objects.create_user(
@@ -90,9 +120,18 @@ def import_users_from_payload(payload, actualizar=False):
                 **usuario_data,
             )
             creados += 1
+            detalles_creados.append({
+                'email': email,
+                'motivo': 'Usuario creado correctamente.',
+            })
 
     return {
         'creados': creados,
         'actualizados': actualizados,
         'omitidos': omitidos,
+        'detalles': {
+            'creados': detalles_creados,
+            'actualizados': detalles_actualizados,
+            'omitidos': detalles_omitidos,
+        },
     }

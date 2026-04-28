@@ -22,6 +22,68 @@ async function parseJsonResponse(response) {
   }
 }
 
+function construirResumenImportacion(resultado) {
+  if (!resultado) {
+    return 'La importacion finalizo correctamente.';
+  }
+
+  const bloques = [
+    `
+      <div style="display:grid; grid-template-columns:repeat(3, minmax(110px, 1fr)); gap:12px; margin:8px 0 18px;">
+        <div style="background:#ecfdf3; border:1px solid #bbf7d0; border-radius:14px; padding:12px 10px; text-align:center;">
+          <div style="font-size:0.86rem; color:#166534; font-weight:700;">Creados</div>
+          <div style="font-size:1.35rem; color:#14532d; font-weight:800; margin-top:4px;">${resultado.creados || 0}</div>
+        </div>
+        <div style="background:#eff6ff; border:1px solid #bfdbfe; border-radius:14px; padding:12px 10px; text-align:center;">
+          <div style="font-size:0.86rem; color:#1d4ed8; font-weight:700;">Actualizados</div>
+          <div style="font-size:1.35rem; color:#1e3a8a; font-weight:800; margin-top:4px;">${resultado.actualizados || 0}</div>
+        </div>
+        <div style="background:#fff7ed; border:1px solid #fed7aa; border-radius:14px; padding:12px 10px; text-align:center;">
+          <div style="font-size:0.86rem; color:#c2410c; font-weight:700;">Omitidos</div>
+          <div style="font-size:1.35rem; color:#9a3412; font-weight:800; margin-top:4px;">${resultado.omitidos || 0}</div>
+        </div>
+      </div>
+    `
+  ];
+
+  const detalles = resultado.detalles || {};
+  const secciones = [
+    { key: 'creados', title: 'Usuarios creados' },
+    { key: 'actualizados', title: 'Usuarios actualizados' },
+    { key: 'omitidos', title: 'Usuarios omitidos' }
+  ];
+
+  secciones.forEach(({ key, title }) => {
+    const items = Array.isArray(detalles[key]) ? detalles[key] : [];
+    if (!items.length) return;
+
+    const listado = items
+      .map((item) => `
+        <li style="margin:0 0 10px; color:#1e293b; line-height:1.5;">
+          <strong style="color:#020617; font-weight:800;">${escapeHtml(item.email)}</strong><br>
+          <span style="color:#334155; font-weight:600;">${escapeHtml(item.motivo)}</span>
+        </li>
+      `)
+      .join('');
+
+    bloques.push(`
+      <div style="margin-top:14px; text-align:left; background:#f8fafc; border:1px solid #cbd5e1; border-radius:14px; padding:14px 16px;">
+        <div style="font-weight:800; color:#020617; margin-bottom:8px; font-size:1rem;">${title}</div>
+        <ul style="margin:0; padding-left:18px;">${listado}</ul>
+      </div>
+    `);
+  });
+
+  return `
+    <div style="color:#020617;">
+      ${bloques[0]}
+      <div style="max-height:320px; overflow-y:auto; padding-right:6px;">
+        ${bloques.slice(1).join('')}
+      </div>
+    </div>
+  `;
+}
+
 async function cargarUsuariosAdmin() {
   const nombre = document.getElementById('filtroNombreUsuario')?.value.trim() || '';
   const correo = document.getElementById('filtroCorreoUsuario')?.value.trim() || '';
@@ -114,7 +176,7 @@ async function enviarImportacionUsuarios(event) {
       Swal.fire({
         icon: 'warning',
         title: 'Archivo requerido',
-        text: 'Selecciona un archivo JSON antes de continuar.'
+        text: 'Selecciona un archivo JSON o Excel antes de continuar.'
       });
     }
     return;
@@ -158,7 +220,7 @@ async function enviarImportacionUsuarios(event) {
       await Swal.fire({
         icon: 'success',
         title: 'Usuarios cargados',
-        text: data.message || 'La importacion finalizo correctamente.',
+        html: construirResumenImportacion(data.resultado),
         confirmButtonText: 'Continuar'
       });
     }

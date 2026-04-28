@@ -18,6 +18,7 @@ Endpoints:
 import json
 from json import JSONDecodeError
 
+from openpyxl import load_workbook
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.db import DatabaseError
@@ -49,6 +50,55 @@ def _wants_json_response(request):
     return 'application/json' in accept or requested_with == 'XMLHttpRequest'
 
 
+def _parse_excel_payload(archivo):
+    try:
+        archivo.seek(0)
+        workbook = load_workbook(archivo, read_only=True, data_only=True)
+    except Exception as exc:
+        raise ControlledError('No se pudo leer el archivo Excel. Verifica que sea un .xlsx valido.', status_code=400) from exc
+
+    hoja = workbook.active
+    filas = list(hoja.iter_rows(values_only=True))
+    if not filas:
+        raise ControlledError('El archivo Excel esta vacio.', status_code=400)
+
+    encabezados = [str(valor).strip() if valor is not None else '' for valor in filas[0]]
+    if not any(encabezados):
+        raise ControlledError('La primera fila del archivo Excel debe contener encabezados.', status_code=400)
+
+    payload = []
+    for numero_fila, fila in enumerate(filas[1:], start=2):
+        if not fila or not any(valor not in (None, '') for valor in fila):
+            continue
+
+        item = {}
+        for indice, encabezado in enumerate(encabezados):
+            if not encabezado:
+                continue
+            valor = fila[indice] if indice < len(fila) else None
+            item[encabezado] = '' if valor is None else valor
+        payload.append(item)
+
+    if not payload:
+        raise ControlledError('El archivo Excel no contiene filas de datos para importar.', status_code=400)
+
+    return payload
+
+
+def _load_users_payload_from_file(archivo):
+    nombre = (getattr(archivo, 'name', '') or '').lower()
+    if nombre.endswith('.xlsx'):
+        return _parse_excel_payload(archivo)
+
+    try:
+        archivo.seek(0)
+        return json.loads(archivo.read().decode('utf-8-sig'))
+    except UnicodeDecodeError as exc:
+        raise ControlledError('El archivo debe estar codificado en UTF-8 o ser un Excel .xlsx valido.', status_code=400) from exc
+    except JSONDecodeError as exc:
+        raise ControlledError(f'El archivo no contiene JSON valido: {exc}', status_code=400) from exc
+
+
 # ============================================================================
 # VISTAS HTML (PAGES)
 # ============================================================================
@@ -71,7 +121,7 @@ def dashboard_admin(request):
 @require_http_methods(["GET", "POST"])
 def usuarios_admin(request):
     """
-    Vista para carga masiva de usuarios (JSON).
+    Vista para carga masiva de usuarios (JSON o Excel .xlsx).
     GET: Renderiza el formulario.
     POST: Procesa archivo JSON y lo importa.
     """
@@ -81,6 +131,11 @@ def usuarios_admin(request):
 
     context = {
         'admin_name': request.user.nombre1 or 'Administrador',
+        'total_usuarios_cargados': User.objects.filter(
+            rol=User.Rol.USUARIO,
+            activo=True,
+            is_active=True,
+        ).count(),
     }
 
     mensaje_exito = request.session.pop('mensaje_exito_carga_usuarios', None)
@@ -89,29 +144,18 @@ def usuarios_admin(request):
 
     if request.method == 'POST':
         archivo = request.FILES.get('archivo_usuarios')
+        actualizar = request.POST.get('actualizar_existentes') == 'on'
 
         if not archivo:
-            message = 'Debes seleccionar un archivo JSON para importar.'
+            message = 'Debes seleccionar un archivo JSON o Excel para importar.'
             if _wants_json_response(request):
                 return JsonResponse({'message': message}, status=400)
             context['mensaje_error_carga'] = message
             return render(request, 'web/usuarios_admin.html', context, status=400)
 
         try:
-            payload = json.loads(archivo.read().decode('utf-8-sig'))
-            resultado = import_users_from_payload(payload, actualizar=False)
-        except UnicodeDecodeError:
-            message = 'El archivo debe estar codificado en UTF-8.'
-            if _wants_json_response(request):
-                return JsonResponse({'message': message}, status=400)
-            context['mensaje_error_carga'] = message
-            return render(request, 'web/usuarios_admin.html', context, status=400)
-        except JSONDecodeError as exc:
-            message = f'El archivo no contiene JSON valido: {exc}'
-            if _wants_json_response(request):
-                return JsonResponse({'message': message}, status=400)
-            context['mensaje_error_carga'] = message
-            return render(request, 'web/usuarios_admin.html', context, status=400)
+            payload = _load_users_payload_from_file(archivo)
+            resultado = import_users_from_payload(payload, actualizar=actualizar)
         except ControlledError as exc:
             if _wants_json_response(request):
                 return JsonResponse({'message': exc.message}, status=exc.status_code)
@@ -140,7 +184,7 @@ def usuarios_admin(request):
 @require_http_methods(["GET", "POST"])
 def carga_masiva_usuarios(request):
     """
-    Alternativa para carga masiva de usuarios (con opcion de actualizar existentes).
+    Alternativa para carga masiva de usuarios (JSON o Excel .xlsx, con opcion de actualizar existentes).
     GET: Renderiza el formulario.
     POST: Procesa archivo JSON y lo importa.
     """
@@ -158,18 +202,12 @@ def carga_masiva_usuarios(request):
         context['actualizar_existentes'] = actualizar
 
         if not archivo:
-            context['error_message'] = 'Debes seleccionar un archivo JSON para importar.'
+            context['error_message'] = 'Debes seleccionar un archivo JSON o Excel para importar.'
             return render(request, 'web/carga_masiva_usuarios.html', context, status=400)
 
         try:
-            payload = json.loads(archivo.read().decode('utf-8-sig'))
+            payload = _load_users_payload_from_file(archivo)
             resultado = import_users_from_payload(payload, actualizar=actualizar)
-        except UnicodeDecodeError:
-            context['error_message'] = 'El archivo debe estar codificado en UTF-8.'
-            return render(request, 'web/carga_masiva_usuarios.html', context, status=400)
-        except JSONDecodeError as exc:
-            context['error_message'] = f'El archivo no contiene JSON valido: {exc}'
-            return render(request, 'web/carga_masiva_usuarios.html', context, status=400)
         except ControlledError as exc:
             context['error_message'] = exc.message
             return render(request, 'web/carga_masiva_usuarios.html', context, status=400)
