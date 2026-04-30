@@ -1,0 +1,21 @@
+﻿{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Error 404 - Pagina no encontrada</title>
+    <link rel="stylesheet" href="{% static 'usuarios/css/estilos_error.css' %}">
+</head>
+<body>
+    <button id="modoToggle" class="modo-toggle">â˜€ï¸ Modo Claro</button>
+    <div class="contenedor-error">
+        <h1>404</h1>
+        <h2>Pagina no encontrada</h2>
+        <p>Lo sentimos, la pagina que buscas no existe o ha sido movida.</p>
+        <a href="{% url 'dashboard_admin' %}" class="boton">Volver al inicio</a>
+    </div>
+    <script src="{% static 'usuarios/js/script.js' %}"></script>
+</body>
+</html>
+

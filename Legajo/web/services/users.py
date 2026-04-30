@@ -1,3 +1,5 @@
+"""Servicios de negocio para importacion y actualizacion masiva de usuarios."""
+
 from django.contrib.auth import get_user_model
 from django.db import transaction
 

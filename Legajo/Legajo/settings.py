@@ -106,7 +106,12 @@ ROOT_URLCONF = 'Legajo.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [
+            BASE_DIR / 'web' / 'usuarios' / 'templates',
+            BASE_DIR / 'web' / 'administracion' / 'templates',
+            BASE_DIR / 'web' / 'gestion_libros' / 'templates',
+            BASE_DIR / 'web' / 'intercambios' / 'templates',
+        ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -171,7 +176,10 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'web', 'static'),
+    BASE_DIR / 'web' / 'usuarios' / 'static',
+    BASE_DIR / 'web' / 'administracion' / 'static',
+    BASE_DIR / 'web' / 'gestion_libros' / 'static',
+    BASE_DIR / 'web' / 'intercambios' / 'static',
 ]
 
 MEDIA_URL = '/media/'

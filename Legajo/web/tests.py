@@ -1,4 +1,4 @@
-import json
+﻿import json
 import os
 from importlib import import_module, reload
 from pathlib import Path
@@ -248,14 +248,14 @@ class InventarioApiTests(TestCase):
             titulo='Libro mio',
             sinopsis='Propio',
             estado='Publicado',
-            url_imagen='/static/web/imgs/libropredeterminado1.png',
+            url_imagen='/static/gestion_libros/imgs/libropredeterminado1.png',
             usuario_propietario=self.user,
         )
         Libro.objects.create(
             titulo='Libro ajeno',
             sinopsis='Ajeno',
             estado='Publicado',
-            url_imagen='/static/web/imgs/libropredeterminado1.png',
+            url_imagen='/static/gestion_libros/imgs/libropredeterminado1.png',
             usuario_propietario=other_user,
         )
 
@@ -273,7 +273,7 @@ class InventarioApiTests(TestCase):
             titulo='Libro temporal',
             sinopsis='Temporal',
             estado='Publicado',
-            url_imagen='/static/web/imgs/libropredeterminado1.png',
+            url_imagen='/static/gestion_libros/imgs/libropredeterminado1.png',
             usuario_propietario=self.user,
         )
 
@@ -289,7 +289,7 @@ class InventarioApiTests(TestCase):
             titulo='Libro original',
             sinopsis='Version inicial',
             estado='Publicado',
-            url_imagen='/static/web/imgs/libropredeterminado1.png',
+            url_imagen='/static/gestion_libros/imgs/libropredeterminado1.png',
             usuario_propietario=self.user,
         )
 
@@ -321,7 +321,7 @@ class InventarioApiTests(TestCase):
             titulo='Libro original',
             sinopsis='Version inicial',
             estado='Publicado',
-            url_imagen='/static/web/imgs/libropredeterminado1.png',
+            url_imagen='/static/gestion_libros/imgs/libropredeterminado1.png',
             usuario_propietario=self.user,
         )
 
@@ -353,7 +353,7 @@ class InventarioApiTests(TestCase):
         )
         libro.refresh_from_db()
         self.assertEqual(libro.titulo, 'Libro original')
-        self.assertEqual(libro.url_imagen, '/static/web/imgs/libropredeterminado1.png')
+        self.assertEqual(libro.url_imagen, '/static/gestion_libros/imgs/libropredeterminado1.png')
 
     @patch('web.services.books.upload_image_to_cloudinary')
     @patch('web.services.books.is_cloudinary_configured', return_value=True)
@@ -363,7 +363,7 @@ class InventarioApiTests(TestCase):
             titulo='Libro original',
             sinopsis='Version inicial',
             estado='Publicado',
-            url_imagen='/static/web/imgs/libropredeterminado1.png',
+            url_imagen='/static/gestion_libros/imgs/libropredeterminado1.png',
             usuario_propietario=self.user,
         )
 
@@ -395,7 +395,7 @@ class InventarioApiTests(TestCase):
         self.assertEqual(libro.titulo, 'Libro con portada nueva')
         self.assertEqual(str(libro.autores.first()), 'Laura Restrepo')
         self.assertTrue(libro.url_imagen.startswith('https://res.cloudinary.com/'))
-        self.assertNotEqual(libro.url_imagen, '/static/web/imgs/libropredeterminado1.png')
+        self.assertNotEqual(libro.url_imagen, '/static/gestion_libros/imgs/libropredeterminado1.png')
 
     def test_actualizacion_invalida_retorna_error_controlado(self):
         self.client.force_login(self.user)
@@ -403,7 +403,7 @@ class InventarioApiTests(TestCase):
             titulo='Libro original',
             sinopsis='Version inicial',
             estado='Publicado',
-            url_imagen='/static/web/imgs/libropredeterminado1.png',
+            url_imagen='/static/gestion_libros/imgs/libropredeterminado1.png',
             usuario_propietario=self.user,
         )
 
@@ -436,7 +436,7 @@ class InventarioApiTests(TestCase):
             titulo='Libro protegido',
             sinopsis='Privado',
             estado='Publicado',
-            url_imagen='/static/web/imgs/libropredeterminado1.png',
+            url_imagen='/static/gestion_libros/imgs/libropredeterminado1.png',
             usuario_propietario=other_user,
         )
 
@@ -474,14 +474,14 @@ class InventarioApiTests(TestCase):
             titulo='Libro propio',
             sinopsis='Propio',
             estado='Publicado',
-            url_imagen='/static/web/imgs/libropredeterminado1.png',
+            url_imagen='/static/gestion_libros/imgs/libropredeterminado1.png',
             usuario_propietario=self.user,
         )
         Libro.objects.create(
             titulo='Libro recomendado',
             sinopsis='De otro usuario',
             estado='Publicado',
-            url_imagen='/static/web/imgs/libropredeterminado1.png',
+            url_imagen='/static/gestion_libros/imgs/libropredeterminado1.png',
             usuario_propietario=other_user,
         )
 
@@ -507,7 +507,7 @@ class InventarioApiTests(TestCase):
             titulo='Libro solicitado',
             sinopsis='Disponible para intercambio',
             estado='Publicado',
-            url_imagen='/static/web/imgs/libropredeterminado1.png',
+            url_imagen='/static/gestion_libros/imgs/libropredeterminado1.png',
             usuario_propietario=other_user,
         )
 
@@ -586,7 +586,7 @@ class ImportacionMasivaLibrosTests(TestCase):
             titulo='El Aleph',
             sinopsis='Ya existe',
             estado='Publicado',
-            url_imagen='/static/web/imgs/libropredeterminado1.png',
+            url_imagen='/static/gestion_libros/imgs/libropredeterminado1.png',
             usuario_propietario=self.owner,
         )
         self.client.force_login(self.admin)
@@ -694,7 +694,7 @@ class AdminDashboardTests(TestCase):
             titulo='Libro admin',
             sinopsis='Disponible',
             estado=Libro.Estado.LEYENDO,
-            url_imagen='/static/web/imgs/libropredeterminado1.png',
+            url_imagen='/static/gestion_libros/imgs/libropredeterminado1.png',
             usuario_propietario=self.reportado,
         )
         ReporteUsuario.objects.create(
@@ -930,7 +930,7 @@ class UserReportsTests(TestCase):
             titulo='Libro intercambio',
             sinopsis='Disponible',
             estado='Publicado',
-            url_imagen='/static/web/imgs/libropredeterminado1.png',
+            url_imagen='/static/gestion_libros/imgs/libropredeterminado1.png',
             usuario_propietario=self.reportado,
         )
         intercambio = Intercambio.objects.create(
@@ -951,3 +951,5 @@ class UserReportsTests(TestCase):
         self.assertEqual(len(data['labels']), len(data['data']))
         self.assertEqual(data['data'][4], 1)
         self.assertGreaterEqual(data['data'][-1], 1)
+
+

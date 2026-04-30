@@ -1,0 +1,107 @@
+﻿{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home</title>
+    <link rel="stylesheet" href="{% static 'usuarios/css/styles.css' %}">
+</head>
+<body>
+    <button id="toggleModo" class="modo-toggle">â˜€ï¸ Modo Claro</button>
+    <header id="header">
+        <div class="contenedor">
+            <div class="sidebar">
+                <div class="logo"></div>
+                <nav>
+                    <ul>
+                        <li><a href="#inicio">Inicio</a></li>
+                        <li><a href="#about">Sobre Nosotros</a></li>
+                        <li><a href="#ayuda">Ayuda</a></li>
+                        <li><a href="{% url 'crear_cuenta' %}">Crear cuenta</a></li>
+                        <li><a href="{% url 'login' %}">Ingresar</a></li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+        <hr>
+    </header>
+    <main>
+
+        <!-- INICIO -->
+        <section id="inicio">
+            <div class="fondo_inicio">
+                <div class="contenedor">
+                    <p>Bienvenido a</p>
+                    <h1>Legajo</h1>
+                </div>
+            </div>
+        </section>
+
+        <!-- SOBRE ESTA PAGINA -->
+        <section id="about">
+            <div class="contenedor">
+                <h2>Sobre Nosotros</h2>
+                <div class="contenedor_about">
+                    <img src="{% static 'usuarios/imgs/Libro-abierto.jpg' %}" alt="Libro abierto">
+                    <div class="texto">
+                        <p>Legajo es una plataforma digital pensada para transformar la forma en que compartimos y descubrimos libros. A travÃ©s de herramientas sencillas y una interfaz intuitiva, ofrecemos un espacio donde cualquier usuario puede registrar sus libros, explorar colecciones y gestionar intercambios con otros miembros de la comunidad.</p>
+                        <p>Impulsamos una cultura de sostenibilidad, aprovechando la tecnologÃ­a para reducir el desperdicio y promover la circulaciÃ³n inteligente del conocimiento.
+                        En Legajo, cada libro sigue su camino y cada lector encuentra nuevas oportunidades.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- AYUDA -->
+        <section id="ayuda">
+            <div class="fondo_ayuda">
+                <div class="contenedor">
+                    <h2>Â¿Necesitas ayuda?</h2>
+                    <h3>Puedes comunicarte con nosotros a travÃ©s de los siguientes canales de atenciÃ³n</h3>
+                    <div class="contenedor_ayuda">
+                        <div class="targetas">
+                            <img src="{% static 'usuarios/imgs/whatsapp.png' %}" alt="Logo de whatsapp">
+                            <p>A travÃ©s de whatsapp al nÃºmero +57 3000000000</p>
+                        </div>
+                        <div class="targetas">
+                            <img src="{% static 'usuarios/imgs/telefono.png' %}" alt="Logo telefono">
+                            <p>Por linea telefÃ³nica al nÃºmero +57 3000000000</p>
+                        </div>
+                        <div class="targetas">
+                            <img src="{% static 'usuarios/imgs/email.png' %}" alt="Logo email">
+                            <p>Por email a la direcciÃ³n ayuda@legajo.com</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- FOOTER -->
+    <footer>
+        <div class="contenedor">
+            <div class="contenedor_footer">
+                <p>Copyrigth Â© 2025</p>
+            </div>
+            <div class="errores">
+                <p>Contactanos: +57 300 0000000</p>
+            </div>
+        </div>
+    </footer>
+    <script>
+        let lastScrollY = window.scrollY;
+        const header = document.getElementById('header');
+
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > lastScrollY) {
+            header.style.top = '-120px';
+            } else {
+            header.style.top = '0';
+            }
+            lastScrollY = window.scrollY;
+        });
+    </script>
+    <script src="{% static 'usuarios/js/script.js' %}"></script>
+</body>
+</html>

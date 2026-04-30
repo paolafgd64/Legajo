@@ -1,0 +1,51 @@
+﻿{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Dashboard Usuario</title>
+    <link rel="stylesheet" href="{% static 'usuarios/css/dashboard.css' %}"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    {% csrf_token %}
+    <button id="toggleModo" class="modo-toggle">â˜€ï¸ Modo Claro</button>
+    <nav class="sidebar">
+        <div class="logo">
+            <i class="fas fa-user"></i>
+            <span>Panel de <p id="n2">nombre</p></span>
+        </div>
+        <ul class="nav-links">
+            <a href="{% url 'dashboard_usuario' %}"><li><i class="fas fa-home"></i><span>Inicio</span></li></a>
+            <a href="{% url 'chats' %}"><li><i class="fas fa-message"></i><span>Intercambios</span></li></a>
+            <a href="{% url 'inventario' %}"><li><i class="fas fa-box"></i><span>Inventario</span></li></a>
+            <a href="{% url 'notificaciones' %}"><li class="active"><i class="fas fa-check"></i><span>Notificaciones</span></li></a>
+            <a href="{% url 'perfil' %}"><li><i class="fas fa-user-circle"></i><span>Perfil</span></li></a>
+        </ul>
+    </nav>
+
+    <main class="main-content">
+        <header>
+            <div class="header-left">
+                <h1>Notificaciones</h1>
+            </div>
+            <div class="header-right">
+                <div class="user-profile">
+                    <img src="{% static 'usuarios/imgs/profile.png' %}" alt="Usuario" />
+                    <span id="n3">Usuario</span>
+                </div>
+            </div>
+        </header>
+
+        <section class="chat-lista" id="listaNotificaciones">
+            <p style="padding: 20px;">Cargando notificaciones...</p>
+        </section>
+    </main>
+    <script src="{% static 'usuarios/js/script.js' %}"></script>
+    <script src="{% static 'intercambios/js/notificaciones.js' %}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</body>
+</html>
+

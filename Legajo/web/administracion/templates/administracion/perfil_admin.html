@@ -1,0 +1,70 @@
+﻿{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Perfil de Administrador</title>
+    <link rel="stylesheet" href="{% static 'usuarios/css/dashboard.css' %}"/>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    {% csrf_token %}
+    <button id="toggleModo" class="modo-toggle">Modo Claro</button>
+    <nav class="sidebar">
+        <div class="logo">
+            <i class="fas fa-user-shield"></i>
+            <span>AdminDash</span>
+        </div>
+        <ul class="nav-links">
+            <a href="{% url 'dashboard_admin' %}"><li><i class="fas fa-home"></i><span>Inicio</span></li></a>
+            <a href="{% url 'usuarios_admin' %}"><li><i class="fas fa-users"></i><span>Usuarios</span></li></a>
+            <a href="{% url 'novedades_usuarios' %}"><li><i class="fas fa-user"></i><span>Novedades de usuarios</span></li></a>
+            <a href="{% url 'reporte_libros' %}"><li><i class="fas fa-book"></i><span>Reporte de libros</span></li></a>
+            <a href="{% url 'inventario_admi' %}"><li><i class="fas fa-box"></i><span>Inventario</span></li></a>
+            <a href="{% url 'perfil_admin' %}"><li class="active"><i class="fas fa-user-circle"></i><span>Perfil</span></li></a>
+        </ul>
+    </nav>
+
+    <main class="main-content">
+        <header>
+            <div class="header-left">
+                <h1>Tu perfil</h1>
+            </div>
+            <div class="header-right">
+                <div class="user-profile">
+                    <img src="{% static 'usuarios/imgs/profile.png' %}" alt="Admin" />
+                    <span>{{ perfil_usuario.nombre1 }}</span>
+                </div>
+            </div>
+        </header>
+
+        <section class="perfil-usuario">
+            <div class="contenedor-imagen">
+                <img src="{% static 'usuarios/imgs/profile.png' %}" alt="Foto de perfil" class="foto-perfil">
+                <h2 class="nombre-perfil">{{ nombre_completo }}</h2>
+                <form action="{% url 'logout' %}" method="post">
+                    {% csrf_token %}
+                    <button type="submit" class="boton-editar boton-cerrar">
+                        <i class="fas fa-sign-out-alt"></i>
+                        Cerrar sesion
+                    </button>
+                </form>
+            </div>
+
+            <div class="contenedor-info">
+                <p><strong>Correo:</strong> {{ perfil_usuario.email }}</p>
+                <p><strong>Telefono:</strong> {{ perfil_usuario.telefono }}</p>
+                <p><strong>Ciudad:</strong> {{ perfil_usuario.ciudad }}</p>
+                <p><strong>Direccion:</strong> {{ perfil_usuario.direccion }}</p>
+                <button class="boton-editar js-editar-perfil"><i class="fa-solid fa-pen"></i> Editar informacion</button>
+            </div>
+        </section>
+    </main>
+    <script src="{% static 'usuarios/js/script.js' %}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="{% static 'usuarios/js/perfil.js' %}"></script>
+</body>
+</html>
+

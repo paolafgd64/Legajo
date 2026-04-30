@@ -1,0 +1,161 @@
+﻿{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Dashboard Usuario</title>
+    <link rel="stylesheet" href="{% static 'usuarios/css/dashboard.css' %}?v=20260405b">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <button id="toggleModo" class="modo-toggle">Modo Claro</button>
+    <nav class="sidebar">
+        <div class="logo">
+            <i class="fas fa-user"></i>
+            <span>Panel de usuario</span>
+        </div>
+        <ul class="nav-links">
+            <a href="{% url 'dashboard_usuario' %}"><li class="active"><i class="fas fa-home"></i><span>Inicio</span></li></a>
+            <a href="{% url 'chats' %}"><li><i class="fas fa-message"></i><span>Intercambios</span></li></a>
+            <a href="{% url 'inventario' %}"><li><i class="fas fa-box"></i><span>Inventario</span></li></a>
+            <a href="{% url 'notificaciones' %}"><li><i class="fas fa-check"></i><span>Notificaciones</span></li></a>
+            <a href="{% url 'perfil' %}"><li><i class="fas fa-user-circle"></i><span>Perfil</span></li></a>
+        </ul>
+    </nav>
+
+    <main class="main-content">
+        <header>
+            <div class="header-left">
+                <h1>Bienvenid@</h1>
+                <p><span id="nombreRecibido">usuario</span>, como estas?</p>
+            </div>
+            <div class="header-right">
+                <div class="user-profile">
+                    <img src="{% static 'usuarios/imgs/profile.png' %}" alt="Usuario" />
+                    <span>Usuario</span>
+                </div>
+            </div>
+        </header>
+
+        <section class="seccion-carrusel">
+            <h2 class="titulo-seccion">Recomendados</h2>
+            <div class="contenedor-carrusel">
+                <button class="flecha izquierda" type="button" onclick="moverCarrusel('recomendados', -1)">&#10094;</button>
+                <div class="carrusel-libros"
+                     id="recomendados"
+                     data-total-libros-sistema="{{ total_libros_sistema }}"
+                     data-total-libros-ajenos="{{ total_libros_ajenos }}">
+                    {% for libro in libros_recomendados %}
+                    <div class="libro"
+                         data-id="{{ libro.id }}"
+                         data-usuario-id="{{ libro.usuarioPropietarioId }}"
+                         data-titulo="{{ libro.titulo }}"
+                         data-autor="{{ libro.autor }}"
+                         data-descripcion="{{ libro.sinopsis }}"
+                         data-imagen="{{ libro.urlImagen }}"
+                         data-usuario="{{ libro.usuario }}">
+                        <img src="{{ libro.urlImagen }}" alt="{{ libro.titulo }}">
+                        <h3>{{ libro.titulo }}</h3>
+                        <p>{{ libro.autor }}</p>
+                        <div class="estrellas-display">Disponible</div>
+                        <button class="ver-libro"><i class="fa fa-eye"></i> Ver</button>
+                    </div>
+                    {% endfor %}
+                </div>
+                <button class="flecha derecha" type="button" onclick="moverCarrusel('recomendados', 1)">&#10095;</button>
+            </div>
+        </section>
+
+        <section class="seccion-carrusel">
+            <h2 class="titulo-seccion">Generos</h2>
+            <div class="contenedor-carrusel">
+                <button class="flecha izquierda" type="button" onclick="moverCarrusel('generos', -1)">&#10094;</button>
+                <div class="carrusel-libros"
+                     id="generos"
+                     data-total-libros-sistema="{{ total_libros_sistema }}"
+                     data-total-libros-ajenos="{{ total_libros_ajenos }}"></div>
+                <button class="flecha derecha" type="button" onclick="moverCarrusel('generos', 1)">&#10095;</button>
+            </div>
+        </section>
+
+        <div id="modal" class="modal">
+            <div class="modal-content">
+                <span id="closeModal" class="close">&times;</span>
+                <img id="modalImg" class="modal-img" alt="Libro">
+                <div class="modal-text">
+                    <h2 id="modalTitulo"></h2>
+                    <h4 id="modalAutor"></h4>
+                    <p id="modalDescripcion"></p>
+                    <div id="modalAcciones" style="margin-top: 12px;">
+                        <button id="btnSolicitarIntercambio" class="btn-amarillo">
+                            <i class="fas fa-exchange-alt"></i> Solicitar intercambio
+                        </button>
+                        <button id="btnReportarUsuario" class="btn-negativo" type="button" style="margin-left: 10px;">
+                            <i class="fas fa-flag"></i> Reportar usuario
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script src="{% static 'usuarios/js/script.js' %}?v=20260405b"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        function moverCarrusel(id, direccion) {
+            const carrusel = document.getElementById(id);
+            if (!carrusel) return;
+            const libros = carrusel.querySelectorAll('.libro');
+            if (!libros.length) return;
+
+            const maxScroll = Math.max(0, carrusel.scrollWidth - carrusel.clientWidth);
+            if (maxScroll <= 0) return;
+
+            const estilos = window.getComputedStyle(carrusel);
+            const gap = parseInt(estilos.columnGap || estilos.gap || '16', 10) || 16;
+            const paso = Math.max(1, Math.min(maxScroll, carrusel.clientWidth - gap));
+            const siguiente = carrusel.scrollLeft + (direccion * paso);
+            const estaAlInicio = carrusel.scrollLeft <= 4;
+            const estaAlFinal = carrusel.scrollLeft >= maxScroll - 4;
+
+            if (direccion > 0 && estaAlFinal) {
+                carrusel.scrollTo({ left: 0, behavior: 'smooth' });
+                return;
+            }
+
+            if (direccion > 0 && siguiente >= maxScroll - 4) {
+                carrusel.scrollTo({ left: maxScroll, behavior: 'smooth' });
+                return;
+            }
+
+            if (direccion < 0 && estaAlInicio) {
+                carrusel.scrollTo({ left: maxScroll, behavior: 'smooth' });
+                return;
+            }
+
+            carrusel.scrollBy({
+                left: direccion * paso,
+                behavior: 'smooth'
+            });
+        }
+
+        const modal = document.getElementById('modal');
+        const closeModal = document.getElementById('closeModal');
+
+        if (closeModal) {
+            closeModal.addEventListener('click', () => {
+                if (modal) modal.style.display = 'none';
+            });
+        }
+
+        window.addEventListener('click', (event) => {
+            if (modal && event.target === modal) {
+                modal.style.display = 'none';
+            }
+        });
+    </script>
+    <script src="{% static 'usuarios/js/dashboard.js' %}?v=20260405b"></script>
+</body>
+</html>
+
