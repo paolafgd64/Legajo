@@ -199,10 +199,10 @@ def carga_masiva_usuarios(request):
 
 @login_required(login_url='login')
 @never_cache
-def inventario_admi(request):
+def inventario_admi_redirect(request):
     if request.user.rol != User.Rol.ADMIN:
         return redirect('dashboard_usuario')
-    return render(request, 'gestion_libros/inventario_admi.html')
+    return redirect('dashboard_admin')
 
 
 @login_required(login_url='login')

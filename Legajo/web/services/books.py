@@ -66,7 +66,7 @@ def _get_or_create_author(author_name):
 # Guarda imagen en Cloudinary si esta configurado; si no, usa almacenamiento local.
 def _save_uploaded_image(uploaded_file):
     if not is_cloudinary_configured():
-        raise ExternalServiceError(
+        raise ValidationServiceError(
             'Cloudinary no esta configurado. Agrega tus credenciales en el archivo .env para subir imagenes.'
         )
 

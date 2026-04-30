@@ -236,8 +236,8 @@ def _unauthorized_response():
     return JsonResponse({'message': 'Debes iniciar sesion.'}, status=401)
 
 
-def _forbidden_response():
-    return JsonResponse({'message': 'No tienes permiso para esta accion.'}, status=403)
+def _forbidden_response(message='No tienes permiso para esta accion.'):
+    return JsonResponse({'message': message}, status=403)
 
 
 def _service_error_response(error):

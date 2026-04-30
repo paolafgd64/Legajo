@@ -1,13 +1,4 @@
-"""Vistas del modulo de gestion de libros.
-
-Incluye:
-- formularios HTML de inventario
-- endpoints CRUD de libros
-- carga masiva y reporte PDF para administracion
-"""
-
-import json
-from json import JSONDecodeError
+"""Vistas del modulo de gestion de libros."""
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
@@ -22,7 +13,6 @@ from django.views.decorators.http import require_http_methods
 from ..services import (
     create_book,
     get_book_detail,
-    import_books_from_payload,
     list_books,
     list_recommended_books,
     serialize_book,
@@ -63,14 +53,13 @@ def _read_update_payload(request):
 @login_required(login_url='login')
 @never_cache
 def registrar_libro(request, libro_id=None):
+    if request.user.rol == User.Rol.ADMIN:
+        return redirect('dashboard_admin')
+
     source = (request.GET.get('source') or request.POST.get('source') or '').strip().lower()
-    is_admin = request.user.is_authenticated and request.user.rol == User.Rol.ADMIN
-    if is_admin and not source:
-        source = 'admin'
-    back_url_name = 'inventario_admi' if is_admin else 'inventario'
     context = {
         'source': source,
-        'back_url_name': back_url_name,
+        'back_url_name': 'inventario',
     }
 
     if libro_id is not None:
@@ -104,7 +93,7 @@ def registrar_libro(request, libro_id=None):
 @ensure_csrf_cookie
 @login_required(login_url='login')
 @never_cache
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["GET"])
 def reporte_libros(request):
     if request.user.rol != User.Rol.ADMIN:
         return redirect('dashboard_usuario') if request.user.is_authenticated else redirect('login')
@@ -113,37 +102,6 @@ def reporte_libros(request):
         'admin_name': request.user.nombre1 or 'Administrador',
         'url_portada_predeterminada': '/static/gestion_libros/imgs/libropredeterminado1.png',
     }
-
-    mensaje_exito = request.session.pop('mensaje_exito_carga_libros', None)
-    if mensaje_exito:
-        context['mensaje_exito_carga'] = mensaje_exito
-
-    if request.method == 'POST':
-        archivo = request.FILES.get('archivo_libros')
-
-        if not archivo:
-            context['mensaje_error_carga'] = 'Debes seleccionar un archivo JSON para importar.'
-            return render(request, 'gestion_libros/reporte_libros.html', context, status=400)
-
-        try:
-            payload = json.loads(archivo.read().decode('utf-8-sig'))
-            resultado = import_books_from_payload(payload, default_url_imagen=context['url_portada_predeterminada'])
-        except UnicodeDecodeError:
-            context['mensaje_error_carga'] = 'El archivo debe estar codificado en UTF-8.'
-            return render(request, 'gestion_libros/reporte_libros.html', context, status=400)
-        except JSONDecodeError as exc:
-            context['mensaje_error_carga'] = f'El archivo no contiene JSON valido: {exc}'
-            return render(request, 'gestion_libros/reporte_libros.html', context, status=400)
-        except ControlledError as exc:
-            context['mensaje_error_carga'] = exc.message
-            return render(request, 'gestion_libros/reporte_libros.html', context, status=400)
-
-        request.session['mensaje_exito_carga_libros'] = (
-            f"Importacion completada. Creados: {resultado['creados']}, "
-            f"actualizados: {resultado['actualizados']}, omitidos: {resultado['omitidos']}."
-        )
-        return redirect('reporte_libros')
-
     return render(request, 'gestion_libros/reporte_libros.html', context)
 
 
@@ -159,12 +117,13 @@ def api_libros(request):
             return _service_error_response(error)
         return JsonResponse(libros, safe=False)
 
+    if request.user.rol == User.Rol.ADMIN:
+        return _forbidden_response('Los administradores no pueden registrar libros para intercambio.')
+
     try:
         # La creacion valida y persiste relaciones en la capa de servicios.
         libro = create_book(request.user, request.POST, image_file=request.FILES.get('imagen'))
     except ControlledError as error:
-        if request.content_type and request.content_type.startswith('multipart/form-data'):
-            return render(request, 'gestion_libros/registrar_libro.html', {'error_registro_libro': error.message}, status=error.status_code)
         return _service_error_response(error)
 
     return JsonResponse(libro, status=201)
@@ -195,6 +154,9 @@ def api_libro_detalle(request, libro_id):
         return JsonResponse(libro)
 
     if request.method == 'PUT':
+        if request.user.rol == User.Rol.ADMIN:
+            return _forbidden_response('Los administradores no pueden editar libros de intercambio.')
+
         data, files = _read_update_payload(request)
         if data is None:
             return JsonResponse({'message': 'El cuerpo de la solicitud no es JSON valido.'}, status=400)
@@ -204,6 +166,9 @@ def api_libro_detalle(request, libro_id):
         except ControlledError as error:
             return _service_error_response(error)
         return JsonResponse(libro)
+
+    if request.user.rol == User.Rol.ADMIN:
+        return _forbidden_response('Los administradores no pueden eliminar libros de intercambio.')
 
     try:
         soft_delete_book(request.user, libro_id)

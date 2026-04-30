@@ -20,26 +20,6 @@ async function parseJsonResponseRegistrar(response) {
   }
 }
 
-async function getRedirectAfterSave(defaultRedirect) {
-  try {
-    const response = await fetch('/api/auth/me', {
-      credentials: 'same-origin',
-      headers: {
-        Accept: 'application/json'
-      }
-    });
-
-    if (!response.ok) {
-      return defaultRedirect;
-    }
-
-    const user = await response.json();
-    return user?.rol === 'admin' ? '/inventario_admi/' : '/inventario/';
-  } catch (error) {
-    return defaultRedirect;
-  }
-}
-
 document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('registrarLibroForm');
   if (!form) return;
@@ -122,7 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
 
       form.reset();
-      window.location.href = await getRedirectAfterSave(redirectAfterSave);
+      window.location.href = redirectAfterSave;
     } catch (err) {
       console.error('Error registrando libro:', err);
       Swal.fire({

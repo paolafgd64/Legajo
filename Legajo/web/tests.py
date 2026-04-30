@@ -198,7 +198,6 @@ class InventarioApiTests(TestCase):
 
     def test_crea_libro_en_base_de_datos(self):
         self.client.force_login(self.user)
-        portada = SimpleUploadedFile('portada.jpg', b'fake-image-content', content_type='image/jpeg')
 
         response = self.client.post(
             '/api/libros',
@@ -208,11 +207,10 @@ class InventarioApiTests(TestCase):
                 'sinopsis': 'Una novela clasica.',
                 'genero': 'Realismo magico',
                 'estado': 'Publicado',
-                'imagen': portada,
             },
         )
 
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 201)
         self.assertTrue(Libro.objects.filter(titulo='Cien anos de soledad').exists())
         self.assertEqual(Libro.objects.get(titulo='Cien anos de soledad').usuario_propietario, self.user)
 
@@ -230,7 +228,7 @@ class InventarioApiTests(TestCase):
             },
         )
 
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 201)
         autor = Autor.objects.get(nombre1='Cher')
         self.assertEqual(autor.apellido1, '')
 
@@ -346,7 +344,7 @@ class InventarioApiTests(TestCase):
             content_type=MULTIPART_CONTENT,
         )
 
-        self.assertEqual(response.status_code, 502)
+        self.assertEqual(response.status_code, 400)
         self.assertEqual(
             response.json()['message'],
             'Cloudinary no esta configurado. Agrega tus credenciales en el archivo .env para subir imagenes.',
@@ -552,7 +550,7 @@ class ImportacionMasivaLibrosTests(TestCase):
             telefono=3001112244,
         )
 
-    def test_importacion_masiva_libros_acepta_json_envuelto_y_aliases(self):
+    def test_reporte_libros_no_acepta_importacion_masiva(self):
         self.client.force_login(self.admin)
         archivo = SimpleUploadedFile(
             'libros.json',
@@ -573,15 +571,10 @@ class ImportacionMasivaLibrosTests(TestCase):
 
         response = self.client.post('/reporte_libros/', data={'archivo_libros': archivo}, follow=True)
 
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Importacion completada. Creados: 1, actualizados: 0, omitidos: 0.')
-        libro = Libro.objects.get(titulo='Pedro Paramo')
-        self.assertEqual(libro.usuario_propietario, self.owner)
-        self.assertEqual(libro.generos.first().nombre, 'Ficcion')
-        self.assertEqual(str(libro.autores.first()), 'Juan Rulfo')
-        self.assertEqual(libro.url_imagen, 'https://res.cloudinary.com/demo/image/upload/v1/pedro-paramo.jpg')
+        self.assertEqual(response.status_code, 405)
+        self.assertFalse(Libro.objects.filter(titulo='Pedro Paramo').exists())
 
-    def test_importacion_masiva_libros_omite_duplicados(self):
+    def test_admin_no_puede_crear_libros_desde_api(self):
         Libro.objects.create(
             titulo='El Aleph',
             sinopsis='Ya existe',
@@ -590,25 +583,22 @@ class ImportacionMasivaLibrosTests(TestCase):
             usuario_propietario=self.owner,
         )
         self.client.force_login(self.admin)
-        archivo = SimpleUploadedFile(
-            'libros.json',
-            json.dumps([
-                {
-                    'titulo': 'El Aleph',
-                    'autor': 'Jorge Luis Borges',
-                    'sinopsis': 'Duplicado',
-                    'genero': 'Ficcion',
-                    'usuario': {'email': 'dueno-libro@example.com'},
-                }
-            ]).encode('utf-8'),
-            content_type='application/json',
+
+        response = self.client.post(
+            '/api/libros',
+            data={
+                'titulo': 'El Aleph nuevo',
+                'autor': 'Jorge Luis Borges',
+                'sinopsis': 'Intento admin',
+                'genero': 'Ficcion',
+                'estado': 'Publicado',
+            },
         )
 
-        response = self.client.post('/reporte_libros/', data={'archivo_libros': archivo}, follow=True)
-
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Importacion completada. Creados: 0, actualizados: 0, omitidos: 1.')
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.json()['message'], 'Los administradores no pueden registrar libros para intercambio.')
         self.assertEqual(Libro.objects.filter(titulo='El Aleph', usuario_propietario=self.owner).count(), 1)
+        self.assertFalse(Libro.objects.filter(titulo='El Aleph nuevo').exists())
 
 
 class ImportacionMasivaUsuariosAjaxTests(TestCase):
