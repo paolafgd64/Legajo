@@ -10,6 +10,7 @@ import unicodedata
 
 from django.conf import settings
 from django.contrib.auth.tokens import default_token_generator
+from django.core.mail import EmailMultiAlternatives
 from django.db.models import Count
 from django.db.models.functions import TruncDate, TruncMonth
 from django.http import HttpResponse, JsonResponse
@@ -274,6 +275,65 @@ def _build_password_reset_link(request, user):
     token = default_token_generator.make_token(user)
     path = f"{reverse('reset_password')}?uid={uid}&token={token}"
     return request.build_absolute_uri(path)
+
+
+def _build_account_activation_link(request, user):
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    token = default_token_generator.make_token(user)
+    path = reverse('activate_account', kwargs={'uidb64': uid, 'token': token})
+    return request.build_absolute_uri(path)
+
+
+def _send_account_activation_email(request, user):
+    activation_link = _build_account_activation_link(request, user)
+    subject = 'Activa tu cuenta en Legajo'
+    text_body = (
+        f'Hola {user.nombre1},\n\n'
+        'Gracias por registrarte en Legajo.\n'
+        'Para activar tu cuenta, haz clic en el siguiente enlace:\n'
+        f'{activation_link}\n\n'
+        'Si no creaste esta cuenta, ignora este mensaje.'
+    )
+    html_body = (
+        f'<p>Hola {user.nombre1},</p>'
+        '<p>Gracias por registrarte en <strong>Legajo</strong>.</p>'
+        '<p>Para activar tu cuenta, haz clic en el siguiente enlace:</p>'
+        f'<p><a href="{activation_link}">Activar cuenta</a></p>'
+        '<p>Si no creaste esta cuenta, ignora este mensaje.</p>'
+    )
+    _send_email_message(subject, text_body, [user.email], html_body)
+
+
+def _send_password_reset_email(request, user):
+    reset_link = _build_password_reset_link(request, user)
+    subject = 'Restablece tu contrasena en Legajo'
+    text_body = (
+        f'Hola {user.nombre1},\n\n'
+        'Recibimos una solicitud para restablecer tu contrasena.\n'
+        'Puedes continuar desde este enlace:\n'
+        f'{reset_link}\n\n'
+        'Si no solicitaste este cambio, ignora este mensaje.'
+    )
+    html_body = (
+        f'<p>Hola {user.nombre1},</p>'
+        '<p>Recibimos una solicitud para restablecer tu contrasena.</p>'
+        '<p>Puedes continuar desde este enlace:</p>'
+        f'<p><a href="{reset_link}">Restablecer contrasena</a></p>'
+        '<p>Si no solicitaste este cambio, ignora este mensaje.</p>'
+    )
+    _send_email_message(subject, text_body, [user.email], html_body)
+
+
+def _send_email_message(subject, text_body, recipients, html_body=None):
+    message = EmailMultiAlternatives(
+        subject=subject,
+        body=text_body,
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        to=recipients,
+    )
+    if html_body:
+        message.attach_alternative(html_body, 'text/html')
+    message.send(fail_silently=False)
 
 
 def _get_password_reset_user(uidb64):

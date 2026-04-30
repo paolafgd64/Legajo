@@ -10,9 +10,13 @@ Aqui viven:
 from django.contrib.auth import authenticate, get_user_model, login as auth_login, logout as auth_logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.tokens import default_token_generator
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
+from django.utils.encoding import force_str
+from django.utils.http import urlsafe_base64_decode
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods
@@ -21,10 +25,13 @@ from ..administracion.models import ReporteUsuario
 from ..gestion_libros.models import Libro
 from ..services import serialize_book
 from ..views.helpers import (
+    _build_account_activation_link,
     _build_password_reset_link,
     _get_password_reset_user,
     _normalize_validation_messages,
     _read_json_body,
+    _send_account_activation_email,
+    _send_password_reset_email,
     _unauthorized_response,
 )
 
@@ -78,9 +85,15 @@ def forgot_password(request):
 
         context['success_message'] = 'Si el correo existe en Legajo, ya generamos un enlace para restablecer la contrasena.'
         if user:
-            from django.conf import settings
-            if settings.DEBUG:
-                context['reset_link'] = _build_password_reset_link(request, user)
+            try:
+                _send_password_reset_email(request, user)
+            except Exception:
+                if settings.DEBUG:
+                    context['reset_link'] = _build_password_reset_link(request, user)
+                    context['error_message'] = 'No se pudo enviar el correo en este entorno. Usa temporalmente el enlace generado abajo.'
+                else:
+                    context['error_message'] = 'No fue posible enviar el correo en este momento. Intenta de nuevo.'
+                    return render(request, 'usuarios/forgot-password.html', context, status=500)
 
     return render(request, 'usuarios/forgot-password.html', context)
 
@@ -128,6 +141,24 @@ def reset_password(request):
         return redirect('/login/?reset=success')
 
     return render(request, 'usuarios/reset_password.html', context)
+
+
+@require_http_methods(["GET"])
+def activate_account(request, uidb64, token):
+    user = None
+    try:
+        user_id = force_str(urlsafe_base64_decode(uidb64))
+        user = User.objects.get(pk=user_id, activo=True)
+    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+        user = None
+
+    if user and default_token_generator.check_token(user, token):
+        if not user.is_active:
+            user.is_active = True
+            user.save(update_fields=['is_active'])
+        return redirect('/login/?activated=success')
+
+    return redirect('/login/?activated=invalid')
 
 
 @login_required(login_url='login')
@@ -210,24 +241,25 @@ def api_usuarios(request):
         if value is None or str(value).strip() == '':
             return JsonResponse({'message': message}, status=400)
 
-    if User.objects.filter(email=email).exists():
+    existing_user = User.objects.filter(email=email).first()
+    if existing_user and existing_user.is_active and existing_user.activo:
         return JsonResponse({'message': 'Ya existe un usuario registrado con ese correo.'}, status=400)
 
     telefono = str(data.get('telefono')).strip()
     if not telefono.isdigit():
         return JsonResponse({'message': 'El telefono debe contener solo numeros.'}, status=400)
 
-    user = User(
-        email=email,
-        nombre1=data.get('primerNombre', '').strip(),
-        nombre2=(data.get('segundoNombre') or '').strip() or None,
-        apellido1=data.get('primerApellido', '').strip(),
-        apellido2=(data.get('segundoApellido') or '').strip() or None,
-        direccion=data.get('direccion', '').strip(),
-        ciudad=data.get('ciudad', '').strip(),
-        telefono=int(telefono),
-        rol=User.Rol.USUARIO,
-    )
+    user = existing_user or User(email=email)
+    user.nombre1 = data.get('primerNombre', '').strip()
+    user.nombre2 = (data.get('segundoNombre') or '').strip() or None
+    user.apellido1 = data.get('primerApellido', '').strip()
+    user.apellido2 = (data.get('segundoApellido') or '').strip() or None
+    user.direccion = data.get('direccion', '').strip()
+    user.ciudad = data.get('ciudad', '').strip()
+    user.telefono = int(telefono)
+    user.rol = User.Rol.USUARIO
+    user.is_active = False
+    user.activo = True
 
     try:
         validate_password(password, user=user)
@@ -236,7 +268,24 @@ def api_usuarios(request):
 
     user.set_password(password)
     user.save()
-    return JsonResponse({'mensaje': 'Usuario registrado correctamente'})
+
+    try:
+        _send_account_activation_email(request, user)
+    except Exception:
+        if settings.DEBUG:
+            return JsonResponse(
+                {
+                    'mensaje': 'Usuario registrado. No se pudo enviar correo en este entorno; usa el enlace de activacion temporal.',
+                    'activation_link': _build_account_activation_link(request, user),
+                },
+                status=201,
+            )
+        return JsonResponse(
+            {'message': 'No fue posible enviar el correo de activacion. Intenta registrarte de nuevo.'},
+            status=500,
+        )
+
+    return JsonResponse({'mensaje': 'Usuario registrado. Revisa tu correo para activar la cuenta.'}, status=201)
 
 
 @require_http_methods(["POST"])
@@ -256,7 +305,7 @@ def api_login(request):
         return JsonResponse({'message': 'Credenciales invalidas.'}, status=401)
 
     if not user.is_active or not getattr(user, 'activo', True):
-        return JsonResponse({'message': 'Tu cuenta esta inactiva.'}, status=403)
+        return JsonResponse({'message': 'Tu cuenta esta inactiva. Revisa tu correo y activa tu cuenta.'}, status=403)
 
     auth_login(request, user)
     redirect_url = '/dashboard_admin/' if user.rol == User.Rol.ADMIN else '/dashboard_usuario/'

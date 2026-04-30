@@ -30,6 +30,13 @@
 
             <button type="submit">Ingresar</button>
             <div id="loginMensaje" class="form-status" role="alert" aria-live="polite"></div>
+            {% if request.GET.activated == 'success' %}
+            <div class="form-status form-success">Cuenta activada correctamente. Ya puedes iniciar sesion.</div>
+            {% elif request.GET.activated == 'invalid' %}
+            <div class="form-status form-error">El enlace de activacion es invalido o ya vencio.</div>
+            {% elif request.GET.reset == 'success' %}
+            <div class="form-status form-success">Contrasena actualizada correctamente. Inicia sesion.</div>
+            {% endif %}
         </form>
     </section>
 

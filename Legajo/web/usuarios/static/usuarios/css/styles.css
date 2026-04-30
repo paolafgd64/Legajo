@@ -459,6 +459,39 @@ form a:hover {
     color: var(--color-texto);
 }
 
+.book-cover-preview-wrap {
+    margin-top: -6px;
+    margin-bottom: 12px;
+    width: 180px !important;
+    height: 240px !important;
+    max-width: 180px !important;
+    max-height: 240px !important;
+    min-width: 180px !important;
+    min-height: 240px !important;
+    flex: 0 0 180px;
+    margin-left: auto;
+    margin-right: auto;
+    border-radius: 6px;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.24);
+}
+
+.book-cover-preview {
+    position: absolute;
+    inset: 0;
+    width: 180px !important;
+    height: 240px !important;
+    min-width: 180px !important;
+    min-height: 240px !important;
+    max-width: 180px !important;
+    max-height: 240px !important;
+    display: block !important;
+    object-fit: cover !important;
+}
+
+
 /* Ocultamos el input original */
 .form-grupo input[type="file"] {
     display: none;

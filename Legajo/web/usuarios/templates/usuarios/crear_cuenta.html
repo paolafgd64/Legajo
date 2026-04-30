@@ -178,17 +178,29 @@
                         body: JSON.stringify(payload)
                     });
 
+                    const data = await res.json().catch(() => ({}));
+
                     if (!res.ok) {
-                        const responseText = await res.text();
-                        const errText = extractErrorMessage(responseText, res.statusText);
+                        const errText = data.message || data.mensaje || res.statusText;
                         mostrarMensajeFormulario(mensaje, traducirMensajeValidacion(errText));
+                        return;
+                    }
+
+                    if (data.activation_link) {
+                        await Swal.fire({
+                            icon: 'info',
+                            title: 'Correo no disponible en este entorno',
+                            html: `Tu cuenta ya fue creada. Usa este enlace temporal para activarla:<br><a href="${data.activation_link}" target="_blank" rel="noopener noreferrer">${data.activation_link}</a>`,
+                            confirmButtonText: 'Entendido'
+                        });
+                        window.location.href = "{% url 'login' %}";
                         return;
                     }
 
                     await Swal.fire({
                         icon: 'success',
                         title: 'Registro completado',
-                        text: 'Tu cuenta fue creada correctamente. Ahora puedes iniciar sesion.',
+                        text: 'Tu cuenta fue creada. Revisa tu correo para activarla y luego iniciar sesion.',
                         confirmButtonText: 'Continuar'
                     });
 
