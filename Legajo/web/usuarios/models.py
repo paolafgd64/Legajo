@@ -59,6 +59,7 @@ class Usuario(AbstractUser):
         default=Rol.USUARIO,
     )
     activo = models.BooleanField(default=True)
+    motivo_desactivacion = models.TextField(blank=True, default='')
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
@@ -68,6 +69,8 @@ class Usuario(AbstractUser):
     def delete(self, *args, **kwargs):
         self.activo = False
         self.is_active = False
+        if not self.motivo_desactivacion:
+            self.motivo_desactivacion = 'Cuenta desactivada por administracion.'
         self.save()
 
     def __str__(self):

@@ -20,6 +20,10 @@ def serialize_book(libro):
         'generos': [genero.nombre for genero in generos],
         'usuarioPropietarioId': libro.usuario_propietario_id,
         'usuario': str(propietario) if propietario else 'Usuario desconocido',
+        'ciudadPropietario': propietario.ciudad if propietario else '',
+        'ciudad': propietario.ciudad if propietario else '',
+        'activo': bool(libro.activo),
         'calificacion': round(promedio_calificacion, 1) if promedio_calificacion is not None else 0,
         'totalCalificaciones': total_calificaciones,
+        'stock': getattr(libro, 'stock', 1),
     }

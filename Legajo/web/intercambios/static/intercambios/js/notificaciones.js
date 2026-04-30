@@ -160,18 +160,21 @@ async function abrirInventarioSolicitante(intercambioId, nombreUsuario) {
       width: 920,
       html: `
         <div class="perfil-modal-form inventory-modal-panel">
-          <p class="inventory-modal-help">Selecciona un libro para completar el intercambio.</p>
+          <p class="inventory-modal-help">Selecciona un libro para aceptar el intercambio. Si no te interesa ninguno, puedes rechazar la solicitud.</p>
           <div id="inventorySelectionContainer">${renderizarCards()}</div>
         </div>
       `,
       showCancelButton: true,
+      showDenyButton: true,
       confirmButtonText: 'Aceptar intercambio',
+      denyButtonText: 'Rechazar intercambio',
       cancelButtonText: 'Cancelar',
       customClass: {
         popup: 'perfil-swal-popup inventory-swal-popup',
         title: 'perfil-swal-title',
         htmlContainer: 'perfil-swal-html',
         confirmButton: 'perfil-swal-confirm',
+        denyButton: 'perfil-swal-deny',
         cancelButton: 'perfil-swal-cancel'
       },
       buttonsStyling: false,
@@ -196,6 +199,11 @@ async function abrirInventarioSolicitante(intercambioId, nombreUsuario) {
         return { libroCambioId: libroSeleccionadoId };
       }
     });
+
+    if (modal.isDenied) {
+      await rechazarIntercambio(intercambioId);
+      return;
+    }
 
     if (!modal.isConfirmed) return;
 
@@ -235,6 +243,47 @@ async function abrirInventarioSolicitante(intercambioId, nombreUsuario) {
       text: error.message || 'No se pudo procesar el intercambio.'
     });
   }
+}
+
+async function rechazarIntercambio(intercambioId) {
+  const confirmacion = await Swal.fire({
+    icon: 'warning',
+    title: 'Rechazar intercambio',
+    text: 'Esta solicitud se marcara como rechazada y ya no podra ser aceptada.',
+    showCancelButton: true,
+    confirmButtonText: 'Si, rechazar',
+    cancelButtonText: 'Volver',
+    customClass: {
+      confirmButton: 'perfil-swal-deny',
+      cancelButton: 'perfil-swal-cancel'
+    },
+    buttonsStyling: false
+  });
+
+  if (!confirmacion.isConfirmed) return;
+
+  const rejectResponse = await fetch(`/api/intercambios/${intercambioId}/reject`, {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': getCsrfToken()
+    },
+    body: JSON.stringify({})
+  });
+
+  const result = await parseJsonResponse(rejectResponse);
+  if (!rejectResponse.ok) {
+    throw new Error(result.message || 'No se pudo rechazar el intercambio.');
+  }
+
+  await Swal.fire({
+    icon: 'success',
+    title: 'Intercambio rechazado',
+    text: result.message || 'La solicitud fue rechazada correctamente.'
+  });
+
+  cargarNotificaciones();
 }
 
 document.addEventListener('DOMContentLoaded', cargarNotificaciones);

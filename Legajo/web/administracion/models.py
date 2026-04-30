@@ -26,6 +26,13 @@ class ReporteUsuario(models.Model):
         null=True,
         related_name='reportes_recibidos',
     )
+    libro_reportado = models.ForeignKey(
+        'Libro',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reportes_usuario',
+    )
     activo = models.BooleanField(default=True)
 
 

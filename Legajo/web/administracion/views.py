@@ -9,15 +9,16 @@ from json import JSONDecodeError
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.db import DatabaseError
-from django.db.models import Q
+from django.db.models import Avg, Count, Q
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods
 
+from ..gestion_libros.models import Libro
 from ..intercambios.models import Intercambio
-from ..services import import_users_from_payload
+from ..services import import_users_from_payload, serialize_book
 from ..validators import ControlledError
 from ..views.helpers import _read_json_body
 from .helpers import (
@@ -295,15 +296,92 @@ def api_admin_users(request):
     return JsonResponse([_serialize_admin_user(usuario) for usuario in usuarios], safe=False)
 
 
+@login_required(login_url='login')
+@require_http_methods(["GET"])
+def api_admin_user_inventory(request, user_id):
+    admin_error = _admin_required_response(request)
+    if admin_error:
+        return admin_error
+
+    try:
+        usuario = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return JsonResponse({'message': 'Usuario no encontrado.'}, status=404)
+
+    libros = (
+        Libro.objects.filter(usuario_propietario=usuario, activo=True)
+        .prefetch_related('autores', 'generos')
+        .annotate(
+            promedio_calificacion=Avg('calificacionlibro__calificacion', filter=Q(calificacionlibro__activo=True), distinct=True),
+            total_calificaciones=Count('calificacionlibro', filter=Q(calificacionlibro__activo=True), distinct=True),
+        )
+        .order_by('-id')
+    )
+
+    return JsonResponse({
+        'usuario': _serialize_admin_user(usuario),
+        'libros': [serialize_book(libro) for libro in libros],
+    })
+
+
+@login_required(login_url='login')
+@require_http_methods(["PATCH"])
+def api_admin_update_user_status(request, user_id):
+    admin_error = _admin_required_response(request)
+    if admin_error:
+        return admin_error
+
+    data = _read_json_body(request)
+    if data is None:
+        return JsonResponse({'message': 'El cuerpo de la solicitud no es JSON valido.'}, status=400)
+
+    activo = data.get('activo')
+    if not isinstance(activo, bool):
+        return JsonResponse({'message': 'El estado enviado no es valido.'}, status=400)
+
+    try:
+        usuario = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return JsonResponse({'message': 'Usuario no encontrado.'}, status=404)
+
+    if usuario.id == request.user.id and not activo:
+        return JsonResponse({'message': 'No puedes desactivar tu propia cuenta de administrador.'}, status=400)
+
+    if activo:
+        usuario.activo = True
+        usuario.is_active = True
+        usuario.motivo_desactivacion = ''
+    else:
+        motivo = str(data.get('motivo') or '').strip()
+        if len(motivo) < 10:
+            return JsonResponse({'message': 'Debes escribir un motivo de al menos 10 caracteres.'}, status=400)
+        usuario.activo = False
+        usuario.is_active = False
+        usuario.motivo_desactivacion = motivo
+
+    try:
+        usuario.save(update_fields=['activo', 'is_active', 'motivo_desactivacion'])
+    except DatabaseError:
+        return JsonResponse({'message': 'No fue posible actualizar el estado del usuario.'}, status=500)
+
+    return JsonResponse({
+        'message': 'Usuario activado correctamente.' if activo else 'Usuario desactivado correctamente.',
+        'usuario': _serialize_admin_user(usuario),
+    })
+
+
 def _serialize_report(report):
     reportante = report.usuario_reportante
     reportado = report.usuario_reportado
+    libro = report.libro_reportado
     return {
         'id': report.id,
         'motivo': report.motivo,
         'descripcion': report.descripcion,
         'estado': report.estado,
         'fechaReporte': report.fecha_reporte.strftime('%Y-%m-%d %H:%M') if report.fecha_reporte else '',
+        'libroReportado': libro.titulo if libro else 'No especificado',
+        'libroReportadoId': report.libro_reportado_id,
         'usuarioReportante': str(reportante) if reportante else 'Usuario desconocido',
         'usuarioReportanteId': report.usuario_reportante_id,
         'usuarioReportado': str(reportado) if reportado else 'Usuario desconocido',
@@ -324,7 +402,7 @@ def api_admin_user_reports(request):
 
     reportes = (
         ReporteUsuario.objects.filter(activo=True)
-        .select_related('usuario_reportante', 'usuario_reportado')
+        .select_related('usuario_reportante', 'usuario_reportado', 'libro_reportado')
         .order_by('-fecha_reporte')
     )
 
@@ -344,7 +422,8 @@ def api_admin_user_reports(request):
             Q(usuario_reportante__email__icontains=busqueda) |
             Q(usuario_reportado__nombre1__icontains=busqueda) |
             Q(usuario_reportado__apellido1__icontains=busqueda) |
-            Q(usuario_reportado__email__icontains=busqueda)
+            Q(usuario_reportado__email__icontains=busqueda) |
+            Q(libro_reportado__titulo__icontains=busqueda)
         )
 
     return JsonResponse([_serialize_report(reporte) for reporte in reportes], safe=False)
@@ -369,6 +448,10 @@ def api_admin_update_user_report(request, report_id):
     if nuevo_estado not in estados_editables:
         return JsonResponse({'message': 'El estado enviado no es valido.'}, status=400)
 
+    mensaje_respuesta = str(data.get('mensaje') or '').strip()
+    if 'mensaje' in data and len(mensaje_respuesta) < 10:
+        return JsonResponse({'message': 'Debes escribir una respuesta de al menos 10 caracteres.'}, status=400)
+
     try:
         reporte = ReporteUsuario.objects.get(id=report_id, activo=True)
     except ReporteUsuario.DoesNotExist:
@@ -382,15 +465,18 @@ def api_admin_update_user_report(request, report_id):
         # el reporte para cerrar el ciclo de seguimiento.
         nombre_reportado = str(reporte.usuario_reportado) if reporte.usuario_reportado else 'el usuario reportado'
         if nuevo_estado == ReporteUsuario.Estado.REVISADO:
-            mensaje = (
+            mensaje_default = (
                 f'Tu reporte sobre {nombre_reportado} ya fue revisado por el equipo administrador '
                 'y se tomaron las medidas correspondientes.'
             )
+            prefijo_respuesta = 'Tu reporte fue revisado y confirmado por el equipo administrador.'
         else:
-            mensaje = (
+            mensaje_default = (
                 f'Tu reporte sobre {nombre_reportado} fue descartado porque no se encontraron '
                 'motivos justificables para tomar medidas.'
             )
+            prefijo_respuesta = 'Tu reporte fue descartado por el equipo administrador.'
+        mensaje = f'{prefijo_respuesta} Respuesta: {mensaje_respuesta}' if mensaje_respuesta else mensaje_default
 
         try:
             NotificacionUsuario.objects.create(

@@ -5,7 +5,7 @@
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Dashboard Usuario</title>
-    <link rel="stylesheet" href="{% static 'usuarios/css/dashboard.css' %}?v=20260405b">
+    <link rel="stylesheet" href="{% static 'usuarios/css/dashboard.css' %}?v=20260430f">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
@@ -38,8 +38,29 @@
             </div>
         </header>
 
+        <section class="busqueda-inicio" aria-label="Buscar libros">
+            <div class="busqueda-inicio-copy">
+                <h2>Explora libros disponibles</h2>
+                <p>Busca por titulo, autor, genero o propietario.</p>
+            </div>
+            <div class="busqueda-inicio-control">
+                <i class="fas fa-search" aria-hidden="true"></i>
+                <input
+                    id="busquedaLibrosInicio"
+                    type="search"
+                    placeholder="Buscar libros..."
+                    autocomplete="off"
+                    aria-label="Buscar libros disponibles"
+                >
+                <button id="limpiarBusquedaInicio" type="button" aria-label="Limpiar busqueda">
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                </button>
+            </div>
+            <p id="resultadoBusquedaInicio" class="busqueda-inicio-estado" aria-live="polite"></p>
+        </section>
+
         <section class="seccion-carrusel">
-            <h2 class="titulo-seccion">Recomendados</h2>
+            <h2 id="tituloRecomendados" class="titulo-seccion">Recomendados</h2>
             <div class="contenedor-carrusel">
                 <button class="flecha izquierda" type="button" onclick="moverCarrusel('recomendados', -1)">&#10094;</button>
                 <div class="carrusel-libros"
@@ -54,10 +75,13 @@
                          data-autor="{{ libro.autor }}"
                          data-descripcion="{{ libro.sinopsis }}"
                          data-imagen="{{ libro.urlImagen }}"
-                         data-usuario="{{ libro.usuario }}">
+                         data-usuario="{{ libro.usuario }}"
+                         data-ciudad="{{ libro.ciudadPropietario }}"
+                         data-stock="{{ libro.stock|default:1 }}">
                         <img src="{{ libro.urlImagen }}" alt="{{ libro.titulo }}">
                         <h3>{{ libro.titulo }}</h3>
                         <p>{{ libro.autor }}</p>
+                        <p class="stock-libro"><strong>Stock:</strong> {{ libro.stock|default:1 }}</p>
                         <div class="estrellas-display">Disponible</div>
                         <button class="ver-libro"><i class="fa fa-eye"></i> Ver</button>
                     </div>
@@ -67,15 +91,12 @@
             </div>
         </section>
 
-        <section class="seccion-carrusel">
-            <h2 class="titulo-seccion">Generos</h2>
-            <div class="contenedor-carrusel">
-                <button class="flecha izquierda" type="button" onclick="moverCarrusel('generos', -1)">&#10094;</button>
-                <div class="carrusel-libros"
-                     id="generos"
-                     data-total-libros-sistema="{{ total_libros_sistema }}"
-                     data-total-libros-ajenos="{{ total_libros_ajenos }}"></div>
-                <button class="flecha derecha" type="button" onclick="moverCarrusel('generos', 1)">&#10095;</button>
+        <section class="generos-libros-shell" aria-labelledby="tituloLibrosPorGenero">
+            <h2 id="tituloLibrosPorGenero" class="titulo-seccion">Libros por genero</h2>
+            <div
+                id="librosPorGenero"
+                data-total-libros-sistema="{{ total_libros_sistema }}"
+                data-total-libros-ajenos="{{ total_libros_ajenos }}">
             </div>
         </section>
 
@@ -102,6 +123,7 @@
 
     <script src="{% static 'usuarios/js/script.js' %}?v=20260405b"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="{% static 'usuarios/js/swal-theme.js' %}?v=20260430a"></script>
     <script>
         function moverCarrusel(id, direccion) {
             const carrusel = document.getElementById(id);
@@ -155,7 +177,7 @@
             }
         });
     </script>
-    <script src="{% static 'usuarios/js/dashboard.js' %}?v=20260405b"></script>
+    <script src="{% static 'usuarios/js/dashboard.js' %}?v=20260430d"></script>
 </body>
 </html>
 

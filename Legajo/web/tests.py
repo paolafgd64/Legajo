@@ -132,6 +132,37 @@ class AuthApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['redirect_url'], '/dashboard_admin/')
 
+    def test_login_usuario_desactivado_devuelve_motivo(self):
+        user_model = get_user_model()
+        user = user_model.objects.create_user(
+            email='desactivado@example.com',
+            password='Segura123!@#',
+            nombre1='Cuenta',
+            apellido1='Desactivada',
+            direccion='Calle 2',
+            ciudad='Bogota',
+            telefono=3001234568,
+        )
+        user.activo = False
+        user.is_active = False
+        user.motivo_desactivacion = 'Incumplimiento de normas de la comunidad.'
+        user.save(update_fields=['activo', 'is_active', 'motivo_desactivacion'])
+
+        response = self.client.post(
+            '/api/auth/login',
+            data=json.dumps({
+                'correo': 'desactivado@example.com',
+                'clave': 'Segura123!@#',
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 403)
+        data = response.json()
+        self.assertEqual(data['code'], 'account_disabled')
+        self.assertEqual(data['reason'], 'Incumplimiento de normas de la comunidad.')
+        self.assertEqual(data['landingUrl'], '/')
+
     def test_forgot_password_generates_reset_link_in_debug(self):
         user_model = get_user_model()
         user = user_model.objects.create_user(
@@ -213,6 +244,51 @@ class InventarioApiTests(TestCase):
         self.assertEqual(response.status_code, 201)
         self.assertTrue(Libro.objects.filter(titulo='Cien anos de soledad').exists())
         self.assertEqual(Libro.objects.get(titulo='Cien anos de soledad').usuario_propietario, self.user)
+
+    def test_crea_varias_copias_y_lista_stock_agrupado(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            '/api/libros',
+            data={
+                'titulo': 'Rayuela',
+                'autor': 'Julio Cortazar',
+                'sinopsis': 'Novela experimental.',
+                'genero': 'Ficcion',
+                'estado': 'Publicado',
+                'cantidadLibros': '3',
+            },
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(Libro.objects.filter(titulo='Rayuela', usuario_propietario=self.user).count(), 3)
+
+        inventario = self.client.get('/api/libros')
+        self.assertEqual(inventario.status_code, 200)
+        data = inventario.json()
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]['titulo'], 'Rayuela')
+        self.assertEqual(data[0]['stock'], 3)
+        self.assertEqual(len(data[0]['idsLibros']), 3)
+
+    def test_no_permite_mas_de_diez_copias(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            '/api/libros',
+            data={
+                'titulo': 'Libro repetido',
+                'autor': 'Autor Prueba',
+                'sinopsis': 'Demasiadas copias.',
+                'genero': 'Ficcion',
+                'estado': 'Publicado',
+                'cantidadLibros': '11',
+            },
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()['message'], 'La cantidad de libros debe estar entre 1 y 10.')
+        self.assertFalse(Libro.objects.filter(titulo='Libro repetido').exists())
 
     def test_autor_de_un_solo_nombre_no_duplica_apellido(self):
         self.client.force_login(self.user)
@@ -491,6 +567,68 @@ class InventarioApiTests(TestCase):
         self.assertEqual(len(data), 1)
         self.assertEqual(data[0]['titulo'], 'Libro recomendado')
 
+    def test_recomendados_agrupa_copias_y_devuelve_stock(self):
+        other_user = get_user_model().objects.create_user(
+            email='stock-recomendado@example.com',
+            password='Segura123!@#',
+            nombre1='Stock',
+            apellido1='Recomendado',
+            direccion='Calle 90',
+            ciudad='Bogota',
+            telefono=3000000012,
+        )
+        for _ in range(4):
+            Libro.objects.create(
+                titulo='Libro con stock',
+                sinopsis='Varias copias de otro usuario',
+                estado='Publicado',
+                url_imagen='/static/gestion_libros/imgs/libropredeterminado1.png',
+                usuario_propietario=other_user,
+            )
+
+        self.client.force_login(self.user)
+        response = self.client.get('/api/libros/recomendados')
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]['titulo'], 'Libro con stock')
+        self.assertEqual(data[0]['stock'], 4)
+        self.assertEqual(len(data[0]['idsLibros']), 4)
+
+    def test_recomendados_no_devuelve_libros_en_leyendo(self):
+        other_user = get_user_model().objects.create_user(
+            email='leyendo-recomendado@example.com',
+            password='Segura123!@#',
+            nombre1='Lector',
+            apellido1='Ocupado',
+            direccion='Calle 91',
+            ciudad='Bogota',
+            telefono=3000000013,
+        )
+        Libro.objects.create(
+            titulo='Libro no disponible',
+            sinopsis='Esta en lectura',
+            estado=Libro.Estado.LEYENDO,
+            url_imagen='/static/gestion_libros/imgs/libropredeterminado1.png',
+            usuario_propietario=other_user,
+        )
+        Libro.objects.create(
+            titulo='Libro disponible',
+            sinopsis='Se puede intercambiar',
+            estado=Libro.Estado.PUBLICADO,
+            url_imagen='/static/gestion_libros/imgs/libropredeterminado1.png',
+            usuario_propietario=other_user,
+        )
+
+        self.client.force_login(self.user)
+        response = self.client.get('/api/libros/recomendados')
+
+        self.assertEqual(response.status_code, 200)
+        titulos = [libro['titulo'] for libro in response.json()]
+        self.assertIn('Libro disponible', titulos)
+        self.assertNotIn('Libro no disponible', titulos)
+
     def test_solicitar_intercambio_crea_registro_pendiente(self):
         other_user = get_user_model().objects.create_user(
             email='dueno@example.com',
@@ -525,6 +663,91 @@ class InventarioApiTests(TestCase):
                 estado=Intercambio.Estado.PENDIENTE,
             ).exists()
         )
+
+    def test_solicitar_intercambio_rechaza_libro_en_leyendo(self):
+        other_user = get_user_model().objects.create_user(
+            email='dueno-leyendo@example.com',
+            password='Segura123!@#',
+            nombre1='Dueno',
+            apellido1='Leyendo',
+            direccion='Calle 78',
+            ciudad='Barranquilla',
+            telefono=3000000004,
+        )
+        libro = Libro.objects.create(
+            titulo='Libro ocupado',
+            sinopsis='No disponible para intercambio',
+            estado=Libro.Estado.LEYENDO,
+            url_imagen='/static/gestion_libros/imgs/libropredeterminado1.png',
+            usuario_propietario=other_user,
+        )
+
+        self.client.force_login(self.user)
+        response = self.client.post(
+            '/api/intercambios/request',
+            data=json.dumps({'libroId': libro.id}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()['message'], 'Este libro no esta disponible para intercambio.')
+        self.assertFalse(Intercambio.objects.filter(libro_solicitado=libro).exists())
+
+    def test_completar_intercambio_pone_libros_en_leyendo(self):
+        other_user = get_user_model().objects.create_user(
+            email='dueno-completa@example.com',
+            password='Segura123!@#',
+            nombre1='Dueno',
+            apellido1='Completa',
+            direccion='Calle 79',
+            ciudad='Bogota',
+            telefono=3000000005,
+        )
+        libro_solicitado = Libro.objects.create(
+            titulo='Libro solicitado final',
+            sinopsis='Disponible para intercambio',
+            estado=Libro.Estado.PUBLICADO,
+            url_imagen='/static/gestion_libros/imgs/libropredeterminado1.png',
+            usuario_propietario=other_user,
+        )
+        libro_cambio = Libro.objects.create(
+            titulo='Libro cambio final',
+            sinopsis='Disponible para entregar',
+            estado=Libro.Estado.PUBLICADO,
+            url_imagen='/static/gestion_libros/imgs/libropredeterminado1.png',
+            usuario_propietario=self.user,
+        )
+        intercambio = Intercambio.objects.create(
+            estado=Intercambio.Estado.ACEPTADO,
+            usuario_solicitante=self.user,
+            usuario_receptor=other_user,
+            libro_solicitado=libro_solicitado,
+            libro_cambio=libro_cambio,
+        )
+
+        self.client.force_login(self.user)
+        primera_confirmacion = self.client.post(
+            f'/api/intercambios/{intercambio.id}/confirm',
+            data=json.dumps({}),
+            content_type='application/json',
+        )
+        self.assertEqual(primera_confirmacion.status_code, 200)
+
+        self.client.force_login(other_user)
+        segunda_confirmacion = self.client.post(
+            f'/api/intercambios/{intercambio.id}/confirm',
+            data=json.dumps({}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(segunda_confirmacion.status_code, 200)
+        self.assertTrue(segunda_confirmacion.json()['completado'])
+        libro_solicitado.refresh_from_db()
+        libro_cambio.refresh_from_db()
+        self.assertEqual(libro_solicitado.usuario_propietario, self.user)
+        self.assertEqual(libro_cambio.usuario_propietario, other_user)
+        self.assertEqual(libro_solicitado.estado, Libro.Estado.LEYENDO)
+        self.assertEqual(libro_cambio.estado, Libro.Estado.LEYENDO)
 
 
 class ImportacionMasivaLibrosTests(TestCase):
@@ -600,6 +823,54 @@ class ImportacionMasivaLibrosTests(TestCase):
         self.assertEqual(Libro.objects.filter(titulo='El Aleph', usuario_propietario=self.owner).count(), 1)
         self.assertFalse(Libro.objects.filter(titulo='El Aleph nuevo').exists())
 
+    def test_admin_inactiva_libro_y_notifica_propietario(self):
+        libro = Libro.objects.create(
+            titulo='Libro con reporte admin',
+            sinopsis='Contenido a revisar',
+            estado=Libro.Estado.PUBLICADO,
+            url_imagen='/static/gestion_libros/imgs/libropredeterminado1.png',
+            usuario_propietario=self.owner,
+        )
+        self.client.force_login(self.admin)
+
+        response = self.client.patch(
+            f'/api/admin/libros/{libro.id}/estado',
+            data=json.dumps({
+                'activo': False,
+                'motivo': 'La publicacion incumple las normas de la comunidad.',
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        libro.refresh_from_db()
+        self.assertFalse(libro.activo)
+        self.assertTrue(
+            NotificacionUsuario.objects.filter(
+                usuario=self.owner,
+                mensaje__icontains='La publicacion incumple las normas de la comunidad.',
+            ).exists()
+        )
+
+    def test_reporte_admin_libros_incluye_inactivos(self):
+        Libro.objects.create(
+            titulo='Libro inactivo visible',
+            sinopsis='Debe aparecer en reporte',
+            estado=Libro.Estado.PUBLICADO,
+            url_imagen='/static/gestion_libros/imgs/libropredeterminado1.png',
+            usuario_propietario=self.owner,
+            activo=False,
+        )
+        self.client.force_login(self.admin)
+
+        response = self.client.get('/api/admin/libros/reporte')
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]['titulo'], 'Libro inactivo visible')
+        self.assertFalse(data[0]['activo'])
+
 
 class ImportacionMasivaUsuariosAjaxTests(TestCase):
     def setUp(self):
@@ -645,6 +916,87 @@ class ImportacionMasivaUsuariosAjaxTests(TestCase):
         self.assertIn('Importacion completada.', data['message'])
         self.assertEqual(data['resultado']['creados'], 1)
         self.assertTrue(self.user_model.objects.filter(email='nuevo-ajax@example.com').exists())
+
+    def test_admin_desactiva_usuario_con_motivo(self):
+        usuario = self.user_model.objects.create_user(
+            email='usuario-desactivar@example.com',
+            password='Segura123!@#',
+            nombre1='Usuario',
+            apellido1='Desactivar',
+            direccion='Calle 12',
+            ciudad='Bogota',
+            telefono=3005554445,
+        )
+        self.client.force_login(self.admin)
+
+        response = self.client.patch(
+            f'/api/admin/usuarios/{usuario.id}/estado',
+            data=json.dumps({
+                'activo': False,
+                'motivo': 'Incumplimiento de normas de intercambio.',
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        usuario.refresh_from_db()
+        self.assertFalse(usuario.activo)
+        self.assertFalse(usuario.is_active)
+        self.assertEqual(usuario.motivo_desactivacion, 'Incumplimiento de normas de intercambio.')
+        self.assertEqual(response.json()['usuario']['motivoDesactivacion'], 'Incumplimiento de normas de intercambio.')
+
+    def test_admin_no_desactiva_usuario_sin_motivo(self):
+        usuario = self.user_model.objects.create_user(
+            email='usuario-sin-motivo@example.com',
+            password='Segura123!@#',
+            nombre1='Usuario',
+            apellido1='Sinmotivo',
+            direccion='Calle 13',
+            ciudad='Bogota',
+            telefono=3005554446,
+        )
+        self.client.force_login(self.admin)
+
+        response = self.client.patch(
+            f'/api/admin/usuarios/{usuario.id}/estado',
+            data=json.dumps({
+                'activo': False,
+                'motivo': 'Corto',
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        usuario.refresh_from_db()
+        self.assertTrue(usuario.activo)
+        self.assertTrue(usuario.is_active)
+
+    def test_admin_consulta_inventario_de_usuario(self):
+        usuario = self.user_model.objects.create_user(
+            email='usuario-inventario-admin@example.com',
+            password='Segura123!@#',
+            nombre1='Usuario',
+            apellido1='Inventario',
+            direccion='Calle 14',
+            ciudad='Bogota',
+            telefono=3005554447,
+        )
+        Libro.objects.create(
+            titulo='Libro visible para admin',
+            sinopsis='Inventario consultable',
+            estado=Libro.Estado.PUBLICADO,
+            url_imagen='/static/gestion_libros/imgs/libropredeterminado1.png',
+            usuario_propietario=usuario,
+        )
+        self.client.force_login(self.admin)
+
+        response = self.client.get(f'/api/admin/usuarios/{usuario.id}/inventario')
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data['usuario']['correo'], 'usuario-inventario-admin@example.com')
+        self.assertEqual(len(data['libros']), 1)
+        self.assertEqual(data['libros'][0]['titulo'], 'Libro visible para admin')
 
 
 class AdminDashboardTests(TestCase):
@@ -776,12 +1128,20 @@ class UserReportsTests(TestCase):
         )
 
     def test_usuario_puede_reportar_a_otro_usuario(self):
+        libro = Libro.objects.create(
+            titulo='Libro reportado por usuario',
+            sinopsis='Disponible',
+            estado=Libro.Estado.PUBLICADO,
+            url_imagen='/static/gestion_libros/imgs/libropredeterminado1.png',
+            usuario_propietario=self.reportado,
+        )
         self.client.force_login(self.reportante)
 
         response = self.client.post(
             '/api/reportes-usuarios',
             data=json.dumps({
                 'usuarioReportadoId': self.reportado.id,
+                'libroReportadoId': libro.id,
                 'motivo': 'Incumplimiento de intercambio',
                 'descripcion': 'No entrego el libro acordado despues de aceptar el intercambio.',
             }),
@@ -793,9 +1153,35 @@ class UserReportsTests(TestCase):
             ReporteUsuario.objects.filter(
                 usuario_reportante=self.reportante,
                 usuario_reportado=self.reportado,
+                libro_reportado=libro,
                 estado=ReporteUsuario.Estado.PENDIENTE,
             ).exists()
         )
+
+    def test_admin_ve_libro_reportado_en_novedades(self):
+        libro = Libro.objects.create(
+            titulo='Libro visible en novedades',
+            sinopsis='Reporte con libro',
+            estado=Libro.Estado.PUBLICADO,
+            url_imagen='/static/gestion_libros/imgs/libropredeterminado1.png',
+            usuario_propietario=self.reportado,
+        )
+        ReporteUsuario.objects.create(
+            motivo='Spam o contenido ofensivo',
+            descripcion='El reporte incluye libro.',
+            estado=ReporteUsuario.Estado.PENDIENTE,
+            usuario_reportante=self.reportante,
+            usuario_reportado=self.reportado,
+            libro_reportado=libro,
+        )
+        self.client.force_login(self.admin)
+
+        response = self.client.get('/api/admin/reportes-usuarios')
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data[0]['libroReportado'], 'Libro visible en novedades')
+        self.assertEqual(data[0]['libroReportadoId'], libro.id)
 
     def test_usuario_no_puede_reportarse_a_si_mismo(self):
         self.client.force_login(self.reportante)
@@ -869,6 +1255,62 @@ class UserReportsTests(TestCase):
             item['tipo'] == 'sistema' and 'se tomaron las medidas correspondientes' in item['mensaje']
             for item in data
         ))
+
+    def test_admin_envia_respuesta_personalizada_al_resolver_reporte(self):
+        reporte = ReporteUsuario.objects.create(
+            motivo='Spam o contenido ofensivo',
+            descripcion='Envio mensajes ofensivos repetidos en el chat.',
+            estado=ReporteUsuario.Estado.PENDIENTE,
+            usuario_reportante=self.reportante,
+            usuario_reportado=self.reportado,
+        )
+        mensaje = 'Revisamos tu reporte y aplicamos las medidas correspondientes.'
+
+        self.client.force_login(self.admin)
+        response = self.client.patch(
+            f'/api/admin/reportes-usuarios/{reporte.id}',
+            data=json.dumps({
+                'estado': 'revisado',
+                'mensaje': mensaje,
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        notificacion = NotificacionUsuario.objects.get(
+            usuario=self.reportante,
+            reporte_relacionado=reporte,
+        )
+        self.assertIn('Tu reporte fue revisado y confirmado', notificacion.mensaje)
+        self.assertIn(mensaje, notificacion.mensaje)
+
+    def test_admin_envia_respuesta_personalizada_al_descartar_reporte(self):
+        reporte = ReporteUsuario.objects.create(
+            motivo='Mal comportamiento',
+            descripcion='La situacion no tenia evidencia suficiente.',
+            estado=ReporteUsuario.Estado.PENDIENTE,
+            usuario_reportante=self.reportante,
+            usuario_reportado=self.reportado,
+        )
+        mensaje = 'No encontramos evidencia suficiente para tomar medidas.'
+
+        self.client.force_login(self.admin)
+        response = self.client.patch(
+            f'/api/admin/reportes-usuarios/{reporte.id}',
+            data=json.dumps({
+                'estado': 'descartado',
+                'mensaje': mensaje,
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        notificacion = NotificacionUsuario.objects.get(
+            usuario=self.reportante,
+            reporte_relacionado=reporte,
+        )
+        self.assertIn('Tu reporte fue descartado', notificacion.mensaje)
+        self.assertIn(mensaje, notificacion.mensaje)
 
     def test_usuario_ve_notificacion_cuando_su_reporte_es_descartado(self):
         reporte = ReporteUsuario.objects.create(

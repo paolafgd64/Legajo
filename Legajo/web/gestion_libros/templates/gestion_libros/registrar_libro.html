@@ -5,7 +5,7 @@
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>{% if modo_edicion %}Editar Libro{% else %}Registrar Libro{% endif %}</title>
-    <link rel="stylesheet" href="{% static 'usuarios/css/styles.css' %}">
+    <link rel="stylesheet" href="{% static 'usuarios/css/styles.css' %}?v=20260430b">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
@@ -30,7 +30,33 @@
             {% endif %}
 
             <input type="text" id="titulo" name="titulo" placeholder="Titulo del libro" value="{% if libro_edicion %}{{ libro_edicion.titulo }}{% endif %}" required>
-            <input type="text" id="autor" name="autor" placeholder="Autor" value="{% if libro_edicion %}{{ libro_edicion.autor }}{% endif %}" required>
+            <input
+                type="text"
+                id="autor"
+                name="autor"
+                placeholder="Autor"
+                list="autoresPredeterminados"
+                autocomplete="off"
+                value="{% if libro_edicion %}{{ libro_edicion.autor }}{% endif %}"
+                required
+            >
+            <datalist id="autoresPredeterminados">
+                <option value="Gabriel Garcia Marquez"></option>
+                <option value="Jorge Luis Borges"></option>
+                <option value="Isabel Allende"></option>
+                <option value="Mario Vargas Llosa"></option>
+                <option value="Julio Cortazar"></option>
+                <option value="Miguel de Cervantes"></option>
+                <option value="William Shakespeare"></option>
+                <option value="Jane Austen"></option>
+                <option value="Fyodor Dostoevsky"></option>
+                <option value="Leo Tolstoy"></option>
+                <option value="Virginia Woolf"></option>
+                <option value="Franz Kafka"></option>
+                <option value="George Orwell"></option>
+                <option value="Agatha Christie"></option>
+                <option value="Stephen King"></option>
+            </datalist>
 
             <label for="sinopsis"></label>
             <textarea id="sinopsis" name="sinopsis" rows="4" placeholder="Escribe aqui la sinopsis...">{% if libro_edicion %}{{ libro_edicion.sinopsis }}{% endif %}</textarea>
@@ -45,10 +71,23 @@
                 <option value="Autoayuda" {% if libro_edicion.genero == 'Autoayuda' %}selected{% endif %}>Autoayuda</option>
             </select>
 
-            <select id="estado" name="estado" required>
-                <option value="Publicado" {% if not libro_edicion or libro_edicion.estado == 'Publicado' %}selected{% endif %}>Publicado</option>
-                <option value="Leyendo" {% if libro_edicion.estado == 'Leyendo' %}selected{% endif %}>Leyendo</option>
+            <input type="hidden" id="estado" name="estado" value="{% if libro_edicion %}{{ libro_edicion.estado }}{% else %}Publicado{% endif %}">
+
+            {% if not modo_edicion %}
+            <label for="cantidadLibros">Tienes mas libros de este:</label>
+            <select id="cantidadLibros" name="cantidadLibros" required>
+                <option value="1" selected>1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+                <option value="9">9</option>
+                <option value="10">10</option>
             </select>
+            {% endif %}
 
             <div class="form-grupo">
                 <label for="imagen" class="label-file">{% if modo_edicion %}Cambiar portada{% else %}Seleccionar portada{% endif %}</label>
@@ -73,7 +112,8 @@
     </div>
     <script src="{% static 'usuarios/js/script.js' %}"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="{% static 'gestion_libros/js/registrarLibro.js' %}"></script>
+    <script src="{% static 'usuarios/js/swal-theme.js' %}?v=20260430a"></script>
+    <script src="{% static 'gestion_libros/js/registrarLibro.js' %}?v=20260430a"></script>
 </body>
 </html>
 

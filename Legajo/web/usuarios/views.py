@@ -23,7 +23,7 @@ from django.views.decorators.http import require_http_methods
 
 from ..administracion.models import ReporteUsuario
 from ..gestion_libros.models import Libro
-from ..services import serialize_book
+from ..services import list_recommended_books
 from ..views.helpers import (
     _build_account_activation_link,
     _build_password_reset_link,
@@ -172,15 +172,7 @@ def chats(request):
 def dashboard_usuario(request):
     # El dashboard reutiliza el serializer de libros para que la UI consuma
     # el mismo formato que los endpoints JSON.
-    libros_recomendados = (
-        Libro.objects.filter(activo=True)
-        .exclude(usuario_propietario=request.user)
-        .exclude(usuario_propietario__isnull=True)
-        .select_related('usuario_propietario')
-        .prefetch_related('autores', 'generos')
-        .order_by('-id')
-    )
-    libros_serializados = [serialize_book(libro) for libro in libros_recomendados]
+    libros_serializados = list_recommended_books(request.user)
     return render(
         request,
         'usuarios/dashboard_usuario.html',
@@ -188,7 +180,7 @@ def dashboard_usuario(request):
             'libros_recomendados': libros_serializados[:8],
             'libros_generos': [],
             'total_libros_sistema': Libro.objects.filter(activo=True).count(),
-            'total_libros_ajenos': libros_recomendados.count(),
+            'total_libros_ajenos': len(libros_serializados),
         },
     )
 
@@ -300,12 +292,22 @@ def api_login(request):
     if not email or not password:
         return JsonResponse({'message': 'Correo y contrasena son obligatorios.'}, status=400)
 
+    usuario_encontrado = User.objects.filter(email=email).first()
+    if usuario_encontrado and usuario_encontrado.check_password(password):
+        motivo_desactivacion = (usuario_encontrado.motivo_desactivacion or '').strip()
+        if not usuario_encontrado.is_active or not getattr(usuario_encontrado, 'activo', True):
+            if motivo_desactivacion:
+                return JsonResponse({
+                    'message': 'Tu cuenta fue desactivada por administracion.',
+                    'reason': motivo_desactivacion,
+                    'code': 'account_disabled',
+                    'landingUrl': '/',
+                }, status=403)
+            return JsonResponse({'message': 'Tu cuenta esta inactiva. Revisa tu correo y activa tu cuenta.'}, status=403)
+
     user = authenticate(request, email=email, password=password)
     if user is None:
         return JsonResponse({'message': 'Credenciales invalidas.'}, status=401)
-
-    if not user.is_active or not getattr(user, 'activo', True):
-        return JsonResponse({'message': 'Tu cuenta esta inactiva. Revisa tu correo y activa tu cuenta.'}, status=403)
 
     auth_login(request, user)
     redirect_url = '/dashboard_admin/' if user.rol == User.Rol.ADMIN else '/dashboard_usuario/'
@@ -382,7 +384,7 @@ def api_user_reports(request):
     if request.method == 'GET':
         reportes = (
             ReporteUsuario.objects.filter(usuario_reportante=request.user, activo=True)
-            .select_related('usuario_reportado')
+            .select_related('usuario_reportado', 'libro_reportado')
             .order_by('-fecha_reporte')
         )
         return JsonResponse([
@@ -392,6 +394,8 @@ def api_user_reports(request):
                 'descripcion': reporte.descripcion,
                 'estado': reporte.estado,
                 'usuarioReportado': str(reporte.usuario_reportado) if reporte.usuario_reportado else 'Usuario desconocido',
+                'libroReportado': reporte.libro_reportado.titulo if reporte.libro_reportado else '',
+                'libroReportadoId': reporte.libro_reportado_id,
                 'fechaReporte': reporte.fecha_reporte.strftime('%Y-%m-%d %H:%M') if reporte.fecha_reporte else '',
             }
             for reporte in reportes
@@ -402,6 +406,7 @@ def api_user_reports(request):
         return JsonResponse({'message': 'El cuerpo de la solicitud no es JSON valido.'}, status=400)
 
     usuario_reportado_id = data.get('usuarioReportadoId')
+    libro_reportado_id = data.get('libroReportadoId')
     motivo = str(data.get('motivo') or '').strip()
     descripcion = str(data.get('descripcion') or '').strip()
 
@@ -420,10 +425,21 @@ def api_user_reports(request):
     if usuario_reportado.id == request.user.id:
         return JsonResponse({'message': 'No puedes reportarte a ti mismo.'}, status=400)
 
+    libro_reportado = None
+    if libro_reportado_id:
+        try:
+            libro_reportado = Libro.objects.get(
+                id=libro_reportado_id,
+                usuario_propietario=usuario_reportado,
+            )
+        except Libro.DoesNotExist:
+            return JsonResponse({'message': 'El libro reportado no pertenece al usuario indicado.'}, status=400)
+
     reporte_existente = ReporteUsuario.objects.filter(
         activo=True,
         usuario_reportante=request.user,
         usuario_reportado=usuario_reportado,
+        libro_reportado=libro_reportado,
         motivo__iexact=motivo,
         estado=ReporteUsuario.Estado.PENDIENTE,
     ).exists()
@@ -437,6 +453,7 @@ def api_user_reports(request):
         estado=ReporteUsuario.Estado.PENDIENTE,
         usuario_reportante=request.user,
         usuario_reportado=usuario_reportado,
+        libro_reportado=libro_reportado,
     )
 
     return JsonResponse({

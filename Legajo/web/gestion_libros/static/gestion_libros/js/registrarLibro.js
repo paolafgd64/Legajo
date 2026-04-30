@@ -1,4 +1,17 @@
-﻿const API = '/api/libros';
+const legajoSwalClasses = {
+  popup: 'legajo-swal-popup',
+  title: 'legajo-swal-title',
+  htmlContainer: 'legajo-swal-html',
+  confirmButton: 'legajo-swal-confirm',
+  denyButton: 'legajo-swal-deny',
+  cancelButton: 'legajo-swal-cancel',
+  input: 'legajo-swal-input'
+};
+const legajoSwalOptions = {
+  buttonsStyling: false,
+  customClass: legajoSwalClasses
+};
+const API = '/api/libros';
 
 function getCookie(name) {
   const cookies = document.cookie ? document.cookie.split(';') : [];

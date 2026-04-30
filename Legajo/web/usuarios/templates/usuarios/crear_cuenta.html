@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Crear Cuenta</title>
-    <link rel="stylesheet" href="{% static 'usuarios/css/styles.css' %}">
+    <link rel="stylesheet" href="{% static 'usuarios/css/styles.css' %}?v=20260430b">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body>
@@ -37,7 +37,14 @@
                 <option value="Pereira">Pereira</option>
                 <option value="Santa Marta">Santa Marta</option>
                 <option value="Tunja">Tunja</option>
+                <option value="Ibague">Ibague</option>
+                <option value="Cucuta">Cucuta</option>
+                <option value="Villavicencio">Villavicencio</option>
+                <option value="Pasto">Pasto</option>
+                <option value="Armenia">Armenia</option>
+                <option value="otra">Otra</option>
             </select>
+            <input type="text" id="ciudadOtra" name="ciudadOtra" placeholder="Escribe tu ciudad" maxlength="20" style="display:none;">
             <input type="tel" id="telefono" name="telefono" placeholder="Telefono" required>
 
             <div class="input-pass">
@@ -58,6 +65,7 @@
     <script src="{% static 'usuarios/js/script.js' %}"></script>
     <script src="{% static 'usuarios/js/validaciones.js' %}"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="{% static 'usuarios/js/swal-theme.js' %}?v=20260430a"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const form = document.getElementById('registroForm');
@@ -67,13 +75,16 @@
             const confirmInput = document.getElementById('confirmClave');
             const emailInput = document.getElementById('correo');
             const checklist = document.getElementById('passwordChecklist');
+            const ciudadSelect = document.getElementById('ciudad');
+            const ciudadOtraInput = document.getElementById('ciudadOtra');
 
             const inputs = {
                 primerNombre: document.getElementById('primerNombre'),
                 primerApellido: document.getElementById('primerApellido'),
                 correo: emailInput,
                 direccion: document.getElementById('direccion'),
-                ciudad: document.getElementById('ciudad'),
+                ciudad: ciudadSelect,
+                ciudadOtra: ciudadOtraInput,
                 telefono: document.getElementById('telefono'),
                 clave: passwordInput,
                 confirmClave: confirmInput,
@@ -105,6 +116,20 @@
                 });
             });
 
+            ciudadSelect.addEventListener('change', () => {
+                ciudadSelect.classList.remove('input-error');
+                ciudadOtraInput.classList.remove('input-error');
+                limpiarMensajeFormulario(mensaje);
+                const mostrarCiudadOtra = ciudadSelect.value === 'otra';
+                ciudadOtraInput.style.display = mostrarCiudadOtra ? 'block' : 'none';
+                ciudadOtraInput.required = mostrarCiudadOtra;
+                if (!mostrarCiudadOtra) {
+                    ciudadOtraInput.value = '';
+                } else {
+                    ciudadOtraInput.focus();
+                }
+            });
+
             actualizarChecklist();
 
             form.addEventListener('submit', async (e) => {
@@ -130,9 +155,23 @@
                     return;
                 }
 
-                if (!inputs.direccion.value.trim() || !inputs.ciudad.value.trim() || !inputs.telefono.value.trim()) {
-                    marcarCamposInvalidos([inputs.direccion, inputs.ciudad, inputs.telefono].filter((field) => !field.value.trim()));
+                const ciudadFinal = inputs.ciudad.value === 'otra'
+                    ? inputs.ciudadOtra.value.trim()
+                    : inputs.ciudad.value.trim();
+
+                if (!inputs.direccion.value.trim() || !ciudadFinal || !inputs.telefono.value.trim()) {
+                    marcarCamposInvalidos([
+                        inputs.direccion.value.trim() ? null : inputs.direccion,
+                        ciudadFinal ? null : (inputs.ciudad.value === 'otra' ? inputs.ciudadOtra : inputs.ciudad),
+                        inputs.telefono.value.trim() ? null : inputs.telefono,
+                    ]);
                     mostrarMensajeFormulario(mensaje, 'Completa direccion, ciudad y telefono para terminar el registro.');
+                    return;
+                }
+
+                if (ciudadFinal.length > 20) {
+                    marcarCamposInvalidos([inputs.ciudadOtra]);
+                    mostrarMensajeFormulario(mensaje, 'La ciudad no debe superar 20 caracteres.');
                     return;
                 }
 
@@ -161,7 +200,7 @@
                     segundoApellido: document.getElementById('segundoApellido').value,
                     correo: inputs.correo.value,
                     direccion: inputs.direccion.value,
-                    ciudad: inputs.ciudad.value,
+                    ciudad: ciudadFinal,
                     telefono: inputs.telefono.value || null,
                     clave: inputs.clave.value,
                 };

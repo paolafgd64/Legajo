@@ -107,6 +107,7 @@ function renderizarReportes(reportes) {
     card.innerHTML = `
       <p><strong>Reportado:</strong> ${escapeHtml(reporte.usuarioReportado)}</p>
       <p><strong>Reportante:</strong> ${escapeHtml(reporte.usuarioReportante)}</p>
+      <p><strong>Libro reportado:</strong> ${escapeHtml(reporte.libroReportado || 'No especificado')}</p>
       <p><strong>Motivo:</strong> ${escapeHtml(reporte.motivo)}</p>
       <p><strong>Detalle:</strong><br>${escapeHtml(reporte.descripcion)}</p>
       <p><strong>Fecha:</strong> ${escapeHtml(reporte.fechaReporte)}</p>
@@ -147,14 +148,14 @@ async function cargarReportesUsuarios() {
   }
 }
 
-async function actualizarEstadoReporte(reportId, estado) {
+async function actualizarEstadoReporte(reportId, estado, mensaje) {
   const response = await fetch(`${API_ADMIN_REPORTES}/${reportId}`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
       'X-CSRFToken': getCsrfTokenAdmin()
     },
-    body: JSON.stringify({ estado })
+    body: JSON.stringify({ estado, mensaje })
   });
 
   const data = await response.json().catch(() => ({}));
@@ -171,14 +172,58 @@ async function manejarAccionReporte(event) {
   const reportId = button.dataset.reportId;
   const action = button.dataset.action;
   const estado = action === 'revisar' ? 'revisado' : 'descartado';
+  const accionTexto = estado === 'revisado' ? 'marcar como revisado' : 'marcar como descartado';
+
+  let mensaje = '';
+  if (window.Swal) {
+    const result = await Swal.fire({
+      icon: estado === 'revisado' ? 'question' : 'warning',
+      title: estado === 'revisado' ? 'Marcar revisado' : 'Marcar descartado',
+      html: `<p style="margin-bottom:12px;">Escribe la respuesta que recibira el usuario que envio el reporte.</p>`,
+      input: 'textarea',
+      inputPlaceholder: 'Respuesta para el usuario...',
+      inputAttributes: {
+        'aria-label': 'Respuesta del reporte'
+      },
+      showCancelButton: true,
+      confirmButtonText: estado === 'revisado' ? 'Enviar y marcar revisado' : 'Enviar y descartar',
+      cancelButtonText: 'Cancelar',
+      buttonsStyling: false,
+      customClass: {
+        popup: 'legajo-swal-popup',
+        title: 'legajo-swal-title',
+        htmlContainer: 'legajo-swal-html',
+        confirmButton: 'legajo-swal-confirm',
+        cancelButton: 'legajo-swal-cancel',
+        input: 'legajo-swal-input'
+      },
+      inputValidator: (value) => {
+        if (!value || value.trim().length < 10) {
+          return 'Escribe una respuesta de al menos 10 caracteres.';
+        }
+        return null;
+      }
+    });
+
+    if (!result.isConfirmed) return;
+    mensaje = result.value.trim();
+  } else {
+    const value = window.prompt(`Respuesta para el usuario antes de ${accionTexto}:`);
+    if (value === null) return;
+    mensaje = value.trim();
+    if (mensaje.length < 10) {
+      window.alert('Escribe una respuesta de al menos 10 caracteres.');
+      return;
+    }
+  }
 
   try {
-    await actualizarEstadoReporte(reportId, estado);
+    await actualizarEstadoReporte(reportId, estado, mensaje);
     if (window.Swal) {
       await Swal.fire({
         icon: 'success',
         title: 'Reporte actualizado',
-        text: `El reporte fue marcado como ${estado}.`
+        text: `El reporte fue marcado como ${estado} y la respuesta fue enviada.`
       });
     }
     await cargarReportesUsuarios();

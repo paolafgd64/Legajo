@@ -5,7 +5,7 @@ mantener los endpoints mas pequeños y faciles de entender.
 """
 
 from django.db import DatabaseError, transaction
-from django.db.models import Avg, Count, Q
+from django.db.models import Avg, Case, Count, IntegerField, Q, Value, When
 
 from ..models import Autor, Genero, Libro, Usuario
 from ..validators import (
@@ -113,6 +113,36 @@ def _get_book_for_user(user, libro_id):
 
 
 # Lista libros aplicando filtros de busqueda y visibilidad por rol.
+def _book_inventory_group_key(serialized_book):
+    return (
+        (serialized_book.get('titulo') or '').strip().lower(),
+        (serialized_book.get('sinopsis') or '').strip(),
+        (serialized_book.get('estado') or '').strip(),
+        (serialized_book.get('urlImagen') or '').strip(),
+        serialized_book.get('usuarioPropietarioId'),
+        tuple(serialized_book.get('autores') or []),
+        tuple(serialized_book.get('generos') or []),
+    )
+
+
+def _group_books_for_inventory(libros):
+    grouped = {}
+
+    for libro in libros:
+        serialized = serialize_book(libro)
+        key = _book_inventory_group_key(serialized)
+        if key not in grouped:
+            serialized['stock'] = 1
+            serialized['idsLibros'] = [serialized['id']]
+            grouped[key] = serialized
+            continue
+
+        grouped[key]['stock'] += 1
+        grouped[key]['idsLibros'].append(serialized['id'])
+
+    return list(grouped.values())
+
+
 def list_books(user, filters):
     try:
         libros = _books_queryset()
@@ -158,7 +188,11 @@ def list_books(user, filters):
         if estado:
             libros = libros.filter(estado__iexact=estado)
 
-        return [serialize_book(libro) for libro in libros.order_by('-id').distinct()]
+        libros = list(libros.order_by('-id').distinct())
+        if user.rol != Usuario.Rol.ADMIN:
+            return _group_books_for_inventory(libros)
+
+        return [serialize_book(libro) for libro in libros]
     except DatabaseError as exc:
         raise DatabaseServiceError() from exc
 
@@ -168,11 +202,24 @@ def list_recommended_books(user):
     try:
         libros = (
             _books_queryset()
+            .filter(estado=Libro.Estado.PUBLICADO)
             .exclude(usuario_propietario=user)
             .exclude(usuario_propietario__isnull=True)
-            .order_by('-id')
         )
-        return [serialize_book(libro) for libro in libros]
+        ciudad_usuario = (getattr(user, 'ciudad', '') or '').strip()
+
+        if ciudad_usuario:
+            libros = libros.annotate(
+                prioridad_ciudad=Case(
+                    When(usuario_propietario__ciudad__iexact=ciudad_usuario, then=Value(0)),
+                    default=Value(1),
+                    output_field=IntegerField(),
+                )
+            ).order_by('prioridad_ciudad', '-id')
+        else:
+            libros = libros.order_by('-id')
+
+        return _group_books_for_inventory(list(libros))
     except DatabaseError as exc:
         raise DatabaseServiceError() from exc
 
@@ -181,6 +228,33 @@ def list_recommended_books(user):
 def get_book_detail(user, libro_id):
     libro = _get_book_for_user(user, libro_id)
     return serialize_book(libro)
+
+
+def _normalize_book_copy_count(value):
+    try:
+        cantidad = int(value or 1)
+    except (TypeError, ValueError) as exc:
+        raise ValidationServiceError('La cantidad de libros debe ser un numero entre 1 y 10.') from exc
+
+    if cantidad < 1 or cantidad > 10:
+        raise ValidationServiceError('La cantidad de libros debe estar entre 1 y 10.')
+
+    return cantidad
+
+
+def _create_book_from_payload(user, payload, url_imagen):
+    libro = Libro.objects.create(
+        titulo=payload['titulo'],
+        sinopsis=payload['sinopsis'],
+        estado=payload['estado'],
+        url_imagen=url_imagen,
+        usuario_propietario=user,
+    )
+    autor = _get_or_create_author(payload['autor'])
+    genero, _ = Genero.objects.get_or_create(nombre=payload['genero'].title())
+    libro.autores.add(autor)
+    libro.generos.add(genero)
+    return libro
 
 
 # Crea libro + relaciones (autor/genero) en una transaccion atomica.
@@ -192,21 +266,30 @@ def create_book(user, data, image_file=None):
 
     try:
         with transaction.atomic():
-            libro = Libro.objects.create(
-                titulo=payload['titulo'],
-                sinopsis=payload['sinopsis'],
-                estado=payload['estado'],
-                url_imagen=url_imagen,
-                usuario_propietario=user,
-            )
-            autor = _get_or_create_author(payload['autor'])
-            genero, _ = Genero.objects.get_or_create(nombre=payload['genero'].title())
-            libro.autores.add(autor)
-            libro.generos.add(genero)
+            libro = _create_book_from_payload(user, payload, url_imagen)
     except DatabaseError as exc:
         raise DatabaseServiceError() from exc
 
     return serialize_book(libro)
+
+
+def create_book_copies(user, data, image_file=None):
+    cantidad = _normalize_book_copy_count(data.get('cantidadLibros') or data.get('cantidad') or data.get('copias'))
+    payload = validate_book_payload(data)
+    url_imagen = payload['url_imagen'] or '/static/gestion_libros/imgs/libropredeterminado1.png'
+    if image_file:
+        url_imagen = _save_uploaded_image(image_file)
+
+    try:
+        with transaction.atomic():
+            libros = [
+                _create_book_from_payload(user, payload, url_imagen)
+                for _ in range(cantidad)
+            ]
+    except DatabaseError as exc:
+        raise DatabaseServiceError() from exc
+
+    return [serialize_book(libro) for libro in libros]
 
 
 # Normaliza y valida cada item de importacion masiva de libros.

@@ -1,6 +1,21 @@
 ﻿// alerts.js
 // Archivo centralizado para manejar todas las alertas de SweetAlert2
 
+const legajoSwalClasses = {
+    popup: "legajo-swal-popup",
+    title: "legajo-swal-title",
+    htmlContainer: "legajo-swal-html",
+    confirmButton: "legajo-swal-confirm",
+    denyButton: "legajo-swal-deny",
+    cancelButton: "legajo-swal-cancel",
+    input: "legajo-swal-input"
+};
+
+const legajoSwalOptions = {
+    buttonsStyling: false,
+    customClass: legajoSwalClasses
+};
+
 // ============================
 // Alertas simples
 // ============================
@@ -10,7 +25,8 @@ export function alertSuccess(mensaje = "OperaciÃ³n realizada correctamente") {
         icon: "success",
         title: "Ã‰xito",
         text: mensaje,
-        confirmButtonText: "Aceptar"
+        confirmButtonText: "Aceptar",
+        ...legajoSwalOptions
     });
 }
 
@@ -19,7 +35,8 @@ export function alertError(mensaje = "OcurriÃ³ un error inesperado") {
         icon: "error",
         title: "Error",
         text: mensaje,
-        confirmButtonText: "Aceptar"
+        confirmButtonText: "Aceptar",
+        ...legajoSwalOptions
     });
 }
 
@@ -28,7 +45,8 @@ export function alertInfo(mensaje = "InformaciÃ³n importante") {
         icon: "info",
         title: "InformaciÃ³n",
         text: mensaje,
-        confirmButtonText: "Aceptar"
+        confirmButtonText: "Aceptar",
+        ...legajoSwalOptions
     });
 }
 
@@ -37,7 +55,8 @@ export function alertWarning(mensaje = "Advertencia") {
         icon: "warning",
         title: "Advertencia",
         text: mensaje,
-        confirmButtonText: "Aceptar"
+        confirmButtonText: "Aceptar",
+        ...legajoSwalOptions
     });
 }
 
@@ -60,7 +79,8 @@ export function alertConfirm(titulo = "Â¿EstÃ¡s seguro?", texto = "Esta acci
         icon: "warning",
         showCancelButton: true,
         confirmButtonText: "SÃ­, continuar",
-        cancelButtonText: "Cancelar"
+        cancelButtonText: "Cancelar",
+        ...legajoSwalOptions
     }).then((result) => {
         return result.isConfirmed;
     });
@@ -78,7 +98,8 @@ export function alertPrompt(titulo = "Ingresa un valor", placeholder = "Escribe 
         inputPlaceholder: placeholder,
         showCancelButton: true,
         confirmButtonText: "Aceptar",
-        cancelButtonText: "Cancelar"
+        cancelButtonText: "Cancelar",
+        ...legajoSwalOptions
     }).then((result) => {
         return result.value || null;
     });
@@ -94,6 +115,7 @@ export function alertLoading(mensaje = "Cargando...") {
         title: mensaje,
         allowOutsideClick: false,
         allowEscapeKey: false,
+        customClass: legajoSwalClasses,
         didOpen: () => Swal.showLoading()
     });
 }

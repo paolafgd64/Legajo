@@ -1,4 +1,17 @@
-﻿function getCsrfTokenChats() {
+const legajoSwalClasses = {
+  popup: 'legajo-swal-popup',
+  title: 'legajo-swal-title',
+  htmlContainer: 'legajo-swal-html',
+  confirmButton: 'legajo-swal-confirm',
+  denyButton: 'legajo-swal-deny',
+  cancelButton: 'legajo-swal-cancel',
+  input: 'legajo-swal-input'
+};
+const legajoSwalOptions = {
+  buttonsStyling: false,
+  customClass: legajoSwalClasses
+};
+function getCsrfTokenChats() {
   const cookies = document.cookie ? document.cookie.split(';') : [];
   for (const cookie of cookies) {
     const trimmed = cookie.trim();
@@ -77,12 +90,17 @@ async function cargarIntercambios() {
 
     intercambios.forEach((intercambio) => {
       const item = document.createElement('div');
-      const estadoClase = intercambio.yaCompletado
+      const fueRechazado = intercambio.estado === 'rechazado';
+      const estadoClase = fueRechazado
+        ? 'estado-rechazado'
+        : intercambio.yaCompletado
         ? 'estado-completado'
         : intercambio.requiereConfirmacionDoble
           ? 'estado-validacion'
           : 'estado-proceso';
-      const estadoTexto = intercambio.yaCompletado
+      const estadoTexto = fueRechazado
+        ? 'Rechazado'
+        : intercambio.yaCompletado
         ? 'Completado'
         : intercambio.requiereConfirmacionDoble
           ? 'Pendiente de confirmacion'

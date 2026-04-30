@@ -1,6 +1,15 @@
 ﻿const API_USUARIOS_ADMIN = '/api/admin/usuarios';
 const tablaUsuariosAdmin = document.getElementById('tablaUsuariosAdmin');
 const formImportacionUsuarios = document.querySelector('#modalImportacionUsuarios form');
+const legajoSwalClasses = {
+  popup: 'legajo-swal-popup',
+  title: 'legajo-swal-title',
+  htmlContainer: 'legajo-swal-html',
+  confirmButton: 'legajo-swal-confirm',
+  denyButton: 'legajo-swal-deny',
+  cancelButton: 'legajo-swal-cancel',
+  input: 'legajo-swal-input'
+};
 
 function getCookie(name) {
   const cookies = document.cookie ? document.cookie.split(';') : [];
@@ -11,6 +20,12 @@ function getCookie(name) {
     }
   }
   return '';
+}
+
+function getCsrfToken() {
+  return getCookie('csrftoken')
+    || document.querySelector('[name=csrfmiddlewaretoken]')?.value
+    || '';
 }
 
 async function parseJsonResponse(response) {
@@ -110,7 +125,7 @@ async function cargarUsuariosAdmin() {
   } catch (error) {
     console.error(error);
     if (tablaUsuariosAdmin) {
-      tablaUsuariosAdmin.innerHTML = '<tr><td colspan="6">No se pudieron cargar los usuarios.</td></tr>';
+      tablaUsuariosAdmin.innerHTML = '<tr><td colspan="7">No se pudieron cargar los usuarios.</td></tr>';
     }
   }
 }
@@ -128,22 +143,282 @@ function renderizarUsuarios(usuarios) {
 
   tablaUsuariosAdmin.innerHTML = '';
   if (!usuarios || usuarios.length === 0) {
-    tablaUsuariosAdmin.innerHTML = '<tr><td colspan="6">No se encontraron usuarios.</td></tr>';
+    tablaUsuariosAdmin.innerHTML = '<tr><td colspan="7">No se encontraron usuarios.</td></tr>';
     return;
   }
 
   usuarios.forEach((usuario) => {
     const fila = document.createElement('tr');
+    const estaActivo = Boolean(usuario.activo);
+    const estadoTitle = estaActivo
+      ? 'Desactivar usuario'
+      : `Inactivo${usuario.motivoDesactivacion ? `: ${usuario.motivoDesactivacion}` : ''}`;
     fila.innerHTML = `
       <td>${escapeHtml(usuario.nombreCompleto)}</td>
       <td>${escapeHtml(usuario.correo)}</td>
       <td>${escapeHtml(usuario.ciudad)}</td>
       <td>${escapeHtml(usuario.telefono)}</td>
       <td>${escapeHtml(usuario.rol)}</td>
-      <td><span class="estado-usuario-badge ${usuario.estado === 'Activo' ? 'activo' : 'inactivo'}">${escapeHtml(usuario.estado)}</span></td>
+      <td>
+        <button
+          type="button"
+          class="estado-usuario-boton ${estaActivo ? 'activo' : 'inactivo'}"
+          data-user-id="${usuario.id}"
+          data-activo="${estaActivo ? 'true' : 'false'}"
+          data-nombre="${escapeHtml(usuario.nombreCompleto)}"
+          title="${escapeHtml(estadoTitle)}"
+        >
+          ${estaActivo ? '<i class="fas fa-check-circle"></i> Activo' : '<i class="fas fa-ban"></i> Inactivo'}
+        </button>
+      </td>
+      <td>
+        <button
+          type="button"
+          class="inventario-usuario-boton"
+          data-user-id="${usuario.id}"
+          data-nombre="${escapeHtml(usuario.nombreCompleto)}"
+          title="Ver inventario"
+        >
+          <i class="fas fa-book-open"></i> Ver
+        </button>
+      </td>
     `;
+    fila.querySelector('.estado-usuario-boton')?.addEventListener('click', (event) => {
+      event.stopPropagation();
+      manejarCambioEstadoUsuario(event.currentTarget);
+    });
+    fila.querySelector('.inventario-usuario-boton')?.addEventListener('click', (event) => {
+      event.stopPropagation();
+      abrirInventarioUsuario(event.currentTarget);
+    });
     tablaUsuariosAdmin.appendChild(fila);
   });
+}
+
+function renderizarInventarioUsuario(libros) {
+  if (!Array.isArray(libros) || libros.length === 0) {
+    return '<p class="inventory-empty">Este usuario no tiene libros en su inventario.</p>';
+  }
+
+  return `
+    <div class="inventory-grid">
+      ${libros.map((libro) => `
+        <div class="inventory-item inventory-item-readonly">
+          <img class="inventory-img" src="${escapeHtml(libro.urlImagen || '/static/gestion_libros/imgs/libropredeterminado1.png')}" alt="${escapeHtml(libro.titulo)}">
+          <div class="inventory-meta">
+            <strong class="inventory-title">${escapeHtml(libro.titulo || 'Sin titulo')}</strong>
+            <div class="inventory-author">${escapeHtml(libro.autor || 'Autor desconocido')}</div>
+            <div class="inventory-state">${escapeHtml(libro.estado || '')}</div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+async function abrirInventarioUsuario(button) {
+  const userId = button.dataset.userId;
+  const nombre = button.dataset.nombre || 'Usuario';
+  if (!userId) return;
+
+  if (window.Swal) {
+    Swal.fire({
+      title: 'Cargando inventario',
+      text: 'Consultando los libros del usuario.',
+      allowOutsideClick: false,
+      customClass: legajoSwalClasses,
+      didOpen: () => Swal.showLoading()
+    });
+  }
+
+  try {
+    const response = await fetch(`${API_USUARIOS_ADMIN}/${userId}/inventario`, {
+      headers: {
+        Accept: 'application/json'
+      }
+    });
+    const data = await parseJsonResponse(response);
+    if (!response.ok) {
+      throw new Error(data.message || 'No se pudo cargar el inventario.');
+    }
+
+    if (window.Swal) {
+      await Swal.fire({
+        title: `Inventario de ${nombre}`,
+        width: 920,
+        html: `
+          <div class="perfil-modal-form inventory-modal-panel">
+            <p class="inventory-modal-help">Libros registrados por este usuario.</p>
+            ${renderizarInventarioUsuario(data.libros)}
+          </div>
+        `,
+        confirmButtonText: 'Cerrar',
+        buttonsStyling: false,
+        customClass: {
+          ...legajoSwalClasses,
+          popup: 'legajo-swal-popup inventory-swal-popup'
+        }
+      });
+    } else {
+      window.alert(`Inventario de ${nombre}: ${Array.isArray(data.libros) ? data.libros.length : 0} libros.`);
+    }
+  } catch (error) {
+    if (window.Swal) {
+      Swal.fire({
+        icon: 'error',
+        title: 'No se pudo cargar',
+        text: error.message || 'No se pudo cargar el inventario.',
+        confirmButtonText: 'Continuar',
+        buttonsStyling: false,
+        customClass: legajoSwalClasses
+      });
+    } else {
+      window.alert(error.message || 'No se pudo cargar el inventario.');
+    }
+  }
+}
+
+async function actualizarEstadoUsuario(userId, payload) {
+  const response = await fetch(`${API_USUARIOS_ADMIN}/${userId}/estado`, {
+    method: 'PATCH',
+    credentials: 'same-origin',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': getCsrfToken()
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const data = await parseJsonResponse(response);
+  if (!response.ok) {
+    throw new Error(data.message || 'No se pudo actualizar el usuario.');
+  }
+  return data;
+}
+
+async function manejarCambioEstadoUsuario(button) {
+  const userId = button.dataset.userId;
+  const estaActivo = button.dataset.activo === 'true';
+  const nombre = button.dataset.nombre || 'este usuario';
+
+  if (!userId) return;
+
+  if (!estaActivo) {
+    if (window.Swal) {
+      const result = await Swal.fire({
+        icon: 'question',
+        title: 'Activar usuario',
+        text: `Quieres activar nuevamente a ${nombre}?`,
+        showCancelButton: true,
+        confirmButtonText: 'Si, activar',
+        cancelButtonText: 'Cancelar',
+        buttonsStyling: false,
+        customClass: legajoSwalClasses
+      });
+      if (!result.isConfirmed) return;
+    } else if (!window.confirm(`Quieres activar nuevamente a ${nombre}?`)) {
+      return;
+    }
+
+    try {
+      await actualizarEstadoUsuario(userId, { activo: true });
+      await cargarUsuariosAdmin();
+      if (window.Swal) {
+        await Swal.fire({
+          icon: 'success',
+          title: 'Usuario activado',
+          timer: 1600,
+          showConfirmButton: false,
+          customClass: legajoSwalClasses
+        });
+      } else {
+        window.alert('Usuario activado.');
+      }
+    } catch (error) {
+      if (window.Swal) {
+        Swal.fire({
+          icon: 'error',
+          title: 'No se pudo activar',
+          text: error.message,
+          confirmButtonText: 'Continuar',
+          buttonsStyling: false,
+          customClass: legajoSwalClasses
+        });
+      } else {
+        window.alert(error.message || 'No se pudo activar.');
+      }
+    }
+    return;
+  }
+
+  let motivo = '';
+  if (window.Swal) {
+    const result = await Swal.fire({
+      icon: 'warning',
+      title: 'Desactivar usuario',
+      html: `<p style="margin-bottom:12px;">Escribe el motivo por el que vas a desactivar a <strong>${escapeHtml(nombre)}</strong>.</p>`,
+      input: 'textarea',
+      inputPlaceholder: 'Motivo de desactivacion...',
+      inputAttributes: {
+        'aria-label': 'Motivo de desactivacion'
+      },
+      showCancelButton: true,
+      confirmButtonText: 'Desactivar',
+      cancelButtonText: 'Cancelar',
+      buttonsStyling: false,
+      customClass: legajoSwalClasses,
+      inputValidator: (value) => {
+        if (!value || value.trim().length < 10) {
+          return 'Escribe un motivo de al menos 10 caracteres.';
+        }
+        return null;
+      }
+    });
+
+    if (!result.isConfirmed) return;
+    motivo = result.value.trim();
+  } else {
+    const value = window.prompt(`Motivo para desactivar a ${nombre}:`);
+    if (value === null) return;
+    motivo = value.trim();
+    if (motivo.length < 10) {
+      window.alert('Escribe un motivo de al menos 10 caracteres.');
+      return;
+    }
+  }
+
+  try {
+    await actualizarEstadoUsuario(userId, {
+      activo: false,
+      motivo
+    });
+    await cargarUsuariosAdmin();
+    if (window.Swal) {
+      await Swal.fire({
+        icon: 'success',
+        title: 'Usuario desactivado',
+        text: 'El motivo quedo guardado y se mostrara si intenta iniciar sesion.',
+        confirmButtonText: 'Continuar',
+        buttonsStyling: false,
+        customClass: legajoSwalClasses
+      });
+    } else {
+      window.alert('Usuario desactivado.');
+    }
+  } catch (error) {
+    if (window.Swal) {
+      Swal.fire({
+        icon: 'error',
+        title: 'No se pudo desactivar',
+        text: error.message,
+        confirmButtonText: 'Continuar',
+        buttonsStyling: false,
+        customClass: legajoSwalClasses
+      });
+    } else {
+      window.alert(error.message || 'No se pudo desactivar.');
+    }
+  }
 }
 
 function limpiarArchivoImportacion() {
@@ -176,7 +451,10 @@ async function enviarImportacionUsuarios(event) {
       Swal.fire({
         icon: 'warning',
         title: 'Archivo requerido',
-        text: 'Selecciona un archivo JSON o Excel antes de continuar.'
+        text: 'Selecciona un archivo JSON o Excel antes de continuar.',
+        confirmButtonText: 'Continuar',
+        buttonsStyling: false,
+        customClass: legajoSwalClasses
       });
     }
     return;
@@ -192,6 +470,7 @@ async function enviarImportacionUsuarios(event) {
       title: 'Importando usuarios',
       text: 'Estamos procesando el archivo.',
       allowOutsideClick: false,
+      customClass: legajoSwalClasses,
       didOpen: () => Swal.showLoading()
     });
   }
@@ -221,7 +500,9 @@ async function enviarImportacionUsuarios(event) {
         icon: 'success',
         title: 'Usuarios cargados',
         html: construirResumenImportacion(data.resultado),
-        confirmButtonText: 'Continuar'
+        confirmButtonText: 'Continuar',
+        buttonsStyling: false,
+        customClass: legajoSwalClasses
       });
     }
   } catch (error) {
@@ -229,7 +510,10 @@ async function enviarImportacionUsuarios(event) {
       Swal.fire({
         icon: 'error',
         title: 'Error en la importacion',
-        text: error.message || 'No se pudo importar el archivo.'
+        text: error.message || 'No se pudo importar el archivo.',
+        confirmButtonText: 'Continuar',
+        buttonsStyling: false,
+        customClass: legajoSwalClasses
       });
     }
   }
@@ -240,6 +524,12 @@ document.getElementById('filtroCorreoUsuario')?.addEventListener('input', cargar
 document.getElementById('filtroCiudadUsuario')?.addEventListener('input', cargarUsuariosAdmin);
 document.getElementById('filtroRolUsuario')?.addEventListener('change', cargarUsuariosAdmin);
 document.getElementById('filtroEstadoUsuario')?.addEventListener('change', cargarUsuariosAdmin);
+tablaUsuariosAdmin?.addEventListener('click', (event) => {
+  const button = event.target.closest('.estado-usuario-boton');
+  if (button && !event.defaultPrevented) {
+    manejarCambioEstadoUsuario(button);
+  }
+});
 
 document.getElementById('btnLimpiarUsuarios')?.addEventListener('click', () => {
   document.getElementById('filtroNombreUsuario').value = '';

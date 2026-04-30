@@ -1,5 +1,18 @@
-﻿// /js/editarLibro.js
-// Maneja la ediciÃ³n de libros desde libros/editar.html
+const legajoSwalClasses = {
+  popup: 'legajo-swal-popup',
+  title: 'legajo-swal-title',
+  htmlContainer: 'legajo-swal-html',
+  confirmButton: 'legajo-swal-confirm',
+  denyButton: 'legajo-swal-deny',
+  cancelButton: 'legajo-swal-cancel',
+  input: 'legajo-swal-input'
+};
+const legajoSwalOptions = {
+  buttonsStyling: false,
+  customClass: legajoSwalClasses
+};
+// /js/editarLibro.js
+// Maneja la edición de libros desde libros/editar.html
 const API = '/api/libros';
 const UPLOAD_API = '/api/upload/imagen';
 
@@ -7,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('editarForm');
   const idInput = document.getElementById('idLibro');
   
-  // Obtener el ID del libro desde los parÃ¡metros de la URL
+  // Obtener el ID del libro desde los parámetros de la URL
   const params = new URLSearchParams(window.location.search);
   const libroId = params.get('id');
   
@@ -15,7 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
     Swal.fire({
       icon: "error",
       title: "ID faltante",
-      text: "No se proporcionÃ³ un ID de libro."
+      text: "No se proporcionó un ID de libro."
     }).then(() => {
       window.location.href = '../inventario.html';
     });
@@ -25,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Cargar los datos del libro
   cargarLibro(libroId);
   
-  // Manejar el envÃ­o del formulario
+  // Manejar el envío del formulario
   form.onsubmit = async (e) => {
     e.preventDefault();
     const titulo = document.getElementById('titulo').value.trim();
@@ -61,7 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
         Swal.fire({
           icon: "warning",
           title: "Advertencia",
-          text: "No se pudo subir la nueva imagen. Se mantendrÃ¡ la actual."
+          text: "No se pudo subir la nueva imagen. Se mantendrá la actual."
         });
       }
     }
@@ -129,8 +142,8 @@ document.addEventListener('DOMContentLoaded', () => {
       
       Swal.fire({
         icon: "success",
-        title: "Â¡Actualizado!",
-        text: "El libro ha sido actualizado con Ã©xito.",
+        title: "¡Actualizado!",
+        text: "El libro ha sido actualizado con éxito.",
         confirmButtonText: "Aceptar"
       }).then(() => {
         window.location.href = '../inventario.html';

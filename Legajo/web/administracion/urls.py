@@ -15,4 +15,6 @@ urlpatterns = [
     path('api/admin/reportes-usuarios', views.api_admin_user_reports, name='api_admin_user_reports'),
     path('api/admin/reportes-usuarios/<int:report_id>', views.api_admin_update_user_report, name='api_admin_update_user_report'),
     path('api/admin/usuarios', views.api_admin_users, name='api_admin_users'),
+    path('api/admin/usuarios/<int:user_id>/inventario', views.api_admin_user_inventory, name='api_admin_user_inventory'),
+    path('api/admin/usuarios/<int:user_id>/estado', views.api_admin_update_user_status, name='api_admin_update_user_status'),
 ]

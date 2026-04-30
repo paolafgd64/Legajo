@@ -1,4 +1,17 @@
-﻿const API = '/api/libros';
+const legajoSwalClasses = {
+  popup: 'legajo-swal-popup',
+  title: 'legajo-swal-title',
+  htmlContainer: 'legajo-swal-html',
+  confirmButton: 'legajo-swal-confirm',
+  denyButton: 'legajo-swal-deny',
+  cancelButton: 'legajo-swal-cancel',
+  input: 'legajo-swal-input'
+};
+const legajoSwalOptions = {
+  buttonsStyling: false,
+  customClass: legajoSwalClasses
+};
+const API = '/api/libros';
 
 function escapeHtml(text) {
   const div = document.createElement('div');
@@ -47,22 +60,90 @@ async function cargarInventario() {
 
     libros.forEach((libro) => {
       const item = document.createElement('div');
+      const estaPublicado = libro.estado === 'Publicado';
       item.className = 'item-inventario';
       item.dataset.libroId = libro.id;
       item.innerHTML = `
         <img src="${escapeHtml(libro.urlImagen || '/static/gestion_libros/imgs/libropredeterminado1.png')}" alt="Libro">
         <h3>${escapeHtml(libro.titulo)}</h3>
         <h4>${escapeHtml(libro.autor)}</h4>
+        <p class="stock-libro"><strong>Stock:</strong> ${escapeHtml(String(libro.stock || 1))}</p>
         <p class="descripcion">${escapeHtml(libro.sinopsis)}</p>
+        <div class="estado-libro-control">
+          <span class="estado-libro-texto">${escapeHtml(libro.estado || 'Publicado')}</span>
+          <label class="switch-estado-libro" title="Cambiar estado del libro">
+            <input class="js-estado-libro" type="checkbox" ${estaPublicado ? 'checked' : ''} aria-label="Cambiar estado entre Leyendo y Publicado">
+            <span class="switch-estado-slider"></span>
+          </label>
+        </div>
         <button class="btn-verde" onclick="verLibro(${libro.id})"><i class="fas fa-eye"></i> Ver</button>
         <button class="btn-amarillo" onclick="editarLibro(${libro.id})"><i class="fas fa-pen"></i> Editar</button>
         <button class="btn-rojo" onclick="eliminarLibro(${libro.id})"><i class="fas fa-trash"></i> Eliminar</button>
       `;
       grid.appendChild(item);
+
+      const estadoSwitch = item.querySelector('.js-estado-libro');
+      if (estadoSwitch) {
+        estadoSwitch.addEventListener('change', () => {
+          const nuevoEstado = estadoSwitch.checked ? 'Publicado' : 'Leyendo';
+          actualizarEstadoLibro(libro, nuevoEstado, item, estadoSwitch);
+        });
+      }
     });
   } catch (error) {
     console.error('Error cargando inventario:', error);
     grid.innerHTML = '<p style="grid-column: 1/-1; text-align: center; padding: 40px;">Error cargando tu inventario.</p>';
+  }
+}
+
+async function actualizarEstadoLibro(libro, nuevoEstado, item, estadoSwitch) {
+  const estadoAnterior = libro.estado || 'Publicado';
+  const estadoTexto = item.querySelector('.estado-libro-texto');
+  const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+
+  estadoSwitch.disabled = true;
+  if (estadoTexto) estadoTexto.textContent = nuevoEstado;
+
+  try {
+    const payload = {
+      titulo: libro.titulo || '',
+      autor: libro.autor || '',
+      sinopsis: libro.sinopsis || '',
+      genero: libro.genero || '',
+      estado: nuevoEstado,
+      url_imagen: libro.urlImagen || libro.url_imagen || ''
+    };
+
+    const res = await fetch(`${API}/${libro.id}`, {
+      method: 'PUT',
+      credentials: 'same-origin',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': csrfToken
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.message || 'No se pudo actualizar el estado del libro');
+    }
+
+    libro.estado = data.estado || nuevoEstado;
+    if (estadoTexto) estadoTexto.textContent = libro.estado;
+    estadoSwitch.checked = libro.estado === 'Publicado';
+  } catch (error) {
+    console.error('Error actualizando estado del libro:', error);
+    libro.estado = estadoAnterior;
+    estadoSwitch.checked = estadoAnterior === 'Publicado';
+    if (estadoTexto) estadoTexto.textContent = estadoAnterior;
+    Swal.fire({
+      icon: 'error',
+      title: 'No se pudo cambiar el estado',
+      text: error.message || 'Intenta de nuevo.'
+    });
+  } finally {
+    estadoSwitch.disabled = false;
   }
 }
 

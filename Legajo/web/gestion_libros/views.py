@@ -10,8 +10,9 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods
 
+from ..administracion.models import NotificacionUsuario
 from ..services import (
-    create_book,
+    create_book_copies,
     get_book_detail,
     list_books,
     list_recommended_books,
@@ -105,6 +106,101 @@ def reporte_libros(request):
     return render(request, 'gestion_libros/reporte_libros.html', context)
 
 
+def _admin_books_report_queryset():
+    return (
+        Libro.objects.all()
+        .select_related('usuario_propietario')
+        .prefetch_related('autores', 'generos')
+        .annotate(
+            promedio_calificacion=Avg('calificacionlibro__calificacion', filter=Q(calificacionlibro__activo=True), distinct=True),
+            total_calificaciones=Count('calificacionlibro', filter=Q(calificacionlibro__activo=True), distinct=True),
+        )
+    )
+
+
+def _filter_books_report_queryset(libros, request):
+    titulo = (request.GET.get('titulo') or '').strip()
+    autor = (request.GET.get('autor') or '').strip()
+    usuario = (request.GET.get('usuario') or '').strip()
+    genero = (request.GET.get('genero') or '').strip()
+    estado = (request.GET.get('estado') or '').strip()
+
+    if titulo:
+        libros = libros.filter(titulo__icontains=titulo)
+    if autor:
+        libros = libros.filter(
+            Q(autores__nombre1__icontains=autor) |
+            Q(autores__nombre2__icontains=autor) |
+            Q(autores__apellido1__icontains=autor) |
+            Q(autores__apellido2__icontains=autor) |
+            Q(autores__apodo__icontains=autor)
+        )
+    if usuario:
+        libros = libros.filter(
+            Q(usuario_propietario__nombre1__icontains=usuario) |
+            Q(usuario_propietario__nombre2__icontains=usuario) |
+            Q(usuario_propietario__apellido1__icontains=usuario) |
+            Q(usuario_propietario__apellido2__icontains=usuario) |
+            Q(usuario_propietario__email__icontains=usuario)
+        )
+    if genero:
+        libros = libros.filter(generos__nombre__icontains=genero)
+    if estado:
+        libros = libros.filter(estado__iexact=estado)
+
+    return libros.distinct()
+
+
+@login_required(login_url='login')
+@require_http_methods(["GET"])
+def api_admin_libros_reporte(request):
+    if request.user.rol != User.Rol.ADMIN:
+        return _forbidden_response()
+
+    libros = _filter_books_report_queryset(_admin_books_report_queryset(), request).order_by('-id')
+    return JsonResponse([serialize_book(libro) for libro in libros], safe=False)
+
+
+@login_required(login_url='login')
+@require_http_methods(["PATCH"])
+def api_admin_actualizar_estado_libro(request, libro_id):
+    if request.user.rol != User.Rol.ADMIN:
+        return _forbidden_response()
+
+    data = _read_json_body(request)
+    if data is None:
+        return JsonResponse({'message': 'El cuerpo de la solicitud no es JSON valido.'}, status=400)
+
+    activo = data.get('activo')
+    if not isinstance(activo, bool):
+        return JsonResponse({'message': 'El estado enviado no es valido.'}, status=400)
+
+    try:
+        libro = Libro.objects.select_related('usuario_propietario').prefetch_related('autores', 'generos').get(id=libro_id)
+    except Libro.DoesNotExist:
+        return JsonResponse({'message': 'Libro no encontrado.'}, status=404)
+
+    motivo = str(data.get('motivo') or '').strip()
+    if not activo and len(motivo) < 10:
+        return JsonResponse({'message': 'Debes escribir un motivo de al menos 10 caracteres.'}, status=400)
+
+    libro.activo = activo
+    libro.save(update_fields=['activo'])
+
+    propietario = libro.usuario_propietario
+    if propietario:
+        if activo:
+            mensaje = f'Tu libro "{libro.titulo}" fue activado nuevamente por el equipo administrador.'
+        else:
+            mensaje = f'Tu libro "{libro.titulo}" fue inactivado por el equipo administrador. Motivo: {motivo}'
+        NotificacionUsuario.objects.create(usuario=propietario, mensaje=mensaje)
+
+    return JsonResponse({
+        'message': 'Libro activado correctamente.' if activo else 'Libro inactivado correctamente.',
+        'libro': serialize_book(libro),
+    })
+
+
 @require_http_methods(["GET", "POST"])
 def api_libros(request):
     if not request.user.is_authenticated:
@@ -122,11 +218,11 @@ def api_libros(request):
 
     try:
         # La creacion valida y persiste relaciones en la capa de servicios.
-        libro = create_book(request.user, request.POST, image_file=request.FILES.get('imagen'))
+        libro = create_book_copies(request.user, request.POST, image_file=request.FILES.get('imagen'))
     except ControlledError as error:
         return _service_error_response(error)
 
-    return JsonResponse(libro, status=201)
+    return JsonResponse(libro, status=201, safe=False)
 
 
 @require_http_methods(["GET"])
@@ -184,7 +280,7 @@ def reporte_libros_pdf(request):
         return _forbidden_response()
 
     libros = (
-        Libro.objects.filter(activo=True)
+        Libro.objects.all()
         .select_related('usuario_propietario')
         .prefetch_related('autores', 'generos')
         .annotate(
@@ -331,6 +427,7 @@ def reporte_libros_pdf(request):
             serialized['autor'],
             serialized['genero'],
             serialized['estado'],
+            'Activo' if serialized['activo'] else 'Inactivo',
             f"{serialized['calificacion']:.1f}/5" if serialized['totalCalificaciones'] else 'Sin resenas',
         ])
 
@@ -339,5 +436,5 @@ def reporte_libros_pdf(request):
         rows,
         'reporte_libros.pdf',
         report_context=report_context,
-        columns=[('Usuario', 102), ('Titulo', 140), ('Autor', 108), ('Genero', 82), ('Estado', 58), ('Calif.', 50)],
+        columns=[('Usuario', 92), ('Titulo', 120), ('Autor', 92), ('Genero', 70), ('Estado', 54), ('Activo', 48), ('Calif.', 48)],
     )

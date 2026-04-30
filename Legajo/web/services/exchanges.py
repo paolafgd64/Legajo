@@ -19,6 +19,8 @@ def request_exchange(user, data):
 
     if libro.usuario_propietario_id == user.id:
         raise ValidationServiceError('No puedes solicitar intercambio por tu propio libro.')
+    if libro.estado != Libro.Estado.PUBLICADO:
+        raise ValidationServiceError('Este libro no esta disponible para intercambio.')
 
     try:
         existente = Intercambio.objects.filter(

@@ -32,8 +32,11 @@ def _serialize_admin_user(usuario):
         'correo': usuario.email,
         'ciudad': usuario.ciudad,
         'telefono': usuario.telefono,
-        'rol': usuario.rol,
+        'rol': usuario.get_rol_display(),
+        'rolValor': usuario.rol,
+        'estado': 'Activo' if usuario.activo and usuario.is_active else 'Inactivo',
         'activo': bool(usuario.activo and usuario.is_active),
+        'motivoDesactivacion': usuario.motivo_desactivacion or '',
     }
 
 

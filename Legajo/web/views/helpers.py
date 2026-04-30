@@ -222,6 +222,8 @@ def _serialize_admin_user(user):
         'rol': user.get_rol_display(),
         'rolValor': user.rol,
         'estado': 'Activo' if user.activo and user.is_active else 'Inactivo',
+        'activo': bool(user.activo and user.is_active),
+        'motivoDesactivacion': user.motivo_desactivacion or '',
     }
 
 

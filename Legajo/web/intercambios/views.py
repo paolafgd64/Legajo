@@ -65,6 +65,8 @@ def api_intercambios(request):
             )
         elif intercambio.estado == Intercambio.Estado.COMPLETADO:
             descripcion = f'Completado: "{libro_solicitado}" por "{libro_cambio}".'
+        elif intercambio.estado == Intercambio.Estado.RECHAZADO:
+            descripcion = f'Rechazado: la solicitud por "{libro_solicitado}" no fue aceptada.'
         else:
             descripcion = f'Estado: {intercambio.estado}.'
 
@@ -115,7 +117,7 @@ def api_notificaciones(request):
         elif intercambio.estado == Intercambio.Estado.ACEPTADO:
             mensaje = f'Tienes un intercambio aceptado para "{titulo_libro}".'
         elif intercambio.estado == Intercambio.Estado.RECHAZADO:
-            mensaje = f'La solicitud por "{titulo_libro}" fue rechazada.'
+            mensaje = f'Rechazaste la solicitud por "{titulo_libro}".'
         else:
             mensaje = f'El intercambio por "{titulo_libro}" fue completado.'
 
@@ -219,7 +221,11 @@ def api_inventario_solicitante_intercambio(request, intercambio_id):
         return JsonResponse({'message': 'No tienes permiso para ver este inventario.'}, status=403)
 
     libros = (
-        Libro.objects.filter(usuario_propietario=intercambio.usuario_solicitante, activo=True)
+        Libro.objects.filter(
+            usuario_propietario=intercambio.usuario_solicitante,
+            estado=Libro.Estado.PUBLICADO,
+            activo=True,
+        )
         .prefetch_related('autores', 'generos')
         .order_by('-id')
     )
@@ -247,15 +253,22 @@ def api_aceptar_intercambio(request, intercambio_id):
         return JsonResponse({'message': 'No tienes permiso para aceptar este intercambio.'}, status=403)
     if intercambio.estado != Intercambio.Estado.PENDIENTE:
         return JsonResponse({'message': 'Este intercambio ya no esta pendiente.'}, status=400)
+    if not intercambio.libro_solicitado or intercambio.libro_solicitado.estado != Libro.Estado.PUBLICADO:
+        return JsonResponse({'message': 'El libro solicitado ya no esta disponible para intercambio.'}, status=400)
 
     libro_cambio_id = data.get('libroCambioId')
     if not libro_cambio_id:
         return JsonResponse({'message': 'Debes seleccionar un libro del solicitante.'}, status=400)
 
     try:
-        libro_cambio = Libro.objects.get(id=libro_cambio_id, usuario_propietario=intercambio.usuario_solicitante, activo=True)
+        libro_cambio = Libro.objects.get(
+            id=libro_cambio_id,
+            usuario_propietario=intercambio.usuario_solicitante,
+            estado=Libro.Estado.PUBLICADO,
+            activo=True,
+        )
     except Libro.DoesNotExist:
-        return JsonResponse({'message': 'El libro seleccionado no pertenece al solicitante.'}, status=400)
+        return JsonResponse({'message': 'El libro seleccionado no pertenece al solicitante o no esta disponible.'}, status=400)
 
     intercambio.libro_cambio = libro_cambio
     intercambio.estado = Intercambio.Estado.ACEPTADO
@@ -283,6 +296,46 @@ def api_aceptar_intercambio(request, intercambio_id):
         'libroCambio': libro_cambio.titulo,
         'telefonoWhatsapp': telefono_solicitante,
         'mensajeWhatsapp': mensaje_whatsapp,
+    })
+
+
+@require_http_methods(["POST"])
+def api_rechazar_intercambio(request, intercambio_id):
+    if not request.user.is_authenticated:
+        return _unauthorized_response()
+
+    try:
+        intercambio = Intercambio.objects.select_related('usuario_receptor', 'usuario_solicitante', 'libro_solicitado').get(
+            id=intercambio_id,
+            activo=True,
+        )
+    except Intercambio.DoesNotExist:
+        return JsonResponse({'message': 'Intercambio no encontrado.'}, status=404)
+
+    if intercambio.usuario_receptor_id != request.user.id:
+        return JsonResponse({'message': 'No tienes permiso para rechazar este intercambio.'}, status=403)
+    if intercambio.estado != Intercambio.Estado.PENDIENTE:
+        return JsonResponse({'message': 'Este intercambio ya no esta pendiente.'}, status=400)
+
+    intercambio.estado = Intercambio.Estado.RECHAZADO
+    intercambio.libro_cambio = None
+    intercambio.fecha_confirmacion = timezone.now()
+    intercambio.confirmacion_solicitante = False
+    intercambio.confirmacion_receptor = False
+    intercambio.pin_validacion = None
+    intercambio.save(update_fields=[
+        'estado',
+        'libro_cambio',
+        'fecha_confirmacion',
+        'confirmacion_solicitante',
+        'confirmacion_receptor',
+        'pin_validacion',
+    ])
+
+    titulo_solicitado = intercambio.libro_solicitado.titulo if intercambio.libro_solicitado else 'el libro solicitado'
+    return JsonResponse({
+        'message': f'Rechazaste la solicitud de intercambio por "{titulo_solicitado}".',
+        'idIntercambio': intercambio.id,
     })
 
 
@@ -337,8 +390,10 @@ def api_confirmar_intercambio_pin(request, intercambio_id):
 
             libro_solicitado.usuario_propietario = usuario_solicitante
             libro_cambio.usuario_propietario = usuario_receptor
-            libro_solicitado.save(update_fields=['usuario_propietario'])
-            libro_cambio.save(update_fields=['usuario_propietario'])
+            libro_solicitado.estado = Libro.Estado.LEYENDO
+            libro_cambio.estado = Libro.Estado.LEYENDO
+            libro_solicitado.save(update_fields=['usuario_propietario', 'estado'])
+            libro_cambio.save(update_fields=['usuario_propietario', 'estado'])
 
             intercambio.estado = Intercambio.Estado.COMPLETADO
             intercambio.fecha_completado = timezone.now()

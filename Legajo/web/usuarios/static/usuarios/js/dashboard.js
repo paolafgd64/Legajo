@@ -1,4 +1,17 @@
-﻿async function obtenerUsuarioActual() {
+const legajoSwalClasses = {
+  popup: 'legajo-swal-popup',
+  title: 'legajo-swal-title',
+  htmlContainer: 'legajo-swal-html',
+  confirmButton: 'legajo-swal-confirm',
+  denyButton: 'legajo-swal-deny',
+  cancelButton: 'legajo-swal-cancel',
+  input: 'legajo-swal-input'
+};
+const legajoSwalOptions = {
+  buttonsStyling: false,
+  customClass: legajoSwalClasses
+};
+async function obtenerUsuarioActual() {
     try {
         const resp = await fetch('/api/auth/me', {
             method: 'GET',
@@ -42,6 +55,47 @@ async function cargarLibrosRecomendados() {
     }
 }
 
+const dashboardBusqueda = {
+    libros: [],
+    termino: ''
+};
+
+function normalizarTextoBusqueda(valor) {
+    return String(valor || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+}
+
+function obtenerTextoBusquedaLibro(libro) {
+    const generos = Array.isArray(libro.generos) ? libro.generos.join(' ') : (libro.genero || '');
+    return normalizarTextoBusqueda([
+        libro.titulo,
+        libro.autor,
+        libro.usuario,
+        libro.ciudadPropietario,
+        libro.ciudad,
+        libro.sinopsis,
+        generos
+    ].join(' '));
+}
+
+function filtrarLibrosPorBusqueda(libros, termino) {
+    const busqueda = normalizarTextoBusqueda(termino);
+    if (!busqueda) return libros;
+    return libros.filter((libro) => obtenerTextoBusquedaLibro(libro).includes(busqueda));
+}
+
+function escaparHtml(valor) {
+    return String(valor || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 function obtenerMensajeVacio(carrusel, mensajeSinLibros, mensajeSoloPropios) {
     if (!carrusel) return mensajeSinLibros;
 
@@ -65,11 +119,19 @@ function crearElementoLibro(libro) {
     div.dataset.descripcion = libro.sinopsis || 'Sin descripcion disponible';
     div.dataset.imagen = libro.urlImagen || '/static/gestion_libros/imgs/libropredeterminado1.png';
     div.dataset.usuario = libro.usuario || 'Propietario desconocido';
+    div.dataset.ciudad = libro.ciudadPropietario || libro.ciudad || '';
+    div.dataset.stock = libro.stock || 1;
+
+    const imagen = escaparHtml(libro.urlImagen || '/static/gestion_libros/imgs/libropredeterminado1.png');
+    const titulo = escaparHtml(libro.titulo || 'Sin titulo');
+    const autor = escaparHtml(libro.autor || 'Autor desconocido');
+    const stock = escaparHtml(String(libro.stock || 1));
 
     div.innerHTML = `
-        <img src="${libro.urlImagen || '/static/gestion_libros/imgs/libropredeterminado1.png'}" alt="${libro.titulo || 'Libro'}">
-        <h3>${libro.titulo || 'Sin titulo'}</h3>
-        <p>${libro.autor || 'Autor desconocido'}</p>
+        <img src="${imagen}" alt="${titulo || 'Libro'}">
+        <h3>${titulo}</h3>
+        <p>${autor}</p>
+        <p class="stock-libro"><strong>Stock:</strong> ${stock}</p>
         <div class="estrellas-display">Disponible</div>
         <button class="ver-libro"><i class="fa fa-eye"></i> Ver</button>
     `;
@@ -77,44 +139,169 @@ function crearElementoLibro(libro) {
     return div;
 }
 
-function crearElementoGenero(genero) {
-    const div = document.createElement('div');
-    div.className = 'libro genero-card';
-    div.innerHTML = `
-        <img src="${genero.imagen || '/static/gestion_libros/imgs/libropredeterminado1.png'}" alt="${genero.genero || 'Genero'}">
-        <h3>${genero.genero || 'Genero'}</h3>
-        <p>${genero.totalLibros} libro${genero.totalLibros === 1 ? '' : 's'} disponible${genero.totalLibros === 1 ? '' : 's'}</p>
-        <div class="estrellas-display">Explorar</div>
-    `;
-    return div;
+function obtenerGenerosLibro(libro) {
+    if (Array.isArray(libro.generos) && libro.generos.length) {
+        return libro.generos
+            .map((genero) => String(genero || '').trim())
+            .filter(Boolean);
+    }
+
+    const genero = String(libro.genero || '').trim();
+    return genero ? [genero] : ['Sin genero'];
 }
 
-function construirGeneros(libros) {
+function construirLibrosPorGenero(libros) {
     const mapa = new Map();
 
     libros.forEach((libro) => {
-        const generos = Array.isArray(libro.generos) && libro.generos.length ? libro.generos : [libro.genero || 'Sin genero'];
-        generos.forEach((generoNombre) => {
-            const clave = String(generoNombre || 'Sin genero').trim() || 'Sin genero';
+        obtenerGenerosLibro(libro).forEach((generoNombre) => {
+            const clave = generoNombre || 'Sin genero';
             if (!mapa.has(clave)) {
-                mapa.set(clave, {
-                    genero: clave,
-                    totalLibros: 0,
-                    imagen: libro.urlImagen || '/static/gestion_libros/imgs/libropredeterminado1.png'
-                });
+                mapa.set(clave, []);
             }
-            mapa.get(clave).totalLibros += 1;
+            mapa.get(clave).push(libro);
         });
     });
 
-    return Array.from(mapa.values()).sort((a, b) => a.genero.localeCompare(b.genero, 'es'));
+    return Array.from(mapa.entries()).sort(([generoA], [generoB]) => generoA.localeCompare(generoB, 'es'));
+}
+
+function crearIdCarruselGenero(genero, indice) {
+    const slug = normalizarTextoBusqueda(genero)
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    return `genero-${slug || 'sin-genero'}-${indice}`;
+}
+
+function renderizarRecomendados(libros, esBusquedaActiva) {
+    const carruselRecomendados = document.getElementById('recomendados');
+    if (!carruselRecomendados) return;
+
+    carruselRecomendados.innerHTML = '';
+    if (libros.length === 0) {
+        carruselRecomendados.innerHTML = `<p class="mensaje-carrusel-vacio">${
+            esBusquedaActiva
+                ? 'No encontramos libros que coincidan con tu busqueda.'
+                : obtenerMensajeVacio(
+                    carruselRecomendados,
+                    'No hay libros de otros usuarios disponibles por ahora.',
+                    'Hay libros registrados, pero ninguno pertenece a otros usuarios para esta cuenta.'
+                )
+        }</p>`;
+        return;
+    }
+
+    const librosVisibles = esBusquedaActiva ? libros : libros.slice(0, 8);
+    librosVisibles.forEach((libro) => {
+        carruselRecomendados.appendChild(crearElementoLibro(libro));
+    });
+}
+
+function renderizarLibrosPorGenero(libros, esBusquedaActiva) {
+    const contenedorGeneros = document.getElementById('librosPorGenero');
+    if (!contenedorGeneros) return;
+
+    contenedorGeneros.innerHTML = '';
+    const generos = construirLibrosPorGenero(libros);
+    if (generos.length === 0) {
+        contenedorGeneros.innerHTML = `<p class="mensaje-carrusel-vacio">${
+            esBusquedaActiva
+                ? 'No hay libros por genero para la busqueda actual.'
+                : obtenerMensajeVacio(
+                    contenedorGeneros,
+                    'Aun no hay libros por genero para mostrar.',
+                    'Hay libros registrados, pero ninguno pertenece a otros usuarios para esta cuenta.'
+                )
+        }</p>`;
+        return;
+    }
+
+    generos.forEach(([genero, librosGenero], indice) => {
+        const carruselId = crearIdCarruselGenero(genero, indice);
+        const seccion = document.createElement('section');
+        seccion.className = 'seccion-carrusel genero-libros-seccion';
+        seccion.innerHTML = `
+            <div class="genero-libros-encabezado">
+                <h3 class="titulo-seccion">${escaparHtml(genero)}</h3>
+                <span>${librosGenero.length} libro${librosGenero.length === 1 ? '' : 's'}</span>
+            </div>
+            <div class="contenedor-carrusel">
+                <button class="flecha izquierda" type="button" onclick="moverCarrusel('${carruselId}', -1)">&#10094;</button>
+                <div class="carrusel-libros" id="${carruselId}"></div>
+                <button class="flecha derecha" type="button" onclick="moverCarrusel('${carruselId}', 1)">&#10095;</button>
+            </div>
+        `;
+
+        const carrusel = seccion.querySelector('.carrusel-libros');
+        librosGenero.forEach((libro) => {
+            carrusel.appendChild(crearElementoLibro(libro));
+        });
+
+        contenedorGeneros.appendChild(seccion);
+    });
+}
+
+function actualizarEstadoBusqueda(totalResultados, termino) {
+    const estadoEl = document.getElementById('resultadoBusquedaInicio');
+    const tituloEl = document.getElementById('tituloRecomendados');
+    const limpiarBtn = document.getElementById('limpiarBusquedaInicio');
+    const hayBusqueda = normalizarTextoBusqueda(termino).length > 0;
+
+    if (tituloEl) {
+        tituloEl.textContent = hayBusqueda ? 'Resultados de busqueda' : 'Recomendados';
+    }
+
+    if (limpiarBtn) {
+        limpiarBtn.classList.toggle('is-visible', hayBusqueda);
+    }
+
+    if (!estadoEl) return;
+    if (!hayBusqueda) {
+        estadoEl.textContent = '';
+        return;
+    }
+
+    estadoEl.textContent = `${totalResultados} resultado${totalResultados === 1 ? '' : 's'} para "${termino.trim()}"`;
+}
+
+function aplicarBusquedaInicio() {
+    const resultados = filtrarLibrosPorBusqueda(dashboardBusqueda.libros, dashboardBusqueda.termino);
+    const esBusquedaActiva = normalizarTextoBusqueda(dashboardBusqueda.termino).length > 0;
+
+    renderizarRecomendados(resultados, esBusquedaActiva);
+    renderizarLibrosPorGenero(resultados, esBusquedaActiva);
+    actualizarEstadoBusqueda(resultados.length, dashboardBusqueda.termino);
+    attachVerLibroListeners();
+}
+
+function configurarBusquedaInicio() {
+    const input = document.getElementById('busquedaLibrosInicio');
+    const limpiarBtn = document.getElementById('limpiarBusquedaInicio');
+
+    if (input) {
+        input.addEventListener('input', () => {
+            dashboardBusqueda.termino = input.value;
+            aplicarBusquedaInicio();
+        });
+    }
+
+    if (limpiarBtn) {
+        limpiarBtn.addEventListener('click', () => {
+            dashboardBusqueda.termino = '';
+            if (input) {
+                input.value = '';
+                input.focus();
+            }
+            aplicarBusquedaInicio();
+        });
+    }
 }
 
 function attachVerLibroListeners() {
     const modal = document.getElementById('modal');
     if (!modal) return;
 
-    const botonesVer = document.querySelectorAll('#recomendados .ver-libro');
+    const botonesVer = document.querySelectorAll('.carrusel-libros .ver-libro');
     botonesVer.forEach((btn) => {
         btn.onclick = null;
         btn.addEventListener('click', (e) => {
@@ -144,6 +331,32 @@ function attachVerLibroListeners() {
                 }
             }
             propietarioEl.textContent = `Propietario: ${libroDiv.dataset.usuario || 'Propietario desconocido'}`;
+
+            let stockEl = document.getElementById('modalStock');
+            if (!stockEl) {
+                stockEl = document.createElement('h4');
+                stockEl.id = 'modalStock';
+                stockEl.style.color = '#555';
+                stockEl.style.marginTop = '6px';
+                const modalText = document.querySelector('#modal .modal-text');
+                if (modalText) {
+                    modalText.appendChild(stockEl);
+                }
+            }
+            stockEl.textContent = `Stock: ${libroDiv.dataset.stock || '1'}`;
+
+            let ciudadEl = document.getElementById('modalCiudad');
+            if (!ciudadEl) {
+                ciudadEl = document.createElement('h4');
+                ciudadEl.id = 'modalCiudad';
+                ciudadEl.style.color = '#555';
+                ciudadEl.style.marginTop = '6px';
+                const modalText = document.querySelector('#modal .modal-text');
+                if (modalText) {
+                    modalText.appendChild(ciudadEl);
+                }
+            }
+            ciudadEl.textContent = `Ciudad: ${libroDiv.dataset.ciudad || 'No especificada'}`;
 
             const btnSolicitar = document.getElementById('btnSolicitarIntercambio');
             if (btnSolicitar) {
@@ -243,6 +456,7 @@ function getCsrfToken() {
 
 async function mostrarDialogoReporte(libroDiv) {
     const usuarioReportadoId = Number(libroDiv.dataset.usuarioId || 0);
+    const libroReportadoId = Number(libroDiv.dataset.id || 0);
     if (!usuarioReportadoId) {
         throw new Error('No fue posible identificar al usuario que quieres reportar.');
     }
@@ -254,6 +468,7 @@ async function mostrarDialogoReporte(libroDiv) {
         if (!descripcionManual) return null;
         return {
             usuarioReportadoId,
+            libroReportadoId,
             motivo: motivoManual.trim(),
             descripcion: descripcionManual.trim(),
         };
@@ -273,6 +488,7 @@ async function mostrarDialogoReporte(libroDiv) {
                 <div class="report-modal-intro">
                     <h3>Usuario reportado</h3>
                     <p class="report-modal-user">${libroDiv.dataset.usuario || 'Usuario'}</p>
+                    <p><strong>Libro reportado:</strong> ${libroDiv.dataset.titulo || 'Libro sin titulo'}</p>
                     <p>Cuentanos que paso para que el equipo admin pueda revisar el caso.</p>
                 </div>
                 <div class="report-modal-form">
@@ -307,7 +523,7 @@ async function mostrarDialogoReporte(libroDiv) {
                 return false;
             }
 
-            return { usuarioReportadoId, motivo, descripcion };
+            return { usuarioReportadoId, libroReportadoId, motivo, descripcion };
         },
     });
 
@@ -350,41 +566,11 @@ async function inicializarDashboard() {
         return;
     }
 
-    const carruselRecomendados = document.getElementById('recomendados');
-    const carruselGeneros = document.getElementById('generos');
-
-    if (carruselRecomendados && Array.isArray(libros)) {
-        carruselRecomendados.innerHTML = '';
-        if (libros.length === 0) {
-            carruselRecomendados.innerHTML = `<p style="padding:20px;">${obtenerMensajeVacio(
-                carruselRecomendados,
-                'No hay libros de otros usuarios disponibles por ahora.',
-                'Hay libros registrados, pero ninguno pertenece a otros usuarios para esta cuenta.'
-            )}</p>`;
-        } else {
-            libros.slice(0, 8).forEach((libro) => {
-                carruselRecomendados.appendChild(crearElementoLibro(libro));
-            });
-        }
+    if (Array.isArray(libros)) {
+        dashboardBusqueda.libros = libros;
+        configurarBusquedaInicio();
+        aplicarBusquedaInicio();
     }
-
-    if (carruselGeneros && Array.isArray(libros)) {
-        carruselGeneros.innerHTML = '';
-        const generos = construirGeneros(libros);
-        if (generos.length === 0) {
-            carruselGeneros.innerHTML = `<p style="padding:20px;">${obtenerMensajeVacio(
-                carruselGeneros,
-                'Aun no hay generos para mostrar.',
-                'Hay libros registrados, pero no hay generos de otros usuarios para mostrar en esta cuenta.'
-            )}</p>`;
-        } else {
-            generos.forEach((genero) => {
-                carruselGeneros.appendChild(crearElementoGenero(genero));
-            });
-        }
-    }
-
-    attachVerLibroListeners();
 }
 
 document.addEventListener('DOMContentLoaded', inicializarDashboard);

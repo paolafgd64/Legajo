@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Iniciar Sesion</title>
-    <link rel="stylesheet" href="{% static 'usuarios/css/styles.css' %}">
+    <link rel="stylesheet" href="{% static 'usuarios/css/styles.css' %}?v=20260430a">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 <body>
@@ -42,6 +42,8 @@
 
     <script src="{% static 'usuarios/js/script.js' %}"></script>
     <script src="{% static 'usuarios/js/validaciones.js' %}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="{% static 'usuarios/js/swal-theme.js' %}?v=20260430a"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const form = document.getElementById('loginForm');
@@ -51,6 +53,12 @@
 
             function getCSRFToken() {
                 return document.querySelector('[name=csrfmiddlewaretoken]').value;
+            }
+
+            function escaparHtml(valor) {
+                const div = document.createElement('div');
+                div.textContent = valor || '';
+                return div.innerHTML;
             }
 
             [correo, clave].forEach((input) => {
@@ -93,6 +101,20 @@
                     const data = await res.json();
 
                     if (!res.ok) {
+                        if (data.code === 'account_disabled') {
+                            await Swal.fire({
+                                icon: 'error',
+                                title: 'Cuenta desactivada',
+                                html: `
+                                    <p>Tu cuenta fue desactivada por administracion.</p>
+                                    <p style="margin-top:10px;"><strong>Motivo:</strong> ${escaparHtml(data.reason || 'No especificado.')}</p>
+                                `,
+                                confirmButtonText: 'Ir a inicio',
+                                allowOutsideClick: false
+                            });
+                            window.location.href = data.landingUrl || "{% url 'index' %}";
+                            return;
+                        }
                         marcarCamposInvalidos([correo, clave]);
                         mostrarMensajeFormulario(mensaje, data.message || 'Credenciales invalidas.');
                         return;
