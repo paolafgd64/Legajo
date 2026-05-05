@@ -93,6 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
           formData.append('genero', form.querySelector('#genero')?.value || '');
           formData.append('estado', form.querySelector('#estado')?.value || 'Publicado');
           formData.append('url_imagen', currentImageUrl);
+          formData.append('cantidadLibros', form.querySelector('#cantidadLibros')?.value || '1');
           formData.append('imagen', imageInput.files[0]);
 
           res = await fetch(`${API}/${libroId}`, {
@@ -110,7 +111,8 @@ document.addEventListener('DOMContentLoaded', () => {
             sinopsis: form.querySelector('#sinopsis')?.value || '',
             genero: form.querySelector('#genero')?.value || '',
             estado: form.querySelector('#estado')?.value || 'Publicado',
-            url_imagen: currentImageUrl
+            url_imagen: currentImageUrl,
+            cantidadLibros: form.querySelector('#cantidadLibros')?.value || '1'
           };
 
           res = await fetch(`${API}/${libroId}`, {

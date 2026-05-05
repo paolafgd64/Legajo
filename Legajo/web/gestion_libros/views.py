@@ -50,6 +50,29 @@ def _read_update_payload(request):
     return data, None
 
 
+def _count_matching_active_book_copies(libro):
+    author_ids = set(libro.autores.values_list('id', flat=True))
+    genre_ids = set(libro.generos.values_list('id', flat=True))
+    candidates = (
+        Libro.objects.filter(
+            activo=True,
+            titulo=libro.titulo,
+            sinopsis=libro.sinopsis,
+            estado=libro.estado,
+            url_imagen=libro.url_imagen,
+            usuario_propietario=libro.usuario_propietario,
+        )
+        .prefetch_related('autores', 'generos')
+    )
+
+    return sum(
+        1
+        for candidate in candidates
+        if set(candidate.autores.values_list('id', flat=True)) == author_ids
+        and set(candidate.generos.values_list('id', flat=True)) == genre_ids
+    )
+
+
 @ensure_csrf_cookie
 @login_required(login_url='login')
 @never_cache
@@ -86,6 +109,7 @@ def registrar_libro(request, libro_id=None):
             'genero': generos[0].nombre if generos else '',
             'estado': libro.estado,
             'url_imagen': libro.url_imagen,
+            'stock': _count_matching_active_book_copies(libro),
         }
 
     return render(request, 'gestion_libros/registrar_libro.html', context)

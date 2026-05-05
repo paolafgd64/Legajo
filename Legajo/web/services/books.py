@@ -242,6 +242,10 @@ def _normalize_book_copy_count(value):
     return cantidad
 
 
+def _has_book_copy_count(data):
+    return any(key in data for key in ('cantidadLibros', 'cantidad', 'copias'))
+
+
 def _create_book_from_payload(user, payload, url_imagen):
     libro = Libro.objects.create(
         titulo=payload['titulo'],
@@ -255,6 +259,43 @@ def _create_book_from_payload(user, payload, url_imagen):
     libro.autores.add(autor)
     libro.generos.add(genero)
     return libro
+
+
+def _matching_book_copies(libro):
+    author_ids = set(libro.autores.values_list('id', flat=True))
+    genre_ids = set(libro.generos.values_list('id', flat=True))
+    candidates = (
+        Libro.objects.filter(
+            activo=True,
+            titulo=libro.titulo,
+            sinopsis=libro.sinopsis,
+            estado=libro.estado,
+            url_imagen=libro.url_imagen,
+            usuario_propietario=libro.usuario_propietario,
+        )
+        .prefetch_related('autores', 'generos')
+        .order_by('id')
+    )
+
+    return [
+        candidate
+        for candidate in candidates
+        if set(candidate.autores.values_list('id', flat=True)) == author_ids
+        and set(candidate.generos.values_list('id', flat=True)) == genre_ids
+    ]
+
+
+def _apply_book_payload(libro, payload, url_imagen):
+    libro.titulo = payload['titulo']
+    libro.sinopsis = payload['sinopsis']
+    libro.estado = payload['estado']
+    libro.url_imagen = url_imagen
+    libro.save(update_fields=['titulo', 'sinopsis', 'estado', 'url_imagen'])
+
+    autor = _get_or_create_author(payload['autor'])
+    genero, _ = Genero.objects.get_or_create(nombre=payload['genero'].title())
+    libro.autores.set([autor])
+    libro.generos.set([genero])
 
 
 # Crea libro + relaciones (autor/genero) en una transaccion atomica.
@@ -378,22 +419,32 @@ def import_books_from_payload(payload, default_url_imagen=''):
 def update_book(user, libro_id, data, image_file=None):
     payload = validate_book_payload(data)
     libro = _get_book_for_user(user, libro_id)
+    sync_copy_count = _has_book_copy_count(data)
+    cantidad = _normalize_book_copy_count(data.get('cantidadLibros') or data.get('cantidad') or data.get('copias')) if sync_copy_count else None
 
     try:
         with transaction.atomic():
-            libro.titulo = payload['titulo']
-            libro.sinopsis = payload['sinopsis']
-            libro.estado = payload['estado']
-            if image_file:
-                libro.url_imagen = _save_uploaded_image(image_file)
-            elif payload['url_imagen']:
-                libro.url_imagen = payload['url_imagen']
-            libro.save(update_fields=['titulo', 'sinopsis', 'estado', 'url_imagen'])
+            matching_copies = _matching_book_copies(libro) if sync_copy_count else [libro]
+            if sync_copy_count:
+                matching_copies = [libro] + [copy for copy in matching_copies if copy.id != libro.id]
 
-            autor = _get_or_create_author(payload['autor'])
-            genero, _ = Genero.objects.get_or_create(nombre=payload['genero'].title())
-            libro.autores.set([autor])
-            libro.generos.set([genero])
+            url_imagen = libro.url_imagen
+            if image_file:
+                url_imagen = _save_uploaded_image(image_file)
+            elif payload['url_imagen']:
+                url_imagen = payload['url_imagen']
+
+            kept_copies = matching_copies[:cantidad] if sync_copy_count else matching_copies
+            for copy in kept_copies:
+                _apply_book_payload(copy, payload, url_imagen)
+
+            if sync_copy_count:
+                for copy in matching_copies[cantidad:]:
+                    copy.activo = False
+                    copy.save(update_fields=['activo'])
+
+                for _ in range(cantidad - len(kept_copies)):
+                    _create_book_from_payload(user, payload, url_imagen)
     except DatabaseError as exc:
         raise DatabaseServiceError() from exc
 

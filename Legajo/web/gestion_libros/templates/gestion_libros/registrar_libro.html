@@ -73,21 +73,19 @@
 
             <input type="hidden" id="estado" name="estado" value="{% if libro_edicion %}{{ libro_edicion.estado }}{% else %}Publicado{% endif %}">
 
-            {% if not modo_edicion %}
-            <label for="cantidadLibros">Tienes mas libros de este:</label>
+            <label for="cantidadLibros">¿Tienes mas libros de este?</label>
             <select id="cantidadLibros" name="cantidadLibros" required>
-                <option value="1" selected>1</option>
-                <option value="2">2</option>
-                <option value="3">3</option>
-                <option value="4">4</option>
-                <option value="5">5</option>
-                <option value="6">6</option>
-                <option value="7">7</option>
-                <option value="8">8</option>
-                <option value="9">9</option>
-                <option value="10">10</option>
+                <option value="1" {% if not libro_edicion or libro_edicion.stock == 1 %}selected{% endif %}>1</option>
+                <option value="2" {% if libro_edicion.stock == 2 %}selected{% endif %}>2</option>
+                <option value="3" {% if libro_edicion.stock == 3 %}selected{% endif %}>3</option>
+                <option value="4" {% if libro_edicion.stock == 4 %}selected{% endif %}>4</option>
+                <option value="5" {% if libro_edicion.stock == 5 %}selected{% endif %}>5</option>
+                <option value="6" {% if libro_edicion.stock == 6 %}selected{% endif %}>6</option>
+                <option value="7" {% if libro_edicion.stock == 7 %}selected{% endif %}>7</option>
+                <option value="8" {% if libro_edicion.stock == 8 %}selected{% endif %}>8</option>
+                <option value="9" {% if libro_edicion.stock == 9 %}selected{% endif %}>9</option>
+                <option value="10" {% if libro_edicion.stock == 10 %}selected{% endif %}>10</option>
             </select>
-            {% endif %}
 
             <div class="form-grupo">
                 <label for="imagen" class="label-file">{% if modo_edicion %}Cambiar portada{% else %}Seleccionar portada{% endif %}</label>
@@ -113,7 +111,7 @@
     <script src="{% static 'usuarios/js/script.js' %}"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="{% static 'usuarios/js/swal-theme.js' %}?v=20260430a"></script>
-    <script src="{% static 'gestion_libros/js/registrarLibro.js' %}?v=20260430a"></script>
+    <script src="{% static 'gestion_libros/js/registrarLibro.js' %}?v=20260505a"></script>
 </body>
 </html>
 

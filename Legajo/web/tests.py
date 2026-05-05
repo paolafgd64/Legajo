@@ -13,7 +13,7 @@ from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from django.utils import timezone
 
-from .models import Autor, Intercambio, Libro, NotificacionUsuario, ReporteUsuario
+from .models import Autor, Genero, Intercambio, Libro, NotificacionUsuario, ReporteUsuario
 from .views.helpers import _build_password_reset_link, _get_admin_dashboard_context, _get_password_reset_user
 
 
@@ -388,6 +388,99 @@ class InventarioApiTests(TestCase):
         self.assertEqual(libro.url_imagen, '/media/libros/actualizado.jpg')
         self.assertEqual(str(libro.autores.first()), 'Isabel Allende')
         self.assertEqual(libro.generos.first().nombre, 'Novela')
+
+    def test_actualiza_stock_al_editar_libro(self):
+        self.client.force_login(self.user)
+        libro = Libro.objects.create(
+            titulo='Libro original',
+            sinopsis='Version inicial',
+            estado='Publicado',
+            url_imagen='/static/gestion_libros/imgs/libropredeterminado1.png',
+            usuario_propietario=self.user,
+        )
+
+        response = self.client.put(
+            f'/api/libros/{libro.id}',
+            data=json.dumps({
+                'titulo': 'Libro con stock',
+                'autor': 'Isabel Allende',
+                'sinopsis': 'Version con varias copias',
+                'genero': 'Novela',
+                'estado': 'Publicado',
+                'urlImagen': libro.url_imagen,
+                'cantidadLibros': '3',
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Libro.objects.filter(titulo='Libro con stock', usuario_propietario=self.user, activo=True).count(), 3)
+
+        inventario = self.client.get('/api/libros')
+        data = inventario.json()
+        self.assertEqual(len(data), 1)
+        self.assertEqual(data[0]['stock'], 3)
+
+    def test_reduce_stock_al_editar_desactiva_copias_sobrantes(self):
+        self.client.force_login(self.user)
+        autor = Autor.objects.create(nombre1='Julio', apellido1='Cortazar')
+        genero = Genero.objects.create(nombre='Ficcion')
+        libros = []
+        for _ in range(3):
+            libro = Libro.objects.create(
+                titulo='Rayuela',
+                sinopsis='Novela experimental.',
+                estado='Publicado',
+                url_imagen='/static/gestion_libros/imgs/libropredeterminado1.png',
+                usuario_propietario=self.user,
+            )
+            libro.autores.add(autor)
+            libro.generos.add(genero)
+            libros.append(libro)
+
+        response = self.client.put(
+            f'/api/libros/{libros[-1].id}',
+            data=json.dumps({
+                'titulo': 'Rayuela editada',
+                'autor': 'Julio Cortazar',
+                'sinopsis': 'Novela experimental editada.',
+                'genero': 'Ficcion',
+                'estado': 'Publicado',
+                'urlImagen': libros[-1].url_imagen,
+                'cantidadLibros': '1',
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        libros[-1].refresh_from_db()
+        self.assertTrue(libros[-1].activo)
+        self.assertEqual(libros[-1].titulo, 'Rayuela editada')
+        self.assertEqual(Libro.objects.filter(titulo='Rayuela editada', usuario_propietario=self.user, activo=True).count(), 1)
+        self.assertEqual(Libro.objects.filter(titulo='Rayuela', usuario_propietario=self.user, activo=False).count(), 2)
+
+    def test_formulario_edicion_muestra_stock_actual(self):
+        self.client.force_login(self.user)
+        autor = Autor.objects.create(nombre1='Julio', apellido1='Cortazar')
+        genero = Genero.objects.create(nombre='Ficcion')
+        libros = []
+        for _ in range(3):
+            libro = Libro.objects.create(
+                titulo='Rayuela',
+                sinopsis='Novela experimental.',
+                estado='Publicado',
+                url_imagen='/static/gestion_libros/imgs/libropredeterminado1.png',
+                usuario_propietario=self.user,
+            )
+            libro.autores.add(autor)
+            libro.generos.add(genero)
+            libros.append(libro)
+
+        response = self.client.get(f'/registrar_libro/{libros[0].id}/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '<option value="3" selected>3</option>', html=True)
+        self.assertContains(response, 'registrarLibro.js?v=20260505a')
 
     def test_actualiza_libro_con_nueva_imagen(self):
         self.client.force_login(self.user)
