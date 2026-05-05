@@ -17,7 +17,7 @@
             {% csrf_token %}
             <div class="logo-crear"></div>
             <h2>Crear cuenta</h2>
-            <p class="form-heading-copy">Completa tus datos y crea una contrasena segura. Si algo falta o no cumple las reglas, te lo mostraremos aqui de forma clara.</p>
+            <p class="form-heading-copy">Completa tus datos y crea una contraseña segura. Si algo falta o no cumple las reglas, te lo mostraremos aqui de forma clara.</p>
 
             <input type="text" id="primerNombre" name="primerNombre" placeholder="Primer nombre" required>
             <input type="text" id="segundoNombre" name="segundoNombre" placeholder="Segundo nombre">
@@ -48,11 +48,11 @@
             <input type="tel" id="telefono" name="telefono" placeholder="Telefono" required>
 
             <div class="input-pass">
-                <input type="password" id="clave" name="clave" placeholder="Contrasena" required>
+                <input type="password" id="clave" name="clave" placeholder="Contraseña" required>
                 <i class="toggle-pass fas fa-eye" onclick="verClave('clave', this)"></i>
             </div>
             <div class="input-pass">
-                <input type="password" id="confirmClave" name="confirmClave" placeholder="Confirmar contrasena" required>
+                <input type="password" id="confirmClave" name="confirmClave" placeholder="Confirmar contraseña" required>
                 <i class="toggle-pass fas fa-eye" onclick="verClave('confirmClave', this)"></i>
             </div>
 
@@ -183,13 +183,13 @@
 
                 if (!renderPasswordChecklist(checklist, inputs.clave.value, inputs.correo.value)) {
                     marcarCamposInvalidos([inputs.clave]);
-                    mostrarMensajeFormulario(mensaje, 'La contrasena aun no cumple con los requisitos de seguridad.');
+                    mostrarMensajeFormulario(mensaje, 'La contraseña aun no cumple con los requisitos de seguridad.');
                     return;
                 }
 
                 if (inputs.clave.value !== inputs.confirmClave.value) {
                     marcarCamposInvalidos([inputs.clave, inputs.confirmClave]);
-                    mostrarMensajeFormulario(mensaje, 'Las contrasenas no coinciden.');
+                    mostrarMensajeFormulario(mensaje, 'Las contraseñas no coinciden.');
                     return;
                 }
 

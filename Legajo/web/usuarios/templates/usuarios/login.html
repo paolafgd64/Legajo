@@ -18,14 +18,14 @@
 
             <div class="logo-form"></div>
             <h2>Iniciar sesion</h2>
-            <p class="form-heading-copy">Ingresa con tu correo y tu contrasena. Si hay un problema, te lo mostraremos aqui mismo.</p>
+            <p class="form-heading-copy">Ingresa con tu correo y tu contraseña. Si hay un problema, te lo mostraremos aqui mismo.</p>
 
             <input type="email" id="correo" name="correo" placeholder="Correo electronico" required>
 
             <div class="input-pass">
-                <input type="password" id="clave" name="clave" placeholder="Contrasena" required>
+                <input type="password" id="clave" name="clave" placeholder="Contraseña" required>
                 <i class="toggle-pass fas fa-eye" onclick="verClave('clave', this)"></i>
-                <a href="{% url 'forgot_password' %}">Olvidaste tu contrasena?</a>
+                <a href="{% url 'forgot_password' %}">Olvidaste tu contraseña?</a>
             </div>
 
             <button type="submit">Ingresar</button>
@@ -35,7 +35,7 @@
             {% elif request.GET.activated == 'invalid' %}
             <div class="form-status form-error">El enlace de activacion es invalido o ya vencio.</div>
             {% elif request.GET.reset == 'success' %}
-            <div class="form-status form-success">Contrasena actualizada correctamente. Inicia sesion.</div>
+            <div class="form-status form-success">Contraseña actualizada correctamente. Inicia sesion.</div>
             {% endif %}
         </form>
     </section>
@@ -81,7 +81,7 @@
 
                 if (!clave.value.trim()) {
                     marcarCamposInvalidos([clave]);
-                    mostrarMensajeFormulario(mensaje, 'Ingresa tu contrasena para continuar.');
+                    mostrarMensajeFormulario(mensaje, 'Ingresa tu contraseña para continuar.');
                     return;
                 }
 

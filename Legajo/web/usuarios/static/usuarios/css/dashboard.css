@@ -2652,6 +2652,16 @@ header {
     color: var(--color-texto-2);
 }
 
+select.perfil-modal-input {
+    color: var(--color-texto);
+    background-color: rgba(9, 19, 38, 0.96);
+}
+
+select.perfil-modal-input option {
+    color: #ffffff;
+    background-color: #091326;
+}
+
 .perfil-swal-confirm,
 .perfil-swal-deny,
 .perfil-swal-cancel {
@@ -2710,6 +2720,16 @@ header {
     background: #fff;
     color: #2d241d;
     border-color: rgba(45, 36, 29, 0.12);
+}
+
+.modo-claro select.perfil-modal-input {
+    color: #2d241d;
+    background-color: #ffffff;
+}
+
+.modo-claro select.perfil-modal-input option {
+    color: #2d241d;
+    background-color: #ffffff;
 }
 
 .modo-claro .perfil-modal-input::placeholder {

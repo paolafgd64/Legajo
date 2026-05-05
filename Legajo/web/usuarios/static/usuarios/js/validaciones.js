@@ -26,14 +26,14 @@ function traducirMensajeValidacion(rawMessage) {
   }
 
   const replacements = {
-    'This password is too short. It must contain at least 8 characters.': 'La contrasena debe tener al menos 8 caracteres.',
-    'This password is too common.': 'La contrasena es demasiado comun. Elige una mas segura.',
-    'This password is entirely numeric.': 'La contrasena no puede estar compuesta solo por numeros.',
-    'The password is too similar to the email address.': 'La contrasena es demasiado parecida al correo electronico.',
-    'The password is too similar to the email.': 'La contrasena es demasiado parecida al correo electronico.',
-    'The password is too similar to the first name.': 'La contrasena es demasiado parecida al primer nombre.',
-    'The password is too similar to the last name.': 'La contrasena es demasiado parecida al apellido.',
-    'The password is too similar to the username.': 'La contrasena es demasiado parecida a los datos del usuario.',
+    'This password is too short. It must contain at least 8 characters.': 'La contraseña debe tener al menos 8 caracteres.',
+    'This password is too common.': 'La contraseña es demasiado comun. Elige una mas segura.',
+    'This password is entirely numeric.': 'La contraseña no puede estar compuesta solo por numeros.',
+    'The password is too similar to the email address.': 'La contraseña es demasiado parecida al correo electronico.',
+    'The password is too similar to the email.': 'La contraseña es demasiado parecida al correo electronico.',
+    'The password is too similar to the first name.': 'La contraseña es demasiado parecida al primer nombre.',
+    'The password is too similar to the last name.': 'La contraseña es demasiado parecida al apellido.',
+    'The password is too similar to the username.': 'La contraseña es demasiado parecida a los datos del usuario.',
   };
 
   let normalized = String(rawMessage).trim();

@@ -9,6 +9,45 @@
   return '';
 }
 
+const ciudadesPerfil = [
+  'Bogota',
+  'Medellin',
+  'Cali',
+  'Barranquilla',
+  'Bucaramanga',
+  'Cartagena',
+  'Manizales',
+  'Pereira',
+  'Santa Marta',
+  'Tunja',
+  'Ibague',
+  'Cucuta',
+  'Villavicencio',
+  'Pasto',
+  'Armenia'
+];
+
+function escapeHtml(value) {
+  const div = document.createElement('div');
+  div.textContent = value || '';
+  return div.innerHTML;
+}
+
+function renderOpcionesCiudad(ciudadActual) {
+  const ciudadLimpia = (ciudadActual || '').trim();
+  const ciudades = ciudadesPerfil.includes(ciudadLimpia) || !ciudadLimpia
+    ? ciudadesPerfil
+    : [...ciudadesPerfil, ciudadLimpia];
+
+  return [
+    '<option value="">Selecciona una ciudad</option>',
+    ...ciudades.map((ciudad) => {
+      const selected = ciudad === ciudadLimpia ? ' selected' : '';
+      return `<option value="${escapeHtml(ciudad)}"${selected}>${escapeHtml(ciudad)}</option>`;
+    })
+  ].join('');
+}
+
 async function editarInformacionPerfil() {
   try {
     const meResponse = await fetch('/api/me/', {
@@ -60,7 +99,9 @@ async function editarInformacionPerfil() {
               </div>
               <div class="perfil-modal-field">
                 <label for="swal-ciudad">Ciudad</label>
-                <input id="swal-ciudad" class="perfil-modal-input" placeholder="Ciudad" value="${usuario.ciudad || ''}">
+                <select id="swal-ciudad" class="perfil-modal-input">
+                  ${renderOpcionesCiudad(usuario.ciudad)}
+                </select>
               </div>
               <div class="perfil-modal-field perfil-modal-field-full">
                 <label for="swal-direccion">Direccion</label>

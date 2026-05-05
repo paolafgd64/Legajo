@@ -181,7 +181,7 @@ async function mostrarHistorialCalificaciones(idLibro) {
             // Crear HTML del historial
             let html = '<div class="historial-modal">';
             html += '<div class="historial-contenido">';
-            html += '<button onclick="cerrarHistorial()" class="btn-cerrar">Ã—</button>';
+            html += '<button onclick="cerrarHistorial()" class="btn-cerrar">x</button>';
             html += '<h2>Historial de Calificaciones</h2>';
             html += '<div class="lista-calificaciones">';
 

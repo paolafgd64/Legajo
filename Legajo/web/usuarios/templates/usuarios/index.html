@@ -4,100 +4,163 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Home</title>
-    <link rel="stylesheet" href="{% static 'usuarios/css/styles.css' %}">
+    <title>Legajo</title>
+    <link rel="stylesheet" href="{% static 'usuarios/css/styles.css' %}?v=20260505r">
 </head>
-<body>
-    <button id="toggleModo" class="modo-toggle">â˜€ï¸ Modo Claro</button>
-    <header id="header">
-        <div class="contenedor">
-            <div class="sidebar">
-                <div class="logo"></div>
-                <nav>
-                    <ul>
-                        <li><a href="#inicio">Inicio</a></li>
-                        <li><a href="#about">Sobre Nosotros</a></li>
-                        <li><a href="#ayuda">Ayuda</a></li>
-                        <li><a href="{% url 'crear_cuenta' %}">Crear cuenta</a></li>
-                        <li><a href="{% url 'login' %}">Ingresar</a></li>
-                    </ul>
-                </nav>
-            </div>
+<body class="landing-page">
+    <button id="toggleModo" class="modo-toggle landing-mode-toggle">Modo Claro</button>
+    <header id="header" class="landing-header">
+        <a class="landing-brand" href="#inicio" aria-label="Ir al inicio">
+            <span class="landing-logo"></span>
+            <span>Legajo</span>
+        </a>
+        <nav class="landing-nav" aria-label="Navegacion principal">
+            <a href="#inicio">Inicio</a>
+            <a href="#about">Como funciona</a>
+            <a href="#ayuda">Ayuda</a>
+        </nav>
+        <div class="landing-actions">
+            <a class="landing-link" href="{% url 'login' %}">Ingresar</a>
+            <a class="landing-button landing-button-small" href="{% url 'crear_cuenta' %}">Crear cuenta</a>
         </div>
-        <hr>
     </header>
+
     <main>
-
-        <!-- INICIO -->
-        <section id="inicio">
-            <div class="fondo_inicio">
-                <div class="contenedor">
-                    <p>Bienvenido a</p>
+        <section id="inicio" class="landing-hero">
+            <div class="landing-hero-content">
+                <p class="landing-eyebrow">Libros que vuelven a circular</p>
+                <div>
                     <h1>Legajo</h1>
+                    <p class="landing-lead">Intercambia libros con lectores cercanos, organiza tu inventario y descubre nuevas lecturas sin dejar que tus ejemplares se queden quietos.</p>
                 </div>
-            </div>
-        </section>
-
-        <!-- SOBRE ESTA PAGINA -->
-        <section id="about">
-            <div class="contenedor">
-                <h2>Sobre Nosotros</h2>
-                <div class="contenedor_about">
-                    <img src="{% static 'usuarios/imgs/Libro-abierto.jpg' %}" alt="Libro abierto">
-                    <div class="texto">
-                        <p>Legajo es una plataforma digital pensada para transformar la forma en que compartimos y descubrimos libros. A travÃ©s de herramientas sencillas y una interfaz intuitiva, ofrecemos un espacio donde cualquier usuario puede registrar sus libros, explorar colecciones y gestionar intercambios con otros miembros de la comunidad.</p>
-                        <p>Impulsamos una cultura de sostenibilidad, aprovechando la tecnologÃ­a para reducir el desperdicio y promover la circulaciÃ³n inteligente del conocimiento.
-                        En Legajo, cada libro sigue su camino y cada lector encuentra nuevas oportunidades.</p>
+                <div class="landing-cta">
+                    <a class="landing-button" href="{% url 'crear_cuenta' %}">Empezar ahora</a>
+                    <a class="landing-button landing-button-secondary" href="{% url 'login' %}">Ya tengo cuenta</a>
+                </div>
+                <div class="landing-metrics" aria-label="Resumen de beneficios">
+                    <div>
+                        <strong>1</strong>
+                        <span>inventario personal</span>
+                    </div>
+                    <div>
+                        <strong>24/7</strong>
+                        <span>libros disponibles</span>
+                    </div>
+                    <div>
+                        <strong>6</strong>
+                        <span>generos por explorar</span>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- AYUDA -->
-        <section id="ayuda">
-            <div class="fondo_ayuda">
-                <div class="contenedor">
-                    <h2>Â¿Necesitas ayuda?</h2>
-                    <h3>Puedes comunicarte con nosotros a travÃ©s de los siguientes canales de atenciÃ³n</h3>
-                    <div class="contenedor_ayuda">
-                        <div class="targetas">
-                            <img src="{% static 'usuarios/imgs/whatsapp.png' %}" alt="Logo de whatsapp">
-                            <p>A travÃ©s de whatsapp al nÃºmero +57 3000000000</p>
+        <section id="about" class="landing-section landing-about">
+            <div class="landing-section-head">
+                <p class="landing-eyebrow">Como funciona</p>
+                <h2>Una forma mas simple de compartir libros</h2>
+                <p>Legajo conecta personas que ya tienen libros con quienes estan buscando su proxima lectura.</p>
+            </div>
+
+            <div class="landing-about-grid">
+                <div class="landing-about-image">
+                    <img src="{% static 'usuarios/imgs/libro-abierto.jpg' %}" alt="Libros abiertos flotando en una biblioteca">
+                </div>
+                <div class="landing-feature-list">
+                    <article>
+                        <span>01</span>
+                        <div>
+                            <h3>Registra tu biblioteca</h3>
+                            <p>Agrega tus libros, portada, genero, estado y stock para tener todo ordenado en tu inventario.</p>
                         </div>
-                        <div class="targetas">
-                            <img src="{% static 'usuarios/imgs/telefono.png' %}" alt="Logo telefono">
-                            <p>Por linea telefÃ³nica al nÃºmero +57 3000000000</p>
+                    </article>
+                    <article>
+                        <span>02</span>
+                        <div>
+                            <h3>Explora lecturas disponibles</h3>
+                            <p>Encuentra libros publicados por otros usuarios y revisa la informacion antes de solicitar un intercambio.</p>
                         </div>
-                        <div class="targetas">
-                            <img src="{% static 'usuarios/imgs/email.png' %}" alt="Logo email">
-                            <p>Por email a la direcciÃ³n ayuda@legajo.com</p>
+                    </article>
+                    <article>
+                        <span>03</span>
+                        <div>
+                            <h3>Gestiona tus intercambios</h3>
+                            <p>Haz seguimiento de solicitudes, conversaciones y cambios desde una experiencia pensada para lectores.</p>
                         </div>
-                    </div>
+                    </article>
                 </div>
             </div>
         </section>
+
+        <section class="landing-section landing-benefits" aria-label="Beneficios de Legajo">
+            <div class="landing-section-head">
+                <p class="landing-eyebrow">Por que usar Legajo</p>
+                <h2>Mas lectura, menos libros olvidados</h2>
+            </div>
+            <div class="landing-benefit-grid">
+                <article>
+                    <h3>Inventario claro</h3>
+                    <p>Visualiza lo que tienes, edita informacion y controla disponibilidad sin perder el hilo.</p>
+                </article>
+                <article>
+                    <h3>Comunidad lectora</h3>
+                    <p>Conecta con personas interesadas en dar nueva vida a libros que ya terminaron su ciclo en casa.</p>
+                </article>
+                <article>
+                    <h3>Intercambios sostenibles</h3>
+                    <p>Aprovecha mejor cada ejemplar y reduce compras innecesarias compartiendo conocimiento.</p>
+                </article>
+            </div>
+        </section>
+
+        <section id="ayuda" class="landing-section landing-help">
+            <div class="landing-help-content">
+                <div>
+                    <p class="landing-eyebrow">Ayuda</p>
+                    <h2>Estamos para ayudarte</h2>
+                    <p>Si tienes dudas sobre tu cuenta, inventario o intercambios, puedes escribirnos por cualquiera de estos canales.</p>
+                </div>
+                <div class="landing-help-grid">
+                    <article>
+                        <img src="{% static 'usuarios/imgs/whatsapp.png' %}" alt="WhatsApp">
+                        <div>
+                            <h3>WhatsApp</h3>
+                            <p>+57 300 0000000</p>
+                        </div>
+                    </article>
+                    <article>
+                        <img src="{% static 'usuarios/imgs/telefono.png' %}" alt="Telefono">
+                        <div>
+                            <h3>Telefono</h3>
+                            <p>+57 300 0000000</p>
+                        </div>
+                    </article>
+                    <article>
+                        <img src="{% static 'usuarios/imgs/email.png' %}" alt="Correo electronico">
+                        <div>
+                            <h3>Email</h3>
+                            <p>administracionlegajo@gmail.com</p>
+                        </div>
+                    </article>
+                </div>
+            </div>
+        </section>
+
     </main>
 
-    <!-- FOOTER -->
-    <footer>
-        <div class="contenedor">
-            <div class="contenedor_footer">
-                <p>Copyrigth Â© 2025</p>
-            </div>
-            <div class="errores">
-                <p>Contactanos: +57 300 0000000</p>
-            </div>
-        </div>
+    <footer class="landing-footer">
+        <p>Copyright © 2026 Legajo</p>
+        <p>Contactanos: +57 300 0000000</p>
     </footer>
+
     <script>
         let lastScrollY = window.scrollY;
         const header = document.getElementById('header');
 
         window.addEventListener('scroll', () => {
-            if (window.scrollY > lastScrollY) {
-            header.style.top = '-120px';
+            if (window.scrollY > 80 && window.scrollY > lastScrollY) {
+                header.style.top = '-120px';
             } else {
-            header.style.top = '0';
+                header.style.top = '0';
             }
             lastScrollY = window.scrollY;
         });
