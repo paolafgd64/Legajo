@@ -7,22 +7,29 @@ Aqui viven:
 - reportes que un usuario envia a administracion
 """
 
+from datetime import timedelta
+
 from django.contrib.auth import authenticate, get_user_model, login as auth_login, logout as auth_logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import default_token_generator
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
+from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
+from django.utils import timezone
 from django.utils.encoding import force_str
 from django.utils.http import urlsafe_base64_decode
+from django.utils.timesince import timesince
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods
 
 from ..administracion.models import ReporteUsuario
 from ..gestion_libros.models import Libro
+from ..intercambios.models import Intercambio
 from ..services import list_recommended_books
 from ..views.helpers import (
     _build_account_activation_link,
@@ -37,6 +44,97 @@ from ..views.helpers import (
 
 
 User = get_user_model()
+
+
+def _profile_activity_time(fecha):
+    return f"Hace {timesince(fecha, timezone.now()).split(',')[0]}" if fecha else 'Reciente'
+
+
+def _book_activity_title(libro):
+    fecha_creacion = getattr(libro, 'fecha_creacion', None)
+    fecha_actualizacion = getattr(libro, 'fecha_actualizacion', None)
+    if not libro.activo:
+        return 'Libro eliminado', 'fa-trash'
+    if libro.estado == Libro.Estado.LEYENDO:
+        return 'Libro marcado como leyendo', 'fa-book-reader'
+    if fecha_creacion and fecha_actualizacion and abs((fecha_actualizacion - fecha_creacion).total_seconds()) < 2:
+        return 'Libro agregado al inventario', 'fa-book-medical'
+    return 'Libro actualizado', 'fa-pen-to-square'
+
+
+def _build_profile_context(user):
+    nombre_completo = ' '.join(filter(None, [user.nombre1, user.nombre2, user.apellido1, user.apellido2]))
+    libros_usuario = Libro.objects.filter(usuario_propietario=user, activo=True)
+    libros_actividad = Libro.objects.filter(usuario_propietario=user)
+    intercambios_usuario = Intercambio.objects.filter(
+        Q(usuario_solicitante=user) | Q(usuario_receptor=user),
+        activo=True,
+    )
+    intercambios_completados = intercambios_usuario.filter(estado=Intercambio.Estado.COMPLETADO).count()
+
+    actividad_items = []
+    for intercambio in intercambios_usuario.order_by('-fecha_completado', '-fecha_confirmacion', '-fecha_solicitud')[:3]:
+        fecha = intercambio.fecha_completado or intercambio.fecha_confirmacion or intercambio.fecha_solicitud
+        if intercambio.estado == Intercambio.Estado.COMPLETADO:
+            titulo = 'Intercambio completado'
+            icono = 'fa-handshake'
+            detalle = intercambio.libro_solicitado.titulo if intercambio.libro_solicitado else 'Libro intercambiado'
+        elif intercambio.usuario_solicitante_id == user.id:
+            titulo = 'Solicitud enviada'
+            icono = 'fa-paper-plane'
+            detalle = intercambio.libro_solicitado.titulo if intercambio.libro_solicitado else 'Intercambio solicitado'
+        else:
+            titulo = 'Solicitud recibida'
+            icono = 'fa-inbox'
+            detalle = intercambio.libro_cambio.titulo if intercambio.libro_cambio else 'Intercambio por revisar'
+
+        actividad_items.append({
+            'fecha': fecha,
+            'titulo': titulo,
+            'detalle': detalle,
+            'tiempo': _profile_activity_time(fecha),
+            'icono': icono,
+        })
+
+    for libro in libros_actividad.order_by('-fecha_actualizacion', '-id')[:5]:
+        fecha = getattr(libro, 'fecha_actualizacion', None)
+        titulo, icono = _book_activity_title(libro)
+        actividad_items.append({
+            'fecha': fecha,
+            'titulo': titulo,
+            'detalle': libro.titulo,
+            'tiempo': _profile_activity_time(fecha),
+            'icono': icono,
+        })
+
+    actividad_reciente = sorted(
+        actividad_items,
+        key=lambda item: item['fecha'] or timezone.now() - timedelta(days=36500),
+        reverse=True,
+    )[:3]
+    for actividad in actividad_reciente:
+        actividad.pop('fecha', None)
+
+    return {
+        'perfil_usuario': user,
+        'nombre_completo': nombre_completo,
+        'total_libros_inventario': libros_usuario.count(),
+        'total_libros_leyendo': libros_usuario.filter(estado=Libro.Estado.LEYENDO).count(),
+        'total_libros_publicados': libros_usuario.filter(estado=Libro.Estado.PUBLICADO).count(),
+        'total_intercambios_completados': intercambios_completados,
+        'actividad_reciente': actividad_reciente,
+    }
+
+
+def _profile_stats_payload(user):
+    context = _build_profile_context(user)
+    return {
+        'totalLibrosInventario': context['total_libros_inventario'],
+        'totalLibrosLeyendo': context['total_libros_leyendo'],
+        'totalLibrosPublicados': context['total_libros_publicados'],
+        'totalIntercambiosCompletados': context['total_intercambios_completados'],
+        'actividadReciente': context['actividad_reciente'],
+    }
 
 
 def index(request):
@@ -195,11 +293,15 @@ def notificaciones(request):
 @login_required(login_url='login')
 @never_cache
 def perfil(request):
-    user = request.user
-    return render(request, 'usuarios/perfil.html', {
-        'perfil_usuario': user,
-        'nombre_completo': ' '.join(filter(None, [user.nombre1, user.nombre2, user.apellido1, user.apellido2])),
-    })
+    return render(request, 'usuarios/perfil.html', _build_profile_context(request.user))
+
+
+@require_http_methods(["GET"])
+def api_profile_stats(request):
+    if not request.user.is_authenticated:
+        return _unauthorized_response()
+
+    return JsonResponse(_profile_stats_payload(request.user))
 
 
 @ensure_csrf_cookie
@@ -237,6 +339,15 @@ def api_usuarios(request):
     if existing_user and existing_user.is_active and existing_user.activo:
         return JsonResponse({'message': 'Ya existe un usuario registrado con ese correo.'}, status=400)
 
+    try:
+        validate_email(email)
+    except ValidationError:
+        return JsonResponse({'message': 'Ingresa un correo electronico valido.'}, status=400)
+
+    ciudad = (data.get('ciudad') or '').strip()
+    if len(ciudad) > 20:
+        return JsonResponse({'message': 'La ciudad no debe superar 20 caracteres.'}, status=400)
+
     telefono = str(data.get('telefono')).strip()
     if not telefono.isdigit():
         return JsonResponse({'message': 'El telefono debe contener solo numeros.'}, status=400)
@@ -247,7 +358,7 @@ def api_usuarios(request):
     user.apellido1 = data.get('primerApellido', '').strip()
     user.apellido2 = (data.get('segundoApellido') or '').strip() or None
     user.direccion = data.get('direccion', '').strip()
-    user.ciudad = data.get('ciudad', '').strip()
+    user.ciudad = ciudad
     user.telefono = int(telefono)
     user.rol = User.Rol.USUARIO
     user.is_active = False
@@ -345,7 +456,16 @@ def api_me(request):
                 return JsonResponse({'message': message}, status=400)
 
         email = (data.get('correo') or '').strip().lower()
+        ciudad = (data.get('ciudad') or '').strip()
         telefono = str(data.get('telefono')).strip()
+
+        try:
+            validate_email(email)
+        except ValidationError:
+            return JsonResponse({'message': 'Ingresa un correo electronico valido.'}, status=400)
+
+        if len(ciudad) > 20:
+            return JsonResponse({'message': 'La ciudad no debe superar 20 caracteres.'}, status=400)
 
         if not telefono.isdigit():
             return JsonResponse({'message': 'El telefono debe contener solo numeros.'}, status=400)
@@ -359,7 +479,7 @@ def api_me(request):
         user.apellido1 = (data.get('primerApellido') or '').strip()
         user.apellido2 = (data.get('segundoApellido') or '').strip() or None
         user.direccion = (data.get('direccion') or '').strip()
-        user.ciudad = (data.get('ciudad') or '').strip()
+        user.ciudad = ciudad
         user.telefono = int(telefono)
         user.save()
 

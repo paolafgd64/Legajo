@@ -9,6 +9,6 @@ venv/
 Legajo/media/
 media/
 
-.env
+
 .DS_Store
 Thumbs.db

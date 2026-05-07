@@ -209,7 +209,7 @@ def api_admin_actualizar_estado_libro(request, libro_id):
         return JsonResponse({'message': 'Debes escribir un motivo de al menos 10 caracteres.'}, status=400)
 
     libro.activo = activo
-    libro.save(update_fields=['activo'])
+    libro.save(update_fields=['activo', 'fecha_actualizacion'])
 
     propietario = libro.usuario_propietario
     if propietario:

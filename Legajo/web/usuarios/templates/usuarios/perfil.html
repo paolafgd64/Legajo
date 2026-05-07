@@ -5,7 +5,7 @@
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Perfil de Usuario</title>
-    <link rel="stylesheet" href="{% static 'usuarios/css/dashboard.css' %}?v=20260505a"/>
+    <link rel="stylesheet" href="{% static 'usuarios/css/dashboard.css' %}?v=20260507c"/>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -30,6 +30,7 @@
         <header>
             <div class="header-left">
                 <h1>Mi perfil</h1>
+                <p>Gestiona tu informacion personal y tu actividad lectora en Legajo</p>
             </div>
             <div class="header-right">
                 <div class="user-profile">
@@ -39,32 +40,149 @@
             </div>
         </header>
 
-        <section class="perfil-usuario">
-            <div class="contenedor-imagen">
-                <img src="{% static 'usuarios/imgs/profile.png' %}" alt="Foto de perfil" class="foto-perfil">
+        <section class="perfil-legajo">
+            <aside class="perfil-resumen">
+                <div class="perfil-avatar-wrap">
+                    <img src="{% static 'usuarios/imgs/profile.png' %}" alt="Foto de perfil" class="foto-perfil">
+                    <button class="perfil-avatar-action js-editar-perfil" type="button" aria-label="Editar informacion">
+                        <i class="fa-solid fa-pen"></i>
+                    </button>
+                </div>
                 <h2 class="nombre-perfil">{{ nombre_completo }}</h2>
+                <span class="perfil-badge"><i class="fa-solid fa-book-open-reader"></i> Lector activo</span>
+
+                <div class="perfil-resumen-meta">
+                    <div class="perfil-member">
+                        <i class="fa-regular fa-calendar"></i>
+                        <span>Miembro desde {{ perfil_usuario.date_joined|date:"M Y" }}</span>
+                    </div>
+                    <div class="perfil-member">
+                        <i class="fa-solid fa-location-dot"></i>
+                        <span>{{ perfil_usuario.ciudad }}</span>
+                    </div>
+                </div>
+
                 <form action="{% url 'logout' %}" method="post">
                     {% csrf_token %}
-                    <button type="submit" class="boton-editar boton-cerrar">
+                    <button type="submit" class="boton-cerrar">
                         <i class="fas fa-sign-out-alt"></i>
                         Cerrar sesion
                     </button>
                 </form>
-            </div>
+            </aside>
 
-            <div class="contenedor-info">
-                <p><strong>Correo:</strong> {{ perfil_usuario.email }}</p>
-                <p><strong>Telefono:</strong> {{ perfil_usuario.telefono }}</p>
-                <p><strong>Ciudad:</strong> {{ perfil_usuario.ciudad }}</p>
-                <p><strong>Direccion:</strong> {{ perfil_usuario.direccion }}</p>
-                <button class="boton-editar js-editar-perfil"><i class="fa-solid fa-pen"></i> Editar informacion</button>
+            <div class="perfil-paneles">
+                <article class="perfil-card perfil-info-card">
+                    <div class="perfil-card-header">
+                        <div>
+                            <span class="perfil-card-icon"><i class="fa-solid fa-user"></i></span>
+                            <h2>Informacion personal</h2>
+                        </div>
+                        <button class="boton-editar js-editar-perfil" type="button">
+                            <i class="fa-solid fa-pen"></i>
+                            Editar informacion
+                        </button>
+                    </div>
+
+                    <div class="perfil-info-list">
+                        <div class="perfil-info-row">
+                            <span class="perfil-info-icon perfil-info-icon-mail"><i class="fa-solid fa-envelope"></i></span>
+                            <div>
+                                <small>Correo electronico</small>
+                                <strong>{{ perfil_usuario.email }}</strong>
+                            </div>
+                            <span class="perfil-verified">Verificado</span>
+                        </div>
+                        <div class="perfil-info-row">
+                            <span class="perfil-info-icon perfil-info-icon-phone"><i class="fa-solid fa-phone"></i></span>
+                            <div>
+                                <small>Telefono</small>
+                                <strong>{{ perfil_usuario.telefono }}</strong>
+                            </div>
+                            <span class="perfil-verified">Verificado</span>
+                        </div>
+                        <div class="perfil-info-row">
+                            <span class="perfil-info-icon perfil-info-icon-city"><i class="fa-solid fa-location-dot"></i></span>
+                            <div>
+                                <small>Ciudad</small>
+                                <strong>{{ perfil_usuario.ciudad }}</strong>
+                            </div>
+                        </div>
+                        <div class="perfil-info-row">
+                            <span class="perfil-info-icon perfil-info-icon-address"><i class="fa-solid fa-map"></i></span>
+                            <div>
+                                <small>Direccion</small>
+                                <strong>{{ perfil_usuario.direccion }}</strong>
+                            </div>
+                        </div>
+                    </div>
+                </article>
+
+                <div class="perfil-bottom-grid">
+                    <article class="perfil-card perfil-stats-card">
+                        <div class="perfil-card-header">
+                            <div>
+                                <span class="perfil-card-icon"><i class="fa-solid fa-chart-pie"></i></span>
+                                <h2>Estadisticas</h2>
+                            </div>
+                        </div>
+                        <div class="perfil-stat-grid">
+                            <div class="perfil-stat-box">
+                                <i class="fa-solid fa-box-open"></i>
+                                <strong data-profile-stat="totalLibrosInventario">{{ total_libros_inventario }}</strong>
+                                <span>Libros en inventario</span>
+                            </div>
+                            <div class="perfil-stat-box">
+                                <i class="fa-solid fa-book-reader"></i>
+                                <strong data-profile-stat="totalLibrosLeyendo">{{ total_libros_leyendo }}</strong>
+                                <span>Libros que estas leyendo</span>
+                            </div>
+                            <div class="perfil-stat-box">
+                                <i class="fa-solid fa-book-bookmark"></i>
+                                <strong data-profile-stat="totalLibrosPublicados">{{ total_libros_publicados }}</strong>
+                                <span>Libros publicados</span>
+                            </div>
+                            <div class="perfil-stat-box">
+                                <i class="fa-solid fa-handshake"></i>
+                                <strong data-profile-stat="totalIntercambiosCompletados">{{ total_intercambios_completados }}</strong>
+                                <span>Intercambios completados</span>
+                            </div>
+                        </div>
+                    </article>
+
+                    <article class="perfil-card perfil-activity-card">
+                        <div class="perfil-card-header">
+                            <div>
+                                <span class="perfil-card-icon"><i class="fa-solid fa-wave-square"></i></span>
+                                <h2>Actividad reciente</h2>
+                            </div>
+                        </div>
+                        <div class="perfil-activity-list" data-profile-activity>
+                            {% for actividad in actividad_reciente %}
+                                <div class="perfil-activity-row">
+                                    <span><i class="fa-solid {{ actividad.icono }}"></i></span>
+                                    <div>
+                                        <strong>{{ actividad.titulo }}</strong>
+                                        <small>{{ actividad.detalle }} · {{ actividad.tiempo }}</small>
+                                    </div>
+                                </div>
+                            {% empty %}
+                                <div class="perfil-empty-state">
+                                    <i class="fa-solid fa-book-open"></i>
+                                    <span>Aun no tienes actividad reciente.</span>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </article>
+                </div>
             </div>
         </section>
     </main>
     <script src="{% static 'usuarios/js/script.js' %}"></script>
+    <script src="{% static 'usuarios/js/validaciones.js' %}"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="{% static 'usuarios/js/swal-theme.js' %}?v=20260430a"></script>
-    <script src="{% static 'usuarios/js/perfil.js' %}?v=20260505a"></script>
+    <script src="{% static 'usuarios/js/perfil.js' %}?v=20260507b"></script>
 </body>
 </html>
 

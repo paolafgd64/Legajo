@@ -22,6 +22,7 @@ urlpatterns = [
     path('api/auth/login', views.api_login, name='api_login'),
     path('api/me/', views.api_me, name='api_me'),
     path('api/auth/me', views.api_me, name='api_auth_me'),
+    path('api/perfil/estadisticas', views.api_profile_stats, name='api_profile_stats'),
     path('api/reportes-usuarios', views.api_user_reports, name='api_user_reports'),
 ]
 

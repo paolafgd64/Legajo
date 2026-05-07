@@ -104,7 +104,7 @@ class AuthApiTests(TestCase):
             content_type='application/json',
         )
 
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 201)
         self.assertTrue(get_user_model().objects.filter(email='ana@example.com').exists())
 
     def test_login_autentica_y_retorna_redireccion(self):
@@ -131,6 +131,153 @@ class AuthApiTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()['redirect_url'], '/dashboard_admin/')
+
+    def test_api_me_rechaza_correo_invalido(self):
+        user_model = get_user_model()
+        user = user_model.objects.create_user(
+            email='perfil@example.com',
+            password='Segura123!@#',
+            nombre1='Perfil',
+            apellido1='Usuario',
+            direccion='Calle 1',
+            ciudad='Bogota',
+            telefono=3001234567,
+        )
+        self.client.force_login(user)
+
+        response = self.client.put(
+            '/api/me/',
+            data=json.dumps({
+                'primerNombre': 'Perfil',
+                'primerApellido': 'Usuario',
+                'correo': 'correo-invalido',
+                'direccion': 'Calle 1',
+                'ciudad': 'Bogota',
+                'telefono': '3001234567',
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()['message'], 'Ingresa un correo electronico valido.')
+
+    def test_api_me_rechaza_ciudad_muy_larga(self):
+        user_model = get_user_model()
+        user = user_model.objects.create_user(
+            email='perfil-ciudad@example.com',
+            password='Segura123!@#',
+            nombre1='Perfil',
+            apellido1='Usuario',
+            direccion='Calle 1',
+            ciudad='Bogota',
+            telefono=3001234567,
+        )
+        self.client.force_login(user)
+
+        response = self.client.put(
+            '/api/me/',
+            data=json.dumps({
+                'primerNombre': 'Perfil',
+                'primerApellido': 'Usuario',
+                'correo': 'perfil-ciudad@example.com',
+                'direccion': 'Calle 1',
+                'ciudad': 'Una ciudad demasiado larga',
+                'telefono': '3001234567',
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()['message'], 'La ciudad no debe superar 20 caracteres.')
+
+    def test_api_profile_stats_refleja_estado_actual_de_libros(self):
+        user_model = get_user_model()
+        user = user_model.objects.create_user(
+            email='perfil-stats@example.com',
+            password='Segura123!@#',
+            nombre1='Perfil',
+            apellido1='Stats',
+            direccion='Calle 1',
+            ciudad='Bogota',
+            telefono=3001234567,
+        )
+        libro = Libro.objects.create(
+            titulo='Libro disponible',
+            sinopsis='Una historia disponible',
+            estado=Libro.Estado.PUBLICADO,
+            url_imagen='cover.jpg',
+            usuario_propietario=user,
+        )
+        Libro.objects.create(
+            titulo='Libro en lectura',
+            sinopsis='Una historia en lectura',
+            estado=Libro.Estado.LEYENDO,
+            url_imagen='cover.jpg',
+            usuario_propietario=user,
+        )
+        self.client.force_login(user)
+
+        response = self.client.get('/api/perfil/estadisticas')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['totalLibrosInventario'], 2)
+        self.assertEqual(response.json()['totalLibrosPublicados'], 1)
+        self.assertEqual(response.json()['totalLibrosLeyendo'], 1)
+
+        libro.estado = Libro.Estado.LEYENDO
+        libro.save(update_fields=['estado'])
+
+        response = self.client.get('/api/perfil/estadisticas')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['totalLibrosInventario'], 2)
+        self.assertEqual(response.json()['totalLibrosPublicados'], 0)
+        self.assertEqual(response.json()['totalLibrosLeyendo'], 2)
+
+    def test_api_profile_stats_actualiza_actividad_con_acciones_de_libros(self):
+        user_model = get_user_model()
+        user = user_model.objects.create_user(
+            email='perfil-actividad@example.com',
+            password='Segura123!@#',
+            nombre1='Perfil',
+            apellido1='Actividad',
+            direccion='Calle 1',
+            ciudad='Bogota',
+            telefono=3001234567,
+        )
+        libro = Libro.objects.create(
+            titulo='Libro para actividad',
+            sinopsis='Una historia para probar actividad',
+            estado=Libro.Estado.PUBLICADO,
+            url_imagen='cover.jpg',
+            usuario_propietario=user,
+        )
+        self.client.force_login(user)
+
+        response = self.client.get('/api/perfil/estadisticas')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['actividadReciente'][0]['titulo'], 'Libro agregado al inventario')
+
+        update_response = self.client.put(
+            f'/api/libros/{libro.id}',
+            data=json.dumps({
+                'titulo': 'Libro para actividad',
+                'autor': 'Autor Prueba',
+                'sinopsis': 'Una historia para probar actividad',
+                'genero': 'Ficcion',
+                'estado': Libro.Estado.LEYENDO,
+                'url_imagen': 'cover.jpg',
+            }),
+            content_type='application/json',
+        )
+        self.assertEqual(update_response.status_code, 200)
+
+        response = self.client.get('/api/perfil/estadisticas')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['actividadReciente'][0]['titulo'], 'Libro marcado como leyendo')
+        self.assertEqual(response.json()['actividadReciente'][0]['detalle'], 'Libro para actividad')
 
     def test_login_usuario_desactivado_devuelve_motivo(self):
         user_model = get_user_model()

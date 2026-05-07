@@ -19,6 +19,8 @@ class Libro(models.Model):
         null=True,
         blank=True,
     )
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
     autores = models.ManyToManyField('Autor')
     generos = models.ManyToManyField('Genero')
     activo = models.BooleanField(default=True)

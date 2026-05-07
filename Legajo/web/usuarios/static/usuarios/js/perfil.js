@@ -48,6 +48,80 @@ function renderOpcionesCiudad(ciudadActual) {
   ].join('');
 }
 
+function renderActividadPerfil(actividades) {
+  const contenedor = document.querySelector('[data-profile-activity]');
+  if (!contenedor) {
+    return;
+  }
+
+  if (!Array.isArray(actividades) || actividades.length === 0) {
+    contenedor.innerHTML = `
+      <div class="perfil-empty-state">
+        <i class="fa-solid fa-book-open"></i>
+        <span>Aun no tienes actividad reciente.</span>
+      </div>
+    `;
+    return;
+  }
+
+  contenedor.innerHTML = actividades.map((actividad) => `
+    <div class="perfil-activity-row">
+      <span><i class="fa-solid ${escapeHtml(actividad.icono || 'fa-book-open')}"></i></span>
+      <div>
+        <strong>${escapeHtml(actividad.titulo || 'Actividad')}</strong>
+        <small>${escapeHtml(actividad.detalle || '')} · ${escapeHtml(actividad.tiempo || 'Reciente')}</small>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function actualizarEstadisticasPerfil() {
+  const estadisticas = document.querySelectorAll('[data-profile-stat]');
+  const actividad = document.querySelector('[data-profile-activity]');
+  if (!estadisticas.length && !actividad) {
+    return;
+  }
+
+  try {
+    const response = await fetch('/api/perfil/estadisticas', {
+      headers: {
+        Accept: 'application/json'
+      },
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      throw new Error('No se pudieron actualizar las estadisticas del perfil.');
+    }
+
+    const data = await response.json();
+    estadisticas.forEach((element) => {
+      const key = element.dataset.profileStat;
+      if (Object.prototype.hasOwnProperty.call(data, key)) {
+        element.textContent = data[key];
+      }
+    });
+    renderActividadPerfil(data.actividadReciente);
+  } catch (error) {
+    console.error('Error actualizando estadisticas del perfil:', error);
+  }
+}
+
+function validarEmailPerfil(correo) {
+  if (typeof window.validarEmail === 'function') {
+    return window.validarEmail(correo);
+  }
+
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(correo || '').trim());
+}
+
+function marcarCamposInvalidosPerfil(fields) {
+  document.querySelectorAll('.perfil-modal-input.input-error').forEach((field) => {
+    field.classList.remove('input-error');
+  });
+  fields.filter(Boolean).forEach((field) => field.classList.add('input-error'));
+}
+
 async function editarInformacionPerfil() {
   try {
     const meResponse = await fetch('/api/me/', {
@@ -124,19 +198,65 @@ async function editarInformacionPerfil() {
       },
       buttonsStyling: false,
       preConfirm: () => {
-        const payload = {
-          primerNombre: document.getElementById('swal-primerNombre').value.trim(),
-          segundoNombre: document.getElementById('swal-segundoNombre').value.trim(),
-          primerApellido: document.getElementById('swal-primerApellido').value.trim(),
-          segundoApellido: document.getElementById('swal-segundoApellido').value.trim(),
-          correo: document.getElementById('swal-correo').value.trim(),
-          telefono: document.getElementById('swal-telefono').value.trim(),
-          ciudad: document.getElementById('swal-ciudad').value.trim(),
-          direccion: document.getElementById('swal-direccion').value.trim()
+        const campos = {
+          primerNombre: document.getElementById('swal-primerNombre'),
+          primerApellido: document.getElementById('swal-primerApellido'),
+          correo: document.getElementById('swal-correo'),
+          telefono: document.getElementById('swal-telefono'),
+          ciudad: document.getElementById('swal-ciudad'),
+          direccion: document.getElementById('swal-direccion')
         };
 
-        if (!payload.primerNombre || !payload.primerApellido || !payload.correo || !payload.telefono || !payload.ciudad || !payload.direccion) {
+        const payload = {
+          primerNombre: campos.primerNombre.value.trim(),
+          segundoNombre: document.getElementById('swal-segundoNombre').value.trim(),
+          primerApellido: campos.primerApellido.value.trim(),
+          segundoApellido: document.getElementById('swal-segundoApellido').value.trim(),
+          correo: campos.correo.value.trim(),
+          telefono: campos.telefono.value.trim(),
+          ciudad: campos.ciudad.value.trim(),
+          direccion: campos.direccion.value.trim()
+        };
+
+        marcarCamposInvalidosPerfil([]);
+
+        if (!payload.primerNombre) {
+          marcarCamposInvalidosPerfil([campos.primerNombre]);
+          Swal.showValidationMessage('Ingresa tu primer nombre para continuar.');
+          return false;
+        }
+
+        if (!payload.primerApellido) {
+          marcarCamposInvalidosPerfil([campos.primerApellido]);
+          Swal.showValidationMessage('Ingresa tu primer apellido para continuar.');
+          return false;
+        }
+
+        if (!validarEmailPerfil(payload.correo)) {
+          marcarCamposInvalidosPerfil([campos.correo]);
+          Swal.showValidationMessage('Ingresa un correo electronico valido.');
+          return false;
+        }
+
+        if (!payload.direccion || !payload.ciudad || !payload.telefono) {
+          marcarCamposInvalidosPerfil([
+            payload.direccion ? null : campos.direccion,
+            payload.ciudad ? null : campos.ciudad,
+            payload.telefono ? null : campos.telefono
+          ]);
           Swal.showValidationMessage('Completa todos los campos obligatorios.');
+          return false;
+        }
+
+        if (payload.ciudad.length > 20) {
+          marcarCamposInvalidosPerfil([campos.ciudad]);
+          Swal.showValidationMessage('La ciudad no debe superar 20 caracteres.');
+          return false;
+        }
+
+        if (!/^\d+$/.test(payload.telefono)) {
+          marcarCamposInvalidosPerfil([campos.telefono]);
+          Swal.showValidationMessage('El telefono solo debe contener numeros.');
           return false;
         }
 
@@ -184,6 +304,15 @@ async function editarInformacionPerfil() {
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.js-editar-perfil').forEach((button) => {
     button.addEventListener('click', editarInformacionPerfil);
+  });
+
+  actualizarEstadisticasPerfil();
+
+  window.addEventListener('pageshow', actualizarEstadisticasPerfil);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      actualizarEstadisticasPerfil();
+    }
   });
 });
 

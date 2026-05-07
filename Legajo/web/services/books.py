@@ -290,7 +290,7 @@ def _apply_book_payload(libro, payload, url_imagen):
     libro.sinopsis = payload['sinopsis']
     libro.estado = payload['estado']
     libro.url_imagen = url_imagen
-    libro.save(update_fields=['titulo', 'sinopsis', 'estado', 'url_imagen'])
+    libro.save(update_fields=['titulo', 'sinopsis', 'estado', 'url_imagen', 'fecha_actualizacion'])
 
     autor = _get_or_create_author(payload['autor'])
     genero, _ = Genero.objects.get_or_create(nombre=payload['genero'].title())
@@ -441,7 +441,7 @@ def update_book(user, libro_id, data, image_file=None):
             if sync_copy_count:
                 for copy in matching_copies[cantidad:]:
                     copy.activo = False
-                    copy.save(update_fields=['activo'])
+                    copy.save(update_fields=['activo', 'fecha_actualizacion'])
 
                 for _ in range(cantidad - len(kept_copies)):
                     _create_book_from_payload(user, payload, url_imagen)
@@ -458,6 +458,6 @@ def soft_delete_book(user, libro_id):
 
     try:
         libro.activo = False
-        libro.save(update_fields=['activo'])
+        libro.save(update_fields=['activo', 'fecha_actualizacion'])
     except DatabaseError as exc:
         raise DatabaseServiceError() from exc

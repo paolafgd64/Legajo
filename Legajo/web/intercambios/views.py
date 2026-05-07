@@ -392,8 +392,8 @@ def api_confirmar_intercambio_pin(request, intercambio_id):
             libro_cambio.usuario_propietario = usuario_receptor
             libro_solicitado.estado = Libro.Estado.LEYENDO
             libro_cambio.estado = Libro.Estado.LEYENDO
-            libro_solicitado.save(update_fields=['usuario_propietario', 'estado'])
-            libro_cambio.save(update_fields=['usuario_propietario', 'estado'])
+            libro_solicitado.save(update_fields=['usuario_propietario', 'estado', 'fecha_actualizacion'])
+            libro_cambio.save(update_fields=['usuario_propietario', 'estado', 'fecha_actualizacion'])
 
             intercambio.estado = Intercambio.Estado.COMPLETADO
             intercambio.fecha_completado = timezone.now()
