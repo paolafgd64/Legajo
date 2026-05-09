@@ -60,6 +60,7 @@ class Usuario(AbstractUser):
     )
     activo = models.BooleanField(default=True)
     motivo_desactivacion = models.TextField(blank=True, default='')
+    suspension_hasta = models.DateTimeField(null=True, blank=True)
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
@@ -69,9 +70,10 @@ class Usuario(AbstractUser):
     def delete(self, *args, **kwargs):
         self.activo = False
         self.is_active = False
+        self.suspension_hasta = None
         if not self.motivo_desactivacion:
             self.motivo_desactivacion = 'Cuenta desactivada por administracion.'
-        self.save()
+        self.save(update_fields=['activo', 'is_active', 'motivo_desactivacion', 'suspension_hasta'])
 
     def __str__(self):
         return f"{self.nombre1} {self.apellido1}"

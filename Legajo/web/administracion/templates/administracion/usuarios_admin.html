@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Usuarios - Admin</title>
-    <link rel="stylesheet" href="{% static 'usuarios/css/dashboard.css' %}?v=20260430g">
+    <link rel="stylesheet" href="{% static 'usuarios/css/dashboard.css' %}?v=20260507g">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
@@ -78,7 +78,7 @@
             <select id="filtroEstadoUsuario">
                 <option value="">Estado</option>
                 <option value="activo">Activo</option>
-                <option value="inactivo">Inactivo</option>
+                <option value="inactivo">Bloqueado o suspendido</option>
             </select>
 
             <button type="button" id="btnLimpiarUsuarios">Limpiar filtros</button>
@@ -178,7 +178,7 @@
     </main>
 
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="{% static 'administracion/js/usuarios_admin.js' %}?v=20260430c"></script>
+    <script src="{% static 'administracion/js/usuarios_admin.js' %}?v=20260507c"></script>
     <script src="{% static 'usuarios/js/script.js' %}?v=20260416a"></script>
 </body>
 </html>

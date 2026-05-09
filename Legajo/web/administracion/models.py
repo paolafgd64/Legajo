@@ -53,3 +53,23 @@ class NotificacionUsuario(models.Model):
         blank=True,
         related_name='notificaciones_generadas',
     )
+
+
+class ConfiguracionContacto(models.Model):
+    telefono = models.CharField(max_length=30, default='+57 300 0000000')
+    whatsapp = models.CharField(max_length=30, default='+57 300 0000000')
+    correo = models.EmailField(default='administracionlegajo@gmail.com')
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Configuracion de contacto'
+        verbose_name_plural = 'Configuracion de contacto'
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def obtener(cls):
+        config, _ = cls.objects.get_or_create(pk=1)
+        return config

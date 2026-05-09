@@ -5,7 +5,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Perfil de Administrador</title>
-    <link rel="stylesheet" href="{% static 'usuarios/css/dashboard.css' %}?v=20260505a"/>
+    <link rel="stylesheet" href="{% static 'usuarios/css/dashboard.css' %}?v=20260507h"/>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -60,11 +60,41 @@
                 <button class="boton-editar js-editar-perfil"><i class="fa-solid fa-pen"></i> Editar informacion</button>
             </div>
         </section>
+
+        <section class="admin-contact-card">
+            <div class="admin-contact-head">
+                <div>
+                    <h2>Contacto del index</h2>
+                    <p>Edita solo los datos que se muestran en la seccion Contactanos.</p>
+                </div>
+                <span><i class="fa-solid fa-address-card"></i></span>
+            </div>
+            <form id="adminContactForm" class="admin-contact-form">
+                <label>
+                    <span>WhatsApp</span>
+                    <input id="contactWhatsapp" name="whatsapp" type="text" maxlength="30" value="{{ contacto_sitio.whatsapp }}" required>
+                </label>
+                <label>
+                    <span>Telefono</span>
+                    <input id="contactTelefono" name="telefono" type="text" maxlength="30" value="{{ contacto_sitio.telefono }}" required>
+                </label>
+                <label>
+                    <span>Correo</span>
+                    <input id="contactCorreo" name="correo" type="email" value="{{ contacto_sitio.correo }}" required>
+                </label>
+                <button type="submit">
+                    <i class="fa-solid fa-floppy-disk"></i>
+                    Guardar contacto
+                </button>
+                <div id="adminContactMensaje" class="admin-contact-message" role="alert" aria-live="polite"></div>
+            </form>
+        </section>
     </main>
     <script src="{% static 'usuarios/js/script.js' %}"></script>
     <script src="{% static 'usuarios/js/validaciones.js' %}"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="{% static 'usuarios/js/perfil.js' %}?v=20260507a"></script>
+    <script src="{% static 'administracion/js/perfil_admin.js' %}?v=20260507a"></script>
 </body>
 </html>
 

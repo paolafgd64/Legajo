@@ -26,6 +26,12 @@ def _admin_required_response(request):
 
 
 def _serialize_admin_user(usuario):
+    suspension_hasta = getattr(usuario, 'suspension_hasta', None)
+    esta_activo = bool(usuario.activo and usuario.is_active)
+    estado = 'Activo'
+    if not esta_activo:
+        estado = 'Suspendido' if suspension_hasta and suspension_hasta > timezone.now() else 'Bloqueado'
+
     return {
         'id': usuario.id,
         'nombreCompleto': ' '.join(filter(None, [usuario.nombre1, usuario.nombre2, usuario.apellido1, usuario.apellido2])),
@@ -34,9 +40,11 @@ def _serialize_admin_user(usuario):
         'telefono': usuario.telefono,
         'rol': usuario.get_rol_display(),
         'rolValor': usuario.rol,
-        'estado': 'Activo' if usuario.activo and usuario.is_active else 'Inactivo',
-        'activo': bool(usuario.activo and usuario.is_active),
+        'estado': estado,
+        'activo': esta_activo,
         'motivoDesactivacion': usuario.motivo_desactivacion or '',
+        'suspensionHasta': suspension_hasta.isoformat() if suspension_hasta else '',
+        'suspensionHastaTexto': timezone.localtime(suspension_hasta).strftime('%Y-%m-%d %H:%M') if suspension_hasta else '',
     }
 
 

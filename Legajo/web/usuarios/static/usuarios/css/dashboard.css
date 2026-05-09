@@ -1491,6 +1491,137 @@ button.btn-rojo {
     color: #e74c3c;
 }
 
+.admin-contact-card {
+    margin: 0 40px 40px;
+    padding: 28px;
+    border-radius: 18px;
+    background:
+        radial-gradient(circle at top right, rgba(242, 174, 46, 0.14), transparent 28%),
+        linear-gradient(145deg, rgba(9, 19, 38, 0.94), rgba(12, 26, 48, 0.86));
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 22px 44px rgba(0, 0, 0, 0.22);
+    color: var(--color-texto);
+}
+
+.admin-contact-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 18px;
+    align-items: flex-start;
+    margin-bottom: 20px;
+}
+
+.admin-contact-head h2 {
+    margin: 0 0 6px;
+    font-size: 1.35rem;
+}
+
+.admin-contact-head p {
+    margin: 0;
+    color: var(--color-texto-2);
+}
+
+.admin-contact-head > span {
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    border-radius: 14px;
+    color: var(--color-acento);
+    background: rgba(242, 174, 46, 0.14);
+}
+
+.admin-contact-form {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+    gap: 14px;
+    align-items: end;
+}
+
+.admin-contact-form label {
+    display: grid;
+    gap: 8px;
+    color: var(--color-texto);
+    font-weight: 800;
+}
+
+.admin-contact-form input {
+    width: 100%;
+    min-height: 44px;
+    border-radius: 12px;
+    border: 1px solid var(--color-borde-suave);
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--color-texto);
+}
+
+.admin-contact-form button {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px solid rgba(242, 174, 46, 0.42);
+    border-radius: 12px;
+    padding: 10px 16px;
+    color: #091326;
+    background: var(--color-acento);
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.admin-contact-message {
+    display: none;
+    grid-column: 1 / -1;
+    padding: 10px 12px;
+    border-radius: 12px;
+    font-weight: 800;
+}
+
+.admin-contact-message.is-visible {
+    display: block;
+}
+
+.admin-contact-message.success {
+    color: #166534;
+    background: rgba(34, 197, 94, 0.14);
+}
+
+.admin-contact-message.error {
+    color: #991b1b;
+    background: rgba(239, 68, 68, 0.14);
+}
+
+.modo-claro .admin-contact-card {
+    background:
+        radial-gradient(circle at top right, rgba(191, 91, 4, 0.12), transparent 28%),
+        linear-gradient(145deg, rgba(255, 250, 244, 0.98), rgba(244, 231, 214, 0.9));
+    border-color: rgba(68, 46, 24, 0.1);
+    box-shadow: 0 22px 44px rgba(96, 67, 33, 0.12);
+}
+
+.modo-claro .admin-contact-form input {
+    background: rgba(255, 255, 255, 0.72);
+    color: #2d241d;
+}
+
+@media (max-width: 1100px) {
+    .admin-contact-form {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (max-width: 760px) {
+    .admin-contact-card {
+        margin: 0 1rem 1rem;
+        padding: 18px;
+    }
+
+    .admin-contact-form {
+        grid-template-columns: 1fr;
+    }
+}
+
 .perfil-legajo {
     display: grid;
     grid-template-columns: minmax(240px, 285px) minmax(0, 1fr);
@@ -3164,17 +3295,17 @@ select.perfil-modal-input option {
 
 .legajo-swal-confirm {
     background: linear-gradient(135deg, var(--color-acento) 0%, var(--color-acento-sec) 100%);
-    color: #091326;
+    color: #091326 !important;
 }
 
 .legajo-swal-deny {
     background: #c94b4b;
-    color: #ffffff;
+    color: #ffffff !important;
 }
 
 .legajo-swal-cancel {
     background: rgba(255, 255, 255, 0.05);
-    color: var(--color-texto);
+    color: var(--color-texto) !important;
     border: 1px solid var(--color-borde-suave);
 }
 
@@ -3183,6 +3314,16 @@ select.perfil-modal-input option {
 .legajo-swal-cancel:hover {
     transform: translateY(-1px);
     box-shadow: 0 10px 20px rgba(0, 0, 0, 0.18);
+}
+
+.legajo-swal-confirm.admin-confirm-suspend {
+    background: linear-gradient(135deg, #f2ae2e 0%, #d98b18 100%);
+    color: #091326 !important;
+}
+
+.legajo-swal-confirm.admin-confirm-block {
+    background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+    color: #ffffff !important;
 }
 
 .legajo-swal-input {
@@ -3245,7 +3386,7 @@ select.perfil-modal-input option {
 }
 
 .modo-claro .legajo-swal-cancel {
-    color: #2d241d;
+    color: #2d241d !important;
     border-color: rgba(45, 36, 29, 0.12);
 }
 
@@ -3911,6 +4052,114 @@ select.perfil-modal-input option {
     color: #ffffff;
     background: #c94b4b;
     border-color: rgba(201, 75, 75, 0.5);
+}
+
+.admin-status-modal {
+    display: grid;
+    gap: 12px;
+    text-align: left;
+    color: #111827 !important;
+}
+
+.admin-status-modal p,
+.admin-status-modal span,
+.admin-status-modal label {
+    color: #111827 !important;
+}
+
+.admin-status-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid rgba(148, 163, 184, 0.45);
+    border-radius: 12px;
+    background: #f8fafc;
+    color: #0f172a !important;
+    font-weight: 800;
+}
+
+.admin-status-option input {
+    width: auto;
+    margin: 0;
+}
+
+.admin-suspension-fields {
+    display: grid;
+    grid-template-columns: minmax(90px, 1fr) minmax(110px, 1fr);
+    gap: 10px;
+}
+
+.admin-suspension-fields input,
+.admin-suspension-fields select,
+.admin-status-reason {
+    width: 100%;
+    border: 1px solid rgba(148, 163, 184, 0.65);
+    border-radius: 12px;
+    padding: 10px 12px;
+    background: #ffffff;
+    color: #0f172a !important;
+}
+
+.admin-suspension-fields input::placeholder,
+.admin-status-reason::placeholder {
+    color: #64748b !important;
+}
+
+.admin-suspension-fields select option {
+    color: #0f172a;
+    background: #ffffff;
+}
+
+.admin-status-reason {
+    min-height: 110px;
+    resize: vertical;
+    font-family: inherit;
+}
+
+.admin-status-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.admin-status-action-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 42px;
+    border: 2px solid transparent;
+    border-radius: 12px;
+    padding: 10px 12px;
+    font-weight: 900;
+    cursor: pointer;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.admin-status-action-button.suspend {
+    background: linear-gradient(135deg, #f2ae2e 0%, #d98b18 100%);
+    color: #091326 !important;
+}
+
+.admin-status-action-button.block {
+    background: linear-gradient(135deg, #fca5a5 0%, #ef4444 100%);
+    color: #111827 !important;
+}
+
+.admin-status-action-button i,
+.admin-status-action-button span {
+    color: inherit !important;
+}
+
+.admin-status-action-button:hover,
+.admin-status-action-button.is-selected {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 20px rgba(15, 23, 42, 0.2);
+}
+
+.admin-status-action-button.is-selected {
+    border-color: #ffffff;
 }
 
 .inventario-usuario-boton {

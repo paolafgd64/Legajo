@@ -138,6 +138,40 @@ function escapeHtml(valor) {
     .replaceAll('"', '&quot;');
 }
 
+function renderEstadoUsuario(usuario) {
+  if (usuario.activo) {
+    return '<i class="fas fa-check-circle"></i> Activo';
+  }
+  if (usuario.suspensionHasta) {
+    return '<i class="fas fa-clock"></i> Suspendido';
+  }
+  return '<i class="fas fa-ban"></i> Bloqueado';
+}
+
+function leerPayloadEstadoUsuario() {
+  const accion = document.querySelector('input[name="accionUsuario"]:checked')?.value || 'suspender';
+  const motivo = document.getElementById('motivoEstadoUsuario')?.value.trim() || '';
+  const duracionValor = document.getElementById('duracionSuspensionUsuario')?.value || '';
+  const duracionUnidad = document.getElementById('unidadSuspensionUsuario')?.value || 'dias';
+
+  if (motivo.length < 10) {
+    Swal.showValidationMessage('Escribe un motivo de al menos 10 caracteres.');
+    return false;
+  }
+  if (accion === 'suspender' && (!duracionValor || Number(duracionValor) <= 0)) {
+    Swal.showValidationMessage('Indica una duracion valida para la suspension.');
+    return false;
+  }
+
+  return {
+    activo: false,
+    accion,
+    motivo,
+    duracionValor,
+    duracionUnidad
+  };
+}
+
 function renderizarUsuarios(usuarios) {
   if (!tablaUsuariosAdmin) return;
 
@@ -151,8 +185,8 @@ function renderizarUsuarios(usuarios) {
     const fila = document.createElement('tr');
     const estaActivo = Boolean(usuario.activo);
     const estadoTitle = estaActivo
-      ? 'Desactivar usuario'
-      : `Inactivo${usuario.motivoDesactivacion ? `: ${usuario.motivoDesactivacion}` : ''}`;
+      ? 'Suspender o bloquear usuario'
+      : `${usuario.estado || 'Inactivo'}${usuario.motivoDesactivacion ? `: ${usuario.motivoDesactivacion}` : ''}`;
     fila.innerHTML = `
       <td>${escapeHtml(usuario.nombreCompleto)}</td>
       <td>${escapeHtml(usuario.correo)}</td>
@@ -168,7 +202,7 @@ function renderizarUsuarios(usuarios) {
           data-nombre="${escapeHtml(usuario.nombreCompleto)}"
           title="${escapeHtml(estadoTitle)}"
         >
-          ${estaActivo ? '<i class="fas fa-check-circle"></i> Activo' : '<i class="fas fa-ban"></i> Inactivo'}
+          ${renderEstadoUsuario(usuario)}
         </button>
       </td>
       <td>
@@ -351,72 +385,118 @@ async function manejarCambioEstadoUsuario(button) {
     return;
   }
 
-  let motivo = '';
+  let payloadBloqueo = null;
   if (window.Swal) {
     const result = await Swal.fire({
       icon: 'warning',
-      title: 'Desactivar usuario',
-      html: `<p style="margin-bottom:12px;">Escribe el motivo por el que vas a desactivar a <strong>${escapeHtml(nombre)}</strong>.</p>`,
-      input: 'textarea',
-      inputPlaceholder: 'Motivo de desactivacion...',
-      inputAttributes: {
-        'aria-label': 'Motivo de desactivacion'
-      },
+      title: 'Suspender o bloquear usuario',
+      html: `
+        <div class="admin-status-modal">
+          <p>Define que accion aplicar a <strong>${escapeHtml(nombre)}</strong> y registra el motivo.</p>
+          <label class="admin-status-option">
+            <input type="radio" name="accionUsuario" value="suspender" checked>
+            <span>Suspender temporalmente</span>
+          </label>
+          <div class="admin-suspension-fields" id="camposSuspensionUsuario">
+            <input id="duracionSuspensionUsuario" type="number" min="1" max="365" value="7" aria-label="Duracion de suspension">
+            <select id="unidadSuspensionUsuario" aria-label="Unidad de suspension">
+              <option value="dias">Dias</option>
+              <option value="horas">Horas</option>
+            </select>
+          </div>
+          <label class="admin-status-option">
+            <input type="radio" name="accionUsuario" value="bloquear">
+            <span>Bloquear permanentemente</span>
+          </label>
+          <textarea id="motivoEstadoUsuario" class="legajo-swal-input admin-status-reason" placeholder="Motivo..." aria-label="Motivo"></textarea>
+          <div class="admin-status-actions">
+            <button type="button" id="confirmarSuspensionUsuario" class="admin-status-action-button suspend">
+              <i class="fas fa-clock"></i> Suspender
+            </button>
+            <button type="button" id="confirmarBloqueoUsuario" class="admin-status-action-button block">
+              <i class="fas fa-ban"></i> Bloquear
+            </button>
+          </div>
+        </div>
+      `,
       showCancelButton: true,
-      confirmButtonText: 'Desactivar',
+      showConfirmButton: false,
       cancelButtonText: 'Cancelar',
       buttonsStyling: false,
       customClass: legajoSwalClasses,
-      inputValidator: (value) => {
-        if (!value || value.trim().length < 10) {
-          return 'Escribe un motivo de al menos 10 caracteres.';
-        }
-        return null;
+      didOpen: () => {
+        const radios = document.querySelectorAll('input[name="accionUsuario"]');
+        const camposSuspension = document.getElementById('camposSuspensionUsuario');
+        const botonSuspender = document.getElementById('confirmarSuspensionUsuario');
+        const botonBloquear = document.getElementById('confirmarBloqueoUsuario');
+        const syncEstado = () => {
+          const accion = document.querySelector('input[name="accionUsuario"]:checked')?.value || 'suspender';
+          if (camposSuspension) camposSuspension.style.display = accion === 'suspender' ? 'grid' : 'none';
+          botonSuspender?.classList.toggle('is-selected', accion === 'suspender');
+          botonBloquear?.classList.toggle('is-selected', accion === 'bloquear');
+        };
+        radios.forEach((radio) => radio.addEventListener('change', syncEstado));
+        botonSuspender?.addEventListener('click', () => {
+          const radioSuspender = document.querySelector('input[name="accionUsuario"][value="suspender"]');
+          if (radioSuspender) radioSuspender.checked = true;
+          syncEstado();
+          const payload = leerPayloadEstadoUsuario();
+          if (payload) Swal.clickConfirm();
+        });
+        botonBloquear?.addEventListener('click', () => {
+          const radioBloquear = document.querySelector('input[name="accionUsuario"][value="bloquear"]');
+          if (radioBloquear) radioBloquear.checked = true;
+          syncEstado();
+          const payload = leerPayloadEstadoUsuario();
+          if (payload) Swal.clickConfirm();
+        });
+        syncEstado();
+      },
+      preConfirm: () => {
+        return leerPayloadEstadoUsuario();
       }
     });
 
     if (!result.isConfirmed) return;
-    motivo = result.value.trim();
+    payloadBloqueo = result.value;
   } else {
-    const value = window.prompt(`Motivo para desactivar a ${nombre}:`);
+    const value = window.prompt(`Motivo para bloquear a ${nombre}:`);
     if (value === null) return;
-    motivo = value.trim();
+    const motivo = value.trim();
     if (motivo.length < 10) {
       window.alert('Escribe un motivo de al menos 10 caracteres.');
       return;
     }
+    payloadBloqueo = { activo: false, accion: 'bloquear', motivo };
   }
 
   try {
-    await actualizarEstadoUsuario(userId, {
-      activo: false,
-      motivo
-    });
+    const data = await actualizarEstadoUsuario(userId, payloadBloqueo);
     await cargarUsuariosAdmin();
     if (window.Swal) {
       await Swal.fire({
         icon: 'success',
-        title: 'Usuario desactivado',
-        text: 'El motivo quedo guardado y se mostrara si intenta iniciar sesion.',
+        title: payloadBloqueo.accion === 'suspender' ? 'Usuario suspendido' : 'Usuario bloqueado',
+        text: data.message || 'El motivo quedo guardado y se mostrara si intenta iniciar sesion.',
         confirmButtonText: 'Continuar',
         buttonsStyling: false,
         customClass: legajoSwalClasses
       });
     } else {
-      window.alert('Usuario desactivado.');
+      window.alert(payloadBloqueo.accion === 'suspender' ? 'Usuario suspendido.' : 'Usuario bloqueado.');
     }
   } catch (error) {
     if (window.Swal) {
       Swal.fire({
         icon: 'error',
-        title: 'No se pudo desactivar',
+        title: 'No se pudo actualizar',
         text: error.message,
         confirmButtonText: 'Continuar',
         buttonsStyling: false,
         customClass: legajoSwalClasses
       });
     } else {
-      window.alert(error.message || 'No se pudo desactivar.');
+      window.alert(error.message || 'No se pudo actualizar.');
     }
   }
 }

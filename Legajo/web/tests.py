@@ -1,5 +1,6 @@
 ﻿import json
 import os
+from datetime import timedelta
 from importlib import import_module, reload
 from pathlib import Path
 from unittest.mock import patch
@@ -13,7 +14,7 @@ from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 from django.utils import timezone
 
-from .models import Autor, Genero, Intercambio, Libro, NotificacionUsuario, ReporteUsuario
+from .models import Autor, ConfiguracionContacto, Genero, Intercambio, Libro, NotificacionUsuario, ReporteUsuario
 from .views.helpers import _build_password_reset_link, _get_admin_dashboard_context, _get_password_reset_user
 
 
@@ -306,9 +307,75 @@ class AuthApiTests(TestCase):
 
         self.assertEqual(response.status_code, 403)
         data = response.json()
-        self.assertEqual(data['code'], 'account_disabled')
+        self.assertEqual(data['code'], 'account_blocked')
         self.assertEqual(data['reason'], 'Incumplimiento de normas de la comunidad.')
         self.assertEqual(data['landingUrl'], '/')
+
+    def test_login_usuario_suspendido_muestra_fecha_fin(self):
+        user_model = get_user_model()
+        suspension_hasta = timezone.now() + timedelta(days=3)
+        user = user_model.objects.create_user(
+            email='suspendido@example.com',
+            password='Segura123!@#',
+            nombre1='Cuenta',
+            apellido1='Suspendida',
+            direccion='Calle 3',
+            ciudad='Bogota',
+            telefono=3001234569,
+        )
+        user.activo = False
+        user.is_active = False
+        user.motivo_desactivacion = 'Revision temporal por reporte de intercambio.'
+        user.suspension_hasta = suspension_hasta
+        user.save(update_fields=['activo', 'is_active', 'motivo_desactivacion', 'suspension_hasta'])
+
+        response = self.client.post(
+            '/api/auth/login',
+            data=json.dumps({
+                'correo': 'suspendido@example.com',
+                'clave': 'Segura123!@#',
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 403)
+        data = response.json()
+        self.assertEqual(data['code'], 'account_suspended')
+        self.assertEqual(data['reason'], 'Revision temporal por reporte de intercambio.')
+        self.assertIn('suspendedUntil', data)
+
+    def test_login_reactiva_usuario_si_suspension_ya_vencio(self):
+        user_model = get_user_model()
+        user = user_model.objects.create_user(
+            email='suspension-vencida@example.com',
+            password='Segura123!@#',
+            nombre1='Cuenta',
+            apellido1='Reactivada',
+            direccion='Calle 4',
+            ciudad='Bogota',
+            telefono=3001234570,
+        )
+        user.activo = False
+        user.is_active = False
+        user.motivo_desactivacion = 'Suspension temporal ya cumplida.'
+        user.suspension_hasta = timezone.now() - timedelta(hours=1)
+        user.save(update_fields=['activo', 'is_active', 'motivo_desactivacion', 'suspension_hasta'])
+
+        response = self.client.post(
+            '/api/auth/login',
+            data=json.dumps({
+                'correo': 'suspension-vencida@example.com',
+                'clave': 'Segura123!@#',
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        user.refresh_from_db()
+        self.assertTrue(user.activo)
+        self.assertTrue(user.is_active)
+        self.assertEqual(user.motivo_desactivacion, '')
+        self.assertIsNone(user.suspension_hasta)
 
     def test_forgot_password_generates_reset_link_in_debug(self):
         user_model = get_user_model()
@@ -1184,6 +1251,64 @@ class ImportacionMasivaUsuariosAjaxTests(TestCase):
         self.assertFalse(usuario.is_active)
         self.assertEqual(usuario.motivo_desactivacion, 'Incumplimiento de normas de intercambio.')
         self.assertEqual(response.json()['usuario']['motivoDesactivacion'], 'Incumplimiento de normas de intercambio.')
+        self.assertEqual(response.json()['usuario']['estado'], 'Bloqueado')
+
+    def test_admin_suspende_usuario_con_tiempo(self):
+        usuario = self.user_model.objects.create_user(
+            email='usuario-suspender@example.com',
+            password='Segura123!@#',
+            nombre1='Usuario',
+            apellido1='Suspender',
+            direccion='Calle 12',
+            ciudad='Bogota',
+            telefono=3005554448,
+        )
+        self.client.force_login(self.admin)
+
+        response = self.client.patch(
+            f'/api/admin/usuarios/{usuario.id}/estado',
+            data=json.dumps({
+                'activo': False,
+                'accion': 'suspender',
+                'motivo': 'Suspension temporal por revision de reporte.',
+                'duracionValor': 2,
+                'duracionUnidad': 'dias',
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        usuario.refresh_from_db()
+        self.assertFalse(usuario.activo)
+        self.assertFalse(usuario.is_active)
+        self.assertEqual(usuario.motivo_desactivacion, 'Suspension temporal por revision de reporte.')
+        self.assertIsNotNone(usuario.suspension_hasta)
+        self.assertEqual(response.json()['usuario']['estado'], 'Suspendido')
+        self.assertTrue(response.json()['usuario']['suspensionHastaTexto'])
+
+    def test_admin_actualiza_contacto_del_index(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.put(
+            '/api/admin/contacto',
+            data=json.dumps({
+                'telefono': '+57 311 111 1111',
+                'whatsapp': '+57 322 222 2222',
+                'correo': 'contacto@legajo.test',
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        contacto = ConfiguracionContacto.obtener()
+        self.assertEqual(contacto.telefono, '+57 311 111 1111')
+        self.assertEqual(contacto.whatsapp, '+57 322 222 2222')
+        self.assertEqual(contacto.correo, 'contacto@legajo.test')
+
+        index_response = self.client.get('/')
+        self.assertContains(index_response, '+57 311 111 1111')
+        self.assertContains(index_response, '+57 322 222 2222')
+        self.assertContains(index_response, 'contacto@legajo.test')
 
     def test_admin_no_desactiva_usuario_sin_motivo(self):
         usuario = self.user_model.objects.create_user(

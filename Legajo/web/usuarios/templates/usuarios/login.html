@@ -101,12 +101,27 @@
                     const data = await res.json();
 
                     if (!res.ok) {
-                        if (data.code === 'account_disabled') {
+                        if (data.code === 'account_suspended') {
+                            await Swal.fire({
+                                icon: 'warning',
+                                title: 'Cuenta suspendida',
+                                html: `
+                                    <p>Tu cuenta fue suspendida temporalmente.</p>
+                                    <p style="margin-top:10px;"><strong>Hasta:</strong> ${escaparHtml(data.suspendedUntil || 'Fecha no especificada.')}</p>
+                                    <p style="margin-top:10px;"><strong>Motivo:</strong> ${escaparHtml(data.reason || 'No especificado.')}</p>
+                                `,
+                                confirmButtonText: 'Ir a inicio',
+                                allowOutsideClick: false
+                            });
+                            window.location.href = data.landingUrl || "{% url 'index' %}";
+                            return;
+                        }
+                        if (data.code === 'account_blocked' || data.code === 'account_disabled') {
                             await Swal.fire({
                                 icon: 'error',
-                                title: 'Cuenta desactivada',
+                                title: 'Cuenta bloqueada',
                                 html: `
-                                    <p>Tu cuenta fue desactivada por administracion.</p>
+                                    <p>Tu cuenta ha sido bloqueada por administracion.</p>
                                     <p style="margin-top:10px;"><strong>Motivo:</strong> ${escaparHtml(data.reason || 'No especificado.')}</p>
                                 `,
                                 confirmButtonText: 'Ir a inicio',

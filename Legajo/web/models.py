@@ -5,7 +5,7 @@ y para que imports antiguos como `from web.models import Libro` sigan funcionand
 La implementacion real vive dentro de los modulos de dominio.
 """
 
-from .administracion.models import NotificacionUsuario, ReporteUsuario
+from .administracion.models import ConfiguracionContacto, NotificacionUsuario, ReporteUsuario
 from .gestion_libros.models import Autor, CalificacionLibro, Genero, Libro
 from .intercambios.models import Intercambio
 from .usuarios.models import Usuario, UsuarioManager
@@ -14,6 +14,7 @@ from .usuarios.models import Usuario, UsuarioManager
 __all__ = [
     'Autor',
     'CalificacionLibro',
+    'ConfiguracionContacto',
     'Genero',
     'Intercambio',
     'Libro',

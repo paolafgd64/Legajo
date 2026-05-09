@@ -124,21 +124,21 @@
                         <img src="{% static 'usuarios/imgs/whatsapp.png' %}" alt="WhatsApp">
                         <div>
                             <h3>WhatsApp</h3>
-                            <p>+57 300 0000000</p>
+                            <p>{{ contacto_sitio.whatsapp }}</p>
                         </div>
                     </article>
                     <article>
                         <img src="{% static 'usuarios/imgs/telefono.png' %}" alt="Telefono">
                         <div>
                             <h3>Telefono</h3>
-                            <p>+57 300 0000000</p>
+                            <p>{{ contacto_sitio.telefono }}</p>
                         </div>
                     </article>
                     <article>
                         <img src="{% static 'usuarios/imgs/email.png' %}" alt="Correo electronico">
                         <div>
                             <h3>Email</h3>
-                            <p>administracionlegajo@gmail.com</p>
+                            <p>{{ contacto_sitio.correo }}</p>
                         </div>
                     </article>
                 </div>
@@ -149,7 +149,7 @@
 
     <footer class="landing-footer">
         <p>Copyright © 2026 Legajo</p>
-        <p>Contactanos: +57 300 0000000</p>
+        <p>Contactanos: {{ contacto_sitio.telefono }}</p>
     </footer>
 
     <script>

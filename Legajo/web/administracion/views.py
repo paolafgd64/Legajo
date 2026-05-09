@@ -5,13 +5,17 @@ seguimiento de reportes de usuarios.
 """
 
 import json
+from datetime import timedelta
 from json import JSONDecodeError
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
 from django.db import DatabaseError
 from django.db.models import Avg, Count, Q
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
+from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods
@@ -27,10 +31,29 @@ from .helpers import (
     _get_admin_dashboard_context,
     _serialize_admin_user,
 )
-from .models import NotificacionUsuario, ReporteUsuario
+from .models import ConfiguracionContacto, NotificacionUsuario, ReporteUsuario
 
 
 User = get_user_model()
+
+
+def _calcular_fin_suspension(data):
+    try:
+        valor = int(data.get('duracionValor') or 0)
+    except (TypeError, ValueError):
+        return None, 'Indica una duracion de suspension valida.'
+
+    unidad = str(data.get('duracionUnidad') or 'dias').strip().lower()
+    if valor <= 0:
+        return None, 'La duracion de la suspension debe ser mayor a cero.'
+    if unidad not in {'horas', 'dias'}:
+        return None, 'La unidad de suspension no es valida.'
+
+    delta = timedelta(hours=valor) if unidad == 'horas' else timedelta(days=valor)
+    if delta > timedelta(days=365):
+        return None, 'La suspension no puede superar 365 dias.'
+
+    return timezone.now() + delta, ''
 
 
 def _wants_json_response(request):
@@ -213,6 +236,47 @@ def perfil_admin(request):
     return render(request, 'administracion/perfil_admin.html', {
         'perfil_usuario': user,
         'nombre_completo': ' '.join(filter(None, [user.nombre1, user.nombre2, user.apellido1, user.apellido2])),
+        'contacto_sitio': ConfiguracionContacto.obtener(),
+    })
+
+
+@login_required(login_url='login')
+@require_http_methods(["GET", "PUT"])
+def api_admin_contact_config(request):
+    admin_error = _admin_required_response(request)
+    if admin_error:
+        return admin_error
+
+    contacto = ConfiguracionContacto.obtener()
+    if request.method == 'PUT':
+        data = _read_json_body(request)
+        if data is None:
+            return JsonResponse({'message': 'El cuerpo de la solicitud no es JSON valido.'}, status=400)
+
+        telefono = str(data.get('telefono') or '').strip()
+        whatsapp = str(data.get('whatsapp') or '').strip()
+        correo = str(data.get('correo') or '').strip().lower()
+
+        if not telefono or not whatsapp or not correo:
+            return JsonResponse({'message': 'Telefono, WhatsApp y correo son obligatorios.'}, status=400)
+        if len(telefono) > 30 or len(whatsapp) > 30:
+            return JsonResponse({'message': 'Telefono y WhatsApp no deben superar 30 caracteres.'}, status=400)
+        if not all(char.isdigit() or char in '+ ()-' for char in telefono + whatsapp):
+            return JsonResponse({'message': 'Telefono y WhatsApp solo deben contener numeros, espacios, +, guiones o parentesis.'}, status=400)
+        try:
+            validate_email(correo)
+        except ValidationError:
+            return JsonResponse({'message': 'Ingresa un correo electronico valido.'}, status=400)
+
+        contacto.telefono = telefono
+        contacto.whatsapp = whatsapp
+        contacto.correo = correo
+        contacto.save(update_fields=['telefono', 'whatsapp', 'correo', 'fecha_actualizacion'])
+
+    return JsonResponse({
+        'telefono': contacto.telefono,
+        'whatsapp': contacto.whatsapp,
+        'correo': contacto.correo,
     })
 
 
@@ -345,27 +409,47 @@ def api_admin_update_user_status(request, user_id):
         return JsonResponse({'message': 'Usuario no encontrado.'}, status=404)
 
     if usuario.id == request.user.id and not activo:
-        return JsonResponse({'message': 'No puedes desactivar tu propia cuenta de administrador.'}, status=400)
+        return JsonResponse({'message': 'No puedes suspender o bloquear tu propia cuenta de administrador.'}, status=400)
 
     if activo:
         usuario.activo = True
         usuario.is_active = True
         usuario.motivo_desactivacion = ''
+        usuario.suspension_hasta = None
     else:
         motivo = str(data.get('motivo') or '').strip()
         if len(motivo) < 10:
             return JsonResponse({'message': 'Debes escribir un motivo de al menos 10 caracteres.'}, status=400)
+
+        accion = str(data.get('accion') or 'bloquear').strip().lower()
+        if accion not in {'suspender', 'bloquear'}:
+            return JsonResponse({'message': 'La accion enviada no es valida.'}, status=400)
+
         usuario.activo = False
         usuario.is_active = False
         usuario.motivo_desactivacion = motivo
+        usuario.suspension_hasta = None
+
+        if accion == 'suspender':
+            suspension_hasta, error = _calcular_fin_suspension(data)
+            if error:
+                return JsonResponse({'message': error}, status=400)
+            usuario.suspension_hasta = suspension_hasta
 
     try:
-        usuario.save(update_fields=['activo', 'is_active', 'motivo_desactivacion'])
+        usuario.save(update_fields=['activo', 'is_active', 'motivo_desactivacion', 'suspension_hasta'])
     except DatabaseError:
         return JsonResponse({'message': 'No fue posible actualizar el estado del usuario.'}, status=500)
 
+    if not activo and usuario.suspension_hasta:
+        mensaje = f'Usuario suspendido hasta {timezone.localtime(usuario.suspension_hasta).strftime("%Y-%m-%d %H:%M")}.'
+    elif not activo:
+        mensaje = 'Usuario bloqueado correctamente.'
+    else:
+        mensaje = 'Usuario activado correctamente.'
+
     return JsonResponse({
-        'message': 'Usuario activado correctamente.' if activo else 'Usuario desactivado correctamente.',
+        'message': mensaje,
         'usuario': _serialize_admin_user(usuario),
     })
 

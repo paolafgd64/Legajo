@@ -27,7 +27,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods
 
-from ..administracion.models import ReporteUsuario
+from ..administracion.models import ConfiguracionContacto, ReporteUsuario
 from ..gestion_libros.models import Libro
 from ..intercambios.models import Intercambio
 from ..services import list_recommended_books
@@ -138,7 +138,9 @@ def _profile_stats_payload(user):
 
 
 def index(request):
-    return render(request, 'usuarios/index.html')
+    return render(request, 'usuarios/index.html', {
+        'contacto_sitio': ConfiguracionContacto.obtener(),
+    })
 
 
 @ensure_csrf_cookie
@@ -406,12 +408,29 @@ def api_login(request):
     usuario_encontrado = User.objects.filter(email=email).first()
     if usuario_encontrado and usuario_encontrado.check_password(password):
         motivo_desactivacion = (usuario_encontrado.motivo_desactivacion or '').strip()
+        suspension_hasta = getattr(usuario_encontrado, 'suspension_hasta', None)
+        if suspension_hasta and suspension_hasta <= timezone.now():
+            usuario_encontrado.activo = True
+            usuario_encontrado.is_active = True
+            usuario_encontrado.motivo_desactivacion = ''
+            usuario_encontrado.suspension_hasta = None
+            usuario_encontrado.save(update_fields=['activo', 'is_active', 'motivo_desactivacion', 'suspension_hasta'])
+        elif suspension_hasta and (not usuario_encontrado.is_active or not getattr(usuario_encontrado, 'activo', True)):
+            suspension_texto = timezone.localtime(suspension_hasta).strftime('%Y-%m-%d %H:%M')
+            return JsonResponse({
+                'message': f'Tu cuenta esta suspendida hasta {suspension_texto}.',
+                'reason': motivo_desactivacion,
+                'suspendedUntil': suspension_texto,
+                'code': 'account_suspended',
+                'landingUrl': '/',
+            }, status=403)
+
         if not usuario_encontrado.is_active or not getattr(usuario_encontrado, 'activo', True):
             if motivo_desactivacion:
                 return JsonResponse({
-                    'message': 'Tu cuenta fue desactivada por administracion.',
+                    'message': 'Tu cuenta fue bloqueada por administracion.',
                     'reason': motivo_desactivacion,
-                    'code': 'account_disabled',
+                    'code': 'account_blocked',
                     'landingUrl': '/',
                 }, status=403)
             return JsonResponse({'message': 'Tu cuenta esta inactiva. Revisa tu correo y activa tu cuenta.'}, status=403)
