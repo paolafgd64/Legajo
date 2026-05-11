@@ -91,8 +91,11 @@ async function cargarIntercambios() {
     intercambios.forEach((intercambio) => {
       const item = document.createElement('div');
       const fueRechazado = intercambio.estado === 'rechazado';
+      const fueCancelado = intercambio.estado === 'cancelado';
       const estadoClase = fueRechazado
         ? 'estado-rechazado'
+        : fueCancelado
+        ? 'estado-cancelado'
         : intercambio.yaCompletado
         ? 'estado-completado'
         : intercambio.requiereConfirmacionDoble
@@ -100,6 +103,8 @@ async function cargarIntercambios() {
           : 'estado-proceso';
       const estadoTexto = fueRechazado
         ? 'Rechazado'
+        : fueCancelado
+        ? 'Cancelado'
         : intercambio.yaCompletado
         ? 'Completado'
         : intercambio.requiereConfirmacionDoble
@@ -147,6 +152,14 @@ async function cargarIntercambios() {
             </div>
           ` : ''}
           ${intercambio.yaCompletado ? '<div class="intercambio-completado"><i class="fas fa-circle-check"></i> Intercambio completado</div>' : ''}
+          ${intercambio.puedeCancelar ? `
+            <div class="intercambio-cancelar">
+              <button class="btn-cancelar-intercambio" type="button" data-intercambio-id="${intercambio.id}">
+                <i class="fas fa-ban"></i>
+                Cancelar intercambio
+              </button>
+            </div>
+          ` : ''}
         </div>
       `;
       lista.appendChild(item);
@@ -154,6 +167,10 @@ async function cargarIntercambios() {
 
     lista.querySelectorAll('.btn-confirmar-intercambio').forEach((button) => {
       button.addEventListener('click', () => confirmarIntercambio(button.dataset.intercambioId));
+    });
+
+    lista.querySelectorAll('.btn-cancelar-intercambio').forEach((button) => {
+      button.addEventListener('click', () => cancelarIntercambio(button.dataset.intercambioId));
     });
   } catch (error) {
     console.error('Error cargando intercambios:', error);
@@ -167,6 +184,54 @@ async function cargarIntercambios() {
   }
 }
 
+async function cancelarIntercambio(intercambioId) {
+  const confirmacion = await Swal.fire({
+    icon: 'warning',
+    title: 'Cancelar intercambio?',
+    text: 'La otra persona vera que cancelaste la solicitud. Esta accion no se puede deshacer.',
+    showCancelButton: true,
+    confirmButtonText: 'Si, cancelar',
+    cancelButtonText: 'Volver',
+    ...legajoSwalOptions
+  });
+
+  if (!confirmacion.isConfirmed) return;
+
+  try {
+    const response = await fetch(`/api/intercambios/${intercambioId}/cancel`, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCsrfTokenChats()
+      },
+      body: JSON.stringify({})
+    });
+
+    const data = await parseJsonResponseChats(response);
+    if (!response.ok) {
+      throw new Error(data.message || 'No se pudo cancelar el intercambio.');
+    }
+
+    await Swal.fire({
+      icon: 'success',
+      title: 'Intercambio cancelado',
+      text: data.message || 'La solicitud fue cancelada correctamente.',
+      ...legajoSwalOptions
+    });
+
+    cargarIntercambios();
+  } catch (error) {
+    console.error('Error cancelando intercambio:', error);
+    Swal.fire({
+      icon: 'error',
+      title: 'Error',
+      text: error.message || 'No se pudo cancelar el intercambio.',
+      ...legajoSwalOptions
+    });
+  }
+}
+
 async function confirmarIntercambio(intercambioId) {
   const confirmacion = await Swal.fire({
     icon: 'question',
@@ -174,7 +239,8 @@ async function confirmarIntercambio(intercambioId) {
     text: 'Marca esta accion solo si el intercambio ya se realizo presencialmente.',
     showCancelButton: true,
     confirmButtonText: 'Si, marcar completado',
-    cancelButtonText: 'Cancelar'
+    cancelButtonText: 'Cancelar',
+    ...legajoSwalOptions
   });
 
   if (!confirmacion.isConfirmed) return;
@@ -198,7 +264,8 @@ async function confirmarIntercambio(intercambioId) {
     await Swal.fire({
       icon: 'success',
       title: data.completado ? 'Intercambio completado' : 'Confirmacion registrada',
-      text: data.message || 'La confirmacion fue registrada correctamente.'
+      text: data.message || 'La confirmacion fue registrada correctamente.',
+      ...legajoSwalOptions
     });
 
     cargarIntercambios();
@@ -207,7 +274,8 @@ async function confirmarIntercambio(intercambioId) {
     Swal.fire({
       icon: 'error',
       title: 'Error',
-      text: error.message || 'No se pudo confirmar el intercambio.'
+      text: error.message || 'No se pudo confirmar el intercambio.',
+      ...legajoSwalOptions
     });
   }
 }

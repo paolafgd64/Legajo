@@ -102,9 +102,9 @@ function mostrarEnTabla(libros) {
           data-libro-id="${libro.id}"
           data-activo="${estaActivo ? 'true' : 'false'}"
           data-titulo="${escapeHtml(libro.titulo || 'este libro')}"
-          title="${estaActivo ? 'Inactivar libro' : 'Activar libro'}"
+          title="${estaActivo ? 'Desactivar libro' : 'Activar libro'}"
         >
-          ${estaActivo ? '<i class="fas fa-check-circle"></i> Activo' : '<i class="fas fa-ban"></i> Inactivo'}
+          ${estaActivo ? '<i class="fas fa-check-circle"></i> Activo' : '<i class="fas fa-ban"></i> Desactivado'}
         </button>
       </td>
     `;
@@ -186,15 +186,15 @@ async function manejarCambioActivoLibro(button) {
   if (window.Swal) {
     const result = await Swal.fire({
       icon: 'warning',
-      title: 'Inactivar libro',
-      html: `<p style="margin-bottom:12px;">Escribe el motivo por el que vas a inactivar <strong>${escapeHtml(titulo)}</strong>.</p>`,
+      title: 'Desactivar libro',
+      html: `<p style="margin-bottom:12px;">Escribe el motivo por el que vas a desactivar <strong>${escapeHtml(titulo)}</strong>.</p>`,
       input: 'textarea',
-      inputPlaceholder: 'Motivo de inactivacion...',
+      inputPlaceholder: 'Motivo de desactivacion...',
       inputAttributes: {
-        'aria-label': 'Motivo de inactivacion'
+        'aria-label': 'Motivo de desactivacion'
       },
       showCancelButton: true,
-      confirmButtonText: 'Inactivar',
+      confirmButtonText: 'Desactivar',
       cancelButtonText: 'Cancelar',
       buttonsStyling: false,
       customClass: legajoSwalClasses,
@@ -209,7 +209,7 @@ async function manejarCambioActivoLibro(button) {
     if (!result.isConfirmed) return;
     motivo = result.value.trim();
   } else {
-    const value = window.prompt(`Motivo para inactivar "${titulo}":`);
+    const value = window.prompt(`Motivo para desactivar "${titulo}":`);
     if (value === null) return;
     motivo = value.trim();
     if (motivo.length < 10) {
@@ -227,7 +227,7 @@ async function manejarCambioActivoLibro(button) {
     if (window.Swal) {
       await Swal.fire({
         icon: 'success',
-        title: 'Libro inactivado',
+        title: 'Libro desactivado',
         text: 'El motivo fue enviado al usuario en sus notificaciones.',
         confirmButtonText: 'Continuar',
         buttonsStyling: false,

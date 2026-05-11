@@ -6,7 +6,10 @@ mantener los endpoints mas pequeños y faciles de entender.
 
 from django.db import DatabaseError, transaction
 from django.db.models import Avg, Case, Count, IntegerField, Q, Value, When
+from django.utils import timezone
 
+from ..administracion.models import NotificacionUsuario
+from ..intercambios.models import Intercambio
 from ..models import Autor, Genero, Libro, Usuario
 from ..validators import (
     DatabaseServiceError,
@@ -298,6 +301,59 @@ def _apply_book_payload(libro, payload, url_imagen):
     libro.generos.set([genero])
 
 
+def _cancel_pending_exchanges_for_reading_book(libro, cancelado_por):
+    intercambios = list(
+        Intercambio.objects.select_related('usuario_solicitante', 'libro_solicitado').filter(
+            libro_solicitado=libro,
+            estado=Intercambio.Estado.PENDIENTE,
+            activo=True,
+        )
+    )
+
+    if not intercambios:
+        return 0
+
+    now = timezone.now()
+    notificaciones = []
+    for intercambio in intercambios:
+        intercambio.estado = Intercambio.Estado.CANCELADO
+        intercambio.libro_cambio = None
+        intercambio.fecha_confirmacion = now
+        intercambio.confirmacion_solicitante = False
+        intercambio.confirmacion_receptor = False
+        intercambio.pin_validacion = None
+        intercambio.notificacion_leida = True
+        intercambio.cancelado_por = cancelado_por
+
+        if intercambio.usuario_solicitante_id:
+            titulo = intercambio.libro_solicitado.titulo if intercambio.libro_solicitado else 'el libro solicitado'
+            notificaciones.append(NotificacionUsuario(
+                usuario=intercambio.usuario_solicitante,
+                mensaje=(
+                    f'Se cancelo el intercambio por "{titulo}" porque el usuario cambio '
+                    'el estado del libro a Leyendo.'
+                ),
+            ))
+
+    Intercambio.objects.bulk_update(
+        intercambios,
+        [
+            'estado',
+            'libro_cambio',
+            'fecha_confirmacion',
+            'confirmacion_solicitante',
+            'confirmacion_receptor',
+            'pin_validacion',
+            'notificacion_leida',
+            'cancelado_por',
+        ],
+    )
+    if notificaciones:
+        NotificacionUsuario.objects.bulk_create(notificaciones)
+
+    return len(intercambios)
+
+
 # Crea libro + relaciones (autor/genero) en una transaccion atomica.
 def create_book(user, data, image_file=None):
     payload = validate_book_payload(data)
@@ -437,6 +493,8 @@ def update_book(user, libro_id, data, image_file=None):
             kept_copies = matching_copies[:cantidad] if sync_copy_count else matching_copies
             for copy in kept_copies:
                 _apply_book_payload(copy, payload, url_imagen)
+                if payload['estado'] == Libro.Estado.LEYENDO:
+                    _cancel_pending_exchanges_for_reading_book(copy, user)
 
             if sync_copy_count:
                 for copy in matching_copies[cantidad:]:

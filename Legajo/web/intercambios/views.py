@@ -67,6 +67,8 @@ def api_intercambios(request):
             descripcion = f'Completado: "{libro_solicitado}" por "{libro_cambio}".'
         elif intercambio.estado == Intercambio.Estado.RECHAZADO:
             descripcion = f'Rechazado: la solicitud por "{libro_solicitado}" no fue aceptada.'
+        elif intercambio.estado == Intercambio.Estado.CANCELADO:
+            descripcion = f'Cancelado: se cancelo la solicitud por "{libro_solicitado}".'
         else:
             descripcion = f'Estado: {intercambio.estado}.'
 
@@ -84,6 +86,7 @@ def api_intercambios(request):
             'libroCambio': libro_cambio,
             'requiereConfirmacionDoble': intercambio.estado == Intercambio.Estado.ACEPTADO,
             'yaCompletado': intercambio.estado == Intercambio.Estado.COMPLETADO,
+            'puedeCancelar': es_solicitante and intercambio.estado == Intercambio.Estado.PENDIENTE,
             'confirmoActual': confirmo_actual,
             'confirmoContraparte': confirmo_contraparte,
         })
@@ -118,8 +121,14 @@ def api_notificaciones(request):
             mensaje = f'Tienes un intercambio aceptado para "{titulo_libro}".'
         elif intercambio.estado == Intercambio.Estado.RECHAZADO:
             mensaje = f'Rechazaste la solicitud por "{titulo_libro}".'
+        elif intercambio.estado == Intercambio.Estado.CANCELADO and intercambio.cancelado_por_id == intercambio.usuario_solicitante_id:
+            mensaje = f'{nombre_solicitante} cancelo el intercambio por tu libro "{titulo_libro}".'
+        elif intercambio.estado == Intercambio.Estado.CANCELADO:
+            continue
         else:
             mensaje = f'El intercambio por "{titulo_libro}" fue completado.'
+
+        fecha_notificacion = intercambio.fecha_confirmacion if intercambio.estado == Intercambio.Estado.CANCELADO and intercambio.fecha_confirmacion else intercambio.fecha_solicitud
 
         resultado.append({
             'id': intercambio.id,
@@ -128,9 +137,9 @@ def api_notificaciones(request):
             'libro': titulo_libro,
             'estado': intercambio.estado,
             'mensaje': mensaje,
-            'fecha': intercambio.fecha_solicitud.strftime('%Y-%m-%d %H:%M'),
-            'timestamp': intercambio.fecha_solicitud.isoformat(),
-            'esNueva': intercambio.estado == Intercambio.Estado.PENDIENTE,
+            'fecha': fecha_notificacion.strftime('%Y-%m-%d %H:%M'),
+            'timestamp': fecha_notificacion.isoformat(),
+            'esNueva': intercambio.estado in {Intercambio.Estado.PENDIENTE, Intercambio.Estado.CANCELADO} and not intercambio.notificacion_leida,
             'puedeAceptar': intercambio.estado == Intercambio.Estado.PENDIENTE,
         })
 
@@ -195,7 +204,7 @@ def api_notificaciones(request):
             'mensaje': mensaje,
             'fecha': reporte.fecha_reporte.strftime('%Y-%m-%d %H:%M'),
             'timestamp': reporte.fecha_reporte.isoformat(),
-            'esNueva': True,
+            'esNueva': str(reporte.id) not in request.session.get('reportes_notificados_leidos', []),
             'puedeAceptar': False,
         })
 
@@ -205,6 +214,43 @@ def api_notificaciones(request):
         item.pop('reporteId', None)
 
     return JsonResponse(resultado, safe=False)
+
+
+@require_http_methods(["POST"])
+def api_marcar_notificaciones_leidas(request):
+    if not request.user.is_authenticated:
+        return _unauthorized_response()
+
+    intercambios_actualizados = Intercambio.objects.filter(
+        usuario_receptor=request.user,
+        activo=True,
+        estado__in=[Intercambio.Estado.PENDIENTE, Intercambio.Estado.CANCELADO],
+        notificacion_leida=False,
+    ).update(notificacion_leida=True)
+
+    notificaciones_actualizadas = 0
+    try:
+        notificaciones_actualizadas = NotificacionUsuario.objects.filter(
+            usuario=request.user,
+            activo=True,
+            leida=False,
+        ).update(leida=True)
+    except DatabaseError:
+        pass
+
+    reportes_resueltos = ReporteUsuario.objects.filter(
+        usuario_reportante=request.user,
+        activo=True,
+        estado__in=[ReporteUsuario.Estado.REVISADO, ReporteUsuario.Estado.DESCARTADO],
+    ).values_list('id', flat=True)
+    request.session['reportes_notificados_leidos'] = [str(reporte_id) for reporte_id in reportes_resueltos]
+    request.session.modified = True
+
+    return JsonResponse({
+        'ok': True,
+        'intercambiosMarcados': intercambios_actualizados,
+        'notificacionesMarcadas': notificaciones_actualizadas,
+    })
 
 
 @require_http_methods(["GET"])
@@ -335,6 +381,50 @@ def api_rechazar_intercambio(request, intercambio_id):
     titulo_solicitado = intercambio.libro_solicitado.titulo if intercambio.libro_solicitado else 'el libro solicitado'
     return JsonResponse({
         'message': f'Rechazaste la solicitud de intercambio por "{titulo_solicitado}".',
+        'idIntercambio': intercambio.id,
+    })
+
+
+@require_http_methods(["POST"])
+def api_cancelar_intercambio(request, intercambio_id):
+    if not request.user.is_authenticated:
+        return _unauthorized_response()
+
+    try:
+        intercambio = Intercambio.objects.select_related('usuario_receptor', 'usuario_solicitante', 'libro_solicitado').get(
+            id=intercambio_id,
+            activo=True,
+        )
+    except Intercambio.DoesNotExist:
+        return JsonResponse({'message': 'Intercambio no encontrado.'}, status=404)
+
+    if intercambio.usuario_solicitante_id != request.user.id:
+        return JsonResponse({'message': 'Solo quien envio la solicitud puede cancelar este intercambio.'}, status=403)
+    if intercambio.estado != Intercambio.Estado.PENDIENTE:
+        return JsonResponse({'message': 'Solo puedes cancelar solicitudes pendientes.'}, status=400)
+
+    intercambio.estado = Intercambio.Estado.CANCELADO
+    intercambio.libro_cambio = None
+    intercambio.fecha_confirmacion = timezone.now()
+    intercambio.confirmacion_solicitante = False
+    intercambio.confirmacion_receptor = False
+    intercambio.pin_validacion = None
+    intercambio.notificacion_leida = False
+    intercambio.cancelado_por = request.user
+    intercambio.save(update_fields=[
+        'estado',
+        'libro_cambio',
+        'fecha_confirmacion',
+        'confirmacion_solicitante',
+        'confirmacion_receptor',
+        'pin_validacion',
+        'notificacion_leida',
+        'cancelado_por',
+    ])
+
+    titulo_solicitado = intercambio.libro_solicitado.titulo if intercambio.libro_solicitado else 'el libro solicitado'
+    return JsonResponse({
+        'message': f'Cancelaste la solicitud de intercambio por "{titulo_solicitado}".',
         'idIntercambio': intercambio.id,
     })
 

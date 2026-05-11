@@ -11,6 +11,7 @@ class Intercambio(models.Model):
         PENDIENTE = 'pendiente', 'Pendiente'
         ACEPTADO = 'aceptado', 'Aceptado'
         RECHAZADO = 'rechazado', 'Rechazado'
+        CANCELADO = 'cancelado', 'Cancelado'
         COMPLETADO = 'completado', 'Completado'
 
     fecha_solicitud = models.DateTimeField(auto_now_add=True)
@@ -19,6 +20,7 @@ class Intercambio(models.Model):
     pin_validacion = models.CharField(max_length=6, null=True, blank=True)
     confirmacion_solicitante = models.BooleanField(default=False)
     confirmacion_receptor = models.BooleanField(default=False)
+    notificacion_leida = models.BooleanField(default=False)
     estado = models.CharField(max_length=20, choices=Estado.choices)
     usuario_solicitante = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -31,6 +33,13 @@ class Intercambio(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         related_name='recepciones',
+    )
+    cancelado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='intercambios_cancelados',
     )
     libro_solicitado = models.ForeignKey(
         Libro,

@@ -4,8 +4,8 @@
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>Dashboard Usuario</title>
-    <link rel="stylesheet" href="{% static 'usuarios/css/dashboard.css' %}?v=20260430f"/>
+    <title>Notificaciones | Legajo</title>
+    <link rel="stylesheet" href="{% static 'usuarios/css/dashboard.css' %}?v=20260511c"/>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -39,12 +39,35 @@
             </div>
         </header>
 
-        <section class="chat-lista" id="listaNotificaciones">
-            <p style="padding: 20px;">Cargando notificaciones...</p>
+        <section class="notificaciones-shell" aria-labelledby="notificacionesTitulo">
+            <div class="notificaciones-hero">
+                <div>
+                    <span class="notificaciones-kicker">Centro de actividad</span>
+                    <h2 id="notificacionesTitulo">Tus notificaciones</h2>
+                    <p>Revisa solicitudes de intercambio, respuestas del equipo y novedades importantes de tu cuenta.</p>
+                </div>
+                <div class="notificaciones-hero-icon" aria-hidden="true">
+                    <i class="fas fa-bell"></i>
+                </div>
+            </div>
+
+            <div class="notificaciones-toolbar">
+                <div>
+                    <span class="notificaciones-count" id="notificacionesCount">0 notificaciones</span>
+                    <p id="notificacionesResumen">Cargando actividad reciente...</p>
+                </div>
+            </div>
+
+            <div class="notificaciones-lista" id="listaNotificaciones" aria-live="polite">
+                <div class="notificaciones-state">
+                    <i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i>
+                    <span>Cargando notificaciones...</span>
+                </div>
+            </div>
         </section>
     </main>
-    <script src="{% static 'usuarios/js/script.js' %}"></script>
-    <script src="{% static 'intercambios/js/notificaciones.js' %}?v=20260430a"></script>
+    <script src="{% static 'usuarios/js/script.js' %}?v=20260511a"></script>
+    <script src="{% static 'intercambios/js/notificaciones.js' %}?v=20260511g"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="{% static 'usuarios/js/swal-theme.js' %}?v=20260430a"></script>
 </body>

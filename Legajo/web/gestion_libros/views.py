@@ -216,11 +216,11 @@ def api_admin_actualizar_estado_libro(request, libro_id):
         if activo:
             mensaje = f'Tu libro "{libro.titulo}" fue activado nuevamente por el equipo administrador.'
         else:
-            mensaje = f'Tu libro "{libro.titulo}" fue inactivado por el equipo administrador. Motivo: {motivo}'
+            mensaje = f'Tu libro "{libro.titulo}" fue desactivado por el equipo administrador. Motivo: {motivo}'
         NotificacionUsuario.objects.create(usuario=propietario, mensaje=mensaje)
 
     return JsonResponse({
-        'message': 'Libro activado correctamente.' if activo else 'Libro inactivado correctamente.',
+        'message': 'Libro activado correctamente.' if activo else 'Libro desactivado correctamente.',
         'libro': serialize_book(libro),
     })
 
@@ -451,7 +451,7 @@ def reporte_libros_pdf(request):
             serialized['autor'],
             serialized['genero'],
             serialized['estado'],
-            'Activo' if serialized['activo'] else 'Inactivo',
+            'Activo' if serialized['activo'] else 'Desactivado',
             f"{serialized['calificacion']:.1f}/5" if serialized['totalCalificaciones'] else 'Sin resenas',
         ])
 

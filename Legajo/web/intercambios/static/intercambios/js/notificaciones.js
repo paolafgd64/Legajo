@@ -42,6 +42,78 @@ function escapeHtml(value) {
     .replaceAll('"', '&quot;');
 }
 
+function obtenerMetaNotificacion(notificacion) {
+  const tipo = String(notificacion.tipo || '').toLowerCase();
+  const estado = String(notificacion.estado || '').toLowerCase();
+
+  if (tipo === 'sistema') {
+    return {
+      clase: 'sistema',
+      icono: 'fa-shield-halved',
+      etiqueta: 'Sistema'
+    };
+  }
+
+  if (estado === 'aceptado') {
+    return {
+      clase: 'aceptada',
+      icono: 'fa-handshake',
+      etiqueta: 'Aceptado'
+    };
+  }
+
+  if (estado === 'rechazado') {
+    return {
+      clase: 'rechazada',
+      icono: 'fa-circle-xmark',
+      etiqueta: 'Rechazado'
+    };
+  }
+
+  if (estado === 'cancelado') {
+    return {
+      clase: 'cancelada',
+      icono: 'fa-ban',
+      etiqueta: 'Cancelado'
+    };
+  }
+
+  if (estado === 'completado') {
+    return {
+      clase: 'completada',
+      icono: 'fa-circle-check',
+      etiqueta: 'Completado'
+    };
+  }
+
+  return {
+    clase: 'pendiente',
+    icono: 'fa-book-open-reader',
+    etiqueta: 'Intercambio'
+  };
+}
+
+function actualizarResumenNotificaciones(notificaciones) {
+  const count = document.getElementById('notificacionesCount');
+  const resumen = document.getElementById('notificacionesResumen');
+  const total = Array.isArray(notificaciones) ? notificaciones.length : 0;
+  const nuevas = Array.isArray(notificaciones) ? notificaciones.filter((item) => item.esNueva).length : 0;
+
+  if (count) {
+    count.textContent = `${total} ${total === 1 ? 'notificacion' : 'notificaciones'}`;
+  }
+
+  if (resumen) {
+    if (!total) {
+      resumen.textContent = 'No hay actividad pendiente por revisar.';
+    } else if (nuevas) {
+      resumen.textContent = `${nuevas} ${nuevas === 1 ? 'nueva' : 'nuevas'} requieren tu atencion.`;
+    } else {
+      resumen.textContent = 'Estas al dia con tu actividad reciente.';
+    }
+  }
+}
+
 function normalizarTelefonoWhatsapp(telefono) {
   const limpio = String(telefono || '').replace(/\D/g, '');
   if (!limpio) return '';
@@ -60,6 +132,23 @@ async function parseJsonResponse(response) {
     }
     throw new Error('Respuesta invalida del servidor.');
   }
+}
+
+async function marcarNotificacionesComoLeidas() {
+  const response = await fetch('/api/notificaciones/marcar-leidas', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: {
+      Accept: 'application/json',
+      'X-CSRFToken': getCsrfToken()
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error('No se pudieron marcar las notificaciones como leidas');
+  }
+
+  return response.json();
 }
 
 async function cargarNotificaciones() {
@@ -87,22 +176,38 @@ async function cargarNotificaciones() {
 
     const notificaciones = await res.json();
     lista.innerHTML = '';
+    actualizarResumenNotificaciones(notificaciones);
+    window.actualizarContadorNotificaciones?.();
 
     if (!Array.isArray(notificaciones) || notificaciones.length === 0) {
-      lista.innerHTML = '<p style="padding: 20px;">No tienes notificaciones por ahora.</p>';
+      lista.innerHTML = `
+        <div class="notificaciones-state notificaciones-empty">
+          <i class="fas fa-inbox" aria-hidden="true"></i>
+          <strong>No tienes notificaciones por ahora</strong>
+          <span>Cuando alguien solicite un intercambio o el equipo responda una novedad, aparecera aqui.</span>
+        </div>
+      `;
       return;
     }
 
     notificaciones.forEach((notificacion) => {
+      const meta = obtenerMetaNotificacion(notificacion);
       const item = document.createElement('div');
-      item.className = `chat-item${notificacion.esNueva ? ' no-leido' : ''}`;
+      item.className = `notificacion-card ${meta.clase}${notificacion.esNueva ? ' no-leido' : ''}`;
       item.innerHTML = `
-        <div class="chat-main">
-          <div class="chat-name">${escapeHtml(notificacion.usuario)}</div>
-          <div class="chat-info">${escapeHtml(notificacion.fecha)}</div>
-          <div class="chat-last-message">${escapeHtml(notificacion.mensaje)}</div>
+        <div class="notificacion-icon" aria-hidden="true">
+          <i class="fas ${meta.icono}"></i>
         </div>
-        ${notificacion.puedeAceptar ? `<div class="chat-actions"><button class="btn-amarillo btn-ver-inventario" data-intercambio-id="${notificacion.id}" data-usuario="${escapeHtml(notificacion.usuario)}">Ver inventario</button></div>` : ''}
+        <div class="notificacion-main">
+          <div class="notificacion-topline">
+            <span class="notificacion-badge">${escapeHtml(meta.etiqueta)}</span>
+            ${notificacion.esNueva ? '<span class="notificacion-new">Nuevo</span>' : ''}
+          </div>
+          <h3>${escapeHtml(notificacion.usuario)}</h3>
+          <p>${escapeHtml(notificacion.mensaje)}</p>
+          <time>${escapeHtml(notificacion.fecha)}</time>
+        </div>
+        ${notificacion.puedeAceptar ? `<div class="notificacion-actions"><button class="btn-amarillo btn-ver-inventario" data-intercambio-id="${notificacion.id}" data-usuario="${escapeHtml(notificacion.usuario)}"><i class="fas fa-book" aria-hidden="true"></i><span>Ver inventario</span></button></div>` : ''}
       `;
       lista.appendChild(item);
     });
@@ -113,9 +218,24 @@ async function cargarNotificaciones() {
         button.dataset.usuario
       ));
     });
+
+    try {
+      await marcarNotificacionesComoLeidas();
+      window.actualizarContadorNotificaciones?.();
+    } catch (error) {
+      console.warn('No se pudieron marcar las notificaciones como leidas:', error);
+    }
   } catch (error) {
     console.error('Error cargando notificaciones:', error);
-    lista.innerHTML = '<p style="padding: 20px;">No se pudieron cargar las notificaciones.</p>';
+    actualizarResumenNotificaciones([]);
+    window.actualizarContadorNotificaciones?.();
+    lista.innerHTML = `
+      <div class="notificaciones-state notificaciones-error">
+        <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+        <strong>No se pudieron cargar las notificaciones</strong>
+        <span>Recarga la pagina o intenta de nuevo en unos segundos.</span>
+      </div>
+    `;
   }
 }
 
@@ -168,7 +288,7 @@ async function abrirInventarioSolicitante(intercambioId, nombreUsuario) {
       showDenyButton: true,
       confirmButtonText: 'Aceptar intercambio',
       denyButtonText: 'Rechazar intercambio',
-      cancelButtonText: 'Cancelar',
+      cancelButtonText: 'Volver',
       customClass: {
         popup: 'perfil-swal-popup inventory-swal-popup',
         title: 'perfil-swal-title',
@@ -254,8 +374,11 @@ async function rechazarIntercambio(intercambioId) {
     confirmButtonText: 'Si, rechazar',
     cancelButtonText: 'Volver',
     customClass: {
-      confirmButton: 'perfil-swal-deny',
-      cancelButton: 'perfil-swal-cancel'
+      popup: 'legajo-swal-popup',
+      title: 'legajo-swal-title',
+      htmlContainer: 'legajo-swal-html',
+      confirmButton: 'legajo-swal-deny',
+      cancelButton: 'legajo-swal-cancel'
     },
     buttonsStyling: false
   });

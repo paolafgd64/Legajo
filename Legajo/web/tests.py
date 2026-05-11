@@ -603,6 +603,58 @@ class InventarioApiTests(TestCase):
         self.assertEqual(str(libro.autores.first()), 'Isabel Allende')
         self.assertEqual(libro.generos.first().nombre, 'Novela')
 
+    def test_marcar_libro_como_leyendo_cancela_intercambios_pendientes(self):
+        solicitante = get_user_model().objects.create_user(
+            email='solicitante-leyendo@example.com',
+            password='Segura123!@#',
+            nombre1='Solicitante',
+            apellido1='Pendiente',
+            direccion='Calle 10',
+            ciudad='Bogota',
+            telefono=3004567891,
+        )
+        libro = Libro.objects.create(
+            titulo='Libro solicitado',
+            sinopsis='Version inicial',
+            estado=Libro.Estado.PUBLICADO,
+            url_imagen='/static/gestion_libros/imgs/libropredeterminado1.png',
+            usuario_propietario=self.user,
+        )
+        intercambio = Intercambio.objects.create(
+            estado=Intercambio.Estado.PENDIENTE,
+            usuario_solicitante=solicitante,
+            usuario_receptor=self.user,
+            libro_solicitado=libro,
+            libro_cambio=None,
+        )
+
+        self.client.force_login(self.user)
+        response = self.client.put(
+            f'/api/libros/{libro.id}',
+            data=json.dumps({
+                'titulo': 'Libro solicitado',
+                'autor': 'Isabel Allende',
+                'sinopsis': 'Version inicial',
+                'genero': 'Novela',
+                'estado': Libro.Estado.LEYENDO,
+                'urlImagen': libro.url_imagen,
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 200)
+        intercambio.refresh_from_db()
+        self.assertEqual(intercambio.estado, Intercambio.Estado.CANCELADO)
+        self.assertEqual(intercambio.cancelado_por, self.user)
+        self.assertIsNotNone(intercambio.fecha_confirmacion)
+        self.assertTrue(
+            NotificacionUsuario.objects.filter(
+                usuario=solicitante,
+                mensaje__icontains='cambio el estado del libro a Leyendo',
+                leida=False,
+            ).exists()
+        )
+
     def test_actualiza_stock_al_editar_libro(self):
         self.client.force_login(self.user)
         libro = Libro.objects.create(
@@ -999,6 +1051,79 @@ class InventarioApiTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()['message'], 'Este libro no esta disponible para intercambio.')
         self.assertFalse(Intercambio.objects.filter(libro_solicitado=libro).exists())
+
+    def test_solicitante_puede_cancelar_intercambio_pendiente(self):
+        other_user = get_user_model().objects.create_user(
+            email='dueno-cancelar@example.com',
+            password='Segura123!@#',
+            nombre1='Dueno',
+            apellido1='Cancelar',
+            direccion='Calle 80',
+            ciudad='Bogota',
+            telefono=3000000006,
+        )
+        libro = Libro.objects.create(
+            titulo='Libro para cancelar',
+            sinopsis='Disponible',
+            estado=Libro.Estado.PUBLICADO,
+            url_imagen='/static/gestion_libros/imgs/libropredeterminado1.png',
+            usuario_propietario=other_user,
+        )
+        intercambio = Intercambio.objects.create(
+            estado=Intercambio.Estado.PENDIENTE,
+            usuario_solicitante=self.user,
+            usuario_receptor=other_user,
+            libro_solicitado=libro,
+            notificacion_leida=True,
+        )
+
+        self.client.force_login(self.user)
+        response = self.client.post(f'/api/intercambios/{intercambio.id}/cancel')
+
+        self.assertEqual(response.status_code, 200)
+        intercambio.refresh_from_db()
+        self.assertEqual(intercambio.estado, Intercambio.Estado.CANCELADO)
+        self.assertFalse(intercambio.notificacion_leida)
+
+    def test_receptor_ve_notificacion_cuando_solicitante_cancela(self):
+        other_user = get_user_model().objects.create_user(
+            email='dueno-notificacion-cancelar@example.com',
+            password='Segura123!@#',
+            nombre1='Dueno',
+            apellido1='Notificacion',
+            direccion='Calle 81',
+            ciudad='Bogota',
+            telefono=3000000007,
+        )
+        libro = Libro.objects.create(
+            titulo='Libro cancelado',
+            sinopsis='Disponible',
+            estado=Libro.Estado.PUBLICADO,
+            url_imagen='/static/gestion_libros/imgs/libropredeterminado1.png',
+            usuario_propietario=other_user,
+        )
+        intercambio = Intercambio.objects.create(
+            estado=Intercambio.Estado.PENDIENTE,
+            usuario_solicitante=self.user,
+            usuario_receptor=other_user,
+            libro_solicitado=libro,
+            notificacion_leida=True,
+        )
+
+        self.client.force_login(self.user)
+        self.client.post(f'/api/intercambios/{intercambio.id}/cancel')
+
+        self.client.force_login(other_user)
+        response = self.client.get('/api/notificaciones')
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(any(
+            item['estado'] == Intercambio.Estado.CANCELADO
+            and 'cancelo el intercambio' in item['mensaje']
+            and item['esNueva']
+            for item in data
+        ))
 
     def test_completar_intercambio_pone_libros_en_leyendo(self):
         other_user = get_user_model().objects.create_user(
@@ -1721,6 +1846,77 @@ class UserReportsTests(TestCase):
             item['tipo'] == 'sistema' and 'se tomaron las medidas correspondientes' in item['mensaje']
             for item in data
         ))
+
+    def test_usuario_marca_notificaciones_como_leidas_al_entrar(self):
+        libro = Libro.objects.create(
+            titulo='Libro solicitado',
+            sinopsis='Disponible',
+            estado=Libro.Estado.PUBLICADO,
+            url_imagen='/static/gestion_libros/imgs/libropredeterminado1.png',
+            usuario_propietario=self.reportante,
+        )
+        intercambio = Intercambio.objects.create(
+            usuario_solicitante=self.reportado,
+            usuario_receptor=self.reportante,
+            libro_solicitado=libro,
+            estado=Intercambio.Estado.PENDIENTE,
+        )
+        NotificacionUsuario.objects.create(
+            usuario=self.reportante,
+            mensaje='Tienes una novedad administrativa.',
+        )
+
+        self.client.force_login(self.reportante)
+        response = self.client.get('/api/notificaciones')
+        self.assertTrue(any(item['esNueva'] for item in response.json()))
+
+        mark_response = self.client.post('/api/notificaciones/marcar-leidas')
+        self.assertEqual(mark_response.status_code, 200)
+
+        intercambio.refresh_from_db()
+        self.assertTrue(intercambio.notificacion_leida)
+        self.assertTrue(NotificacionUsuario.objects.get(usuario=self.reportante).leida)
+
+        response = self.client.get('/api/notificaciones')
+        self.assertFalse(any(item['esNueva'] for item in response.json()))
+
+    def test_nueva_notificacion_vuelve_a_contar_despues_de_marcar_leidas(self):
+        libro_visto = Libro.objects.create(
+            titulo='Libro visto',
+            sinopsis='Disponible',
+            estado=Libro.Estado.PUBLICADO,
+            url_imagen='/static/gestion_libros/imgs/libropredeterminado1.png',
+            usuario_propietario=self.reportante,
+        )
+        Intercambio.objects.create(
+            usuario_solicitante=self.reportado,
+            usuario_receptor=self.reportante,
+            libro_solicitado=libro_visto,
+            estado=Intercambio.Estado.PENDIENTE,
+        )
+
+        self.client.force_login(self.reportante)
+        self.client.post('/api/notificaciones/marcar-leidas')
+
+        libro_nuevo = Libro.objects.create(
+            titulo='Libro nuevo',
+            sinopsis='Disponible',
+            estado=Libro.Estado.PUBLICADO,
+            url_imagen='/static/gestion_libros/imgs/libropredeterminado1.png',
+            usuario_propietario=self.reportante,
+        )
+        Intercambio.objects.create(
+            usuario_solicitante=self.reportado,
+            usuario_receptor=self.reportante,
+            libro_solicitado=libro_nuevo,
+            estado=Intercambio.Estado.PENDIENTE,
+        )
+
+        response = self.client.get('/api/notificaciones')
+        nuevas = [item for item in response.json() if item['esNueva']]
+
+        self.assertEqual(len(nuevas), 1)
+        self.assertIn('Libro nuevo', nuevas[0]['mensaje'])
 
     def test_dashboard_admin_completed_exchanges_endpoint_devuelve_datos_reales(self):
         libro = Libro.objects.create(

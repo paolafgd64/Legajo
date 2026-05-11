@@ -438,6 +438,18 @@ body.modo-claro .formulario form {
     color: var(--color-texto);
 }
 
+.formulario form.is-submitting button[type="submit"],
+.formulario button[type="submit"]:disabled {
+    opacity: 0.72;
+    cursor: wait;
+    pointer-events: none;
+    filter: saturate(0.85);
+}
+
+.formulario button[type="submit"] .fa-spin {
+    color: inherit;
+}
+
 form a{
     text-decoration: underline;
     color: var(--color-primario);

@@ -36,6 +36,8 @@ async function parseJsonResponseRegistrar(response) {
 document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('registrarLibroForm');
   if (!form) return;
+  const submitButton = form.querySelector('button[type="submit"]');
+  const submitButtonHtml = submitButton?.innerHTML || '';
   const modoEdicion = document.getElementById('modoEdicion')?.value === 'true';
   const libroId = document.getElementById('libroId')?.value;
   const redirectAfterSave = document.getElementById('redirectAfterSave')?.value || '/inventario/';
@@ -75,8 +77,26 @@ document.addEventListener('DOMContentLoaded', () => {
     handleImagePreview();
   }
 
+  let guardandoLibro = false;
+
+  function setFormularioGuardando(isGuardando) {
+    guardandoLibro = isGuardando;
+    form.classList.toggle('is-submitting', isGuardando);
+
+    if (submitButton) {
+      submitButton.disabled = isGuardando;
+      submitButton.classList.toggle('is-loading', isGuardando);
+      submitButton.innerHTML = isGuardando
+        ? `<i class="fas fa-circle-notch fa-spin"></i> ${modoEdicion ? 'Guardando cambios...' : 'Publicando libro...'}`
+        : submitButtonHtml;
+    }
+  }
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (guardandoLibro) return;
+    setFormularioGuardando(true);
+
     const csrfToken = getCookie('csrftoken') || form.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
 
     try {
@@ -158,6 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
         title: modoEdicion ? 'Error al editar' : 'Error al registrar',
         text: err.message || (modoEdicion ? 'No se pudo actualizar el libro' : 'No se pudo registrar el libro')
       });
+      setFormularioGuardando(false);
     }
   });
 });
