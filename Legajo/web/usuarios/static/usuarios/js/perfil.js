@@ -260,6 +260,12 @@ async function editarInformacionPerfil() {
           return false;
         }
 
+        if (payload.telefono.length < 10) {
+          marcarCamposInvalidosPerfil([campos.telefono]);
+          Swal.showValidationMessage('El telefono debe tener al menos 10 numeros.');
+          return false;
+        }
+
         return payload;
       }
     });

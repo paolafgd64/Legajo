@@ -191,6 +191,35 @@ class AuthApiTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()['message'], 'La ciudad no debe superar 20 caracteres.')
 
+    def test_api_me_rechaza_telefono_menor_a_diez_numeros(self):
+        user_model = get_user_model()
+        user = user_model.objects.create_user(
+            email='perfil-telefono@example.com',
+            password='Segura123!@#',
+            nombre1='Perfil',
+            apellido1='Usuario',
+            direccion='Calle 1',
+            ciudad='Bogota',
+            telefono=3001234567,
+        )
+        self.client.force_login(user)
+
+        response = self.client.put(
+            '/api/me/',
+            data=json.dumps({
+                'primerNombre': 'Perfil',
+                'primerApellido': 'Usuario',
+                'correo': 'perfil-telefono@example.com',
+                'direccion': 'Calle 1',
+                'ciudad': 'Bogota',
+                'telefono': '123456789',
+            }),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()['message'], 'El telefono debe tener al menos 10 numeros.')
+
     def test_api_profile_stats_refleja_estado_actual_de_libros(self):
         user_model = get_user_model()
         user = user_model.objects.create_user(

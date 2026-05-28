@@ -149,7 +149,7 @@ function renderEstadoUsuario(usuario) {
 }
 
 function leerPayloadEstadoUsuario() {
-  const accion = document.querySelector('input[name="accionUsuario"]:checked')?.value || 'suspender';
+  const accion = document.getElementById('accionEstadoUsuario')?.value || 'suspender';
   const motivo = document.getElementById('motivoEstadoUsuario')?.value.trim() || '';
   const duracionValor = document.getElementById('duracionSuspensionUsuario')?.value || '';
   const duracionUnidad = document.getElementById('unidadSuspensionUsuario')?.value || 'dias';
@@ -392,11 +392,8 @@ async function manejarCambioEstadoUsuario(button) {
       title: 'Suspender o bloquear usuario',
       html: `
         <div class="admin-status-modal">
-          <p>Define que accion aplicar a <strong>${escapeHtml(nombre)}</strong> y registra el motivo.</p>
-          <label class="admin-status-option">
-            <input type="radio" name="accionUsuario" value="suspender" checked>
-            <span>Suspender temporalmente</span>
-          </label>
+          <p>Registra el motivo para <strong>${escapeHtml(nombre)}</strong> y elige la accion con uno de los botones.</p>
+          <input type="hidden" id="accionEstadoUsuario" value="suspender">
           <div class="admin-suspension-fields" id="camposSuspensionUsuario">
             <input id="duracionSuspensionUsuario" type="number" min="1" max="365" value="7" aria-label="Duracion de suspension">
             <select id="unidadSuspensionUsuario" aria-label="Unidad de suspension">
@@ -404,10 +401,6 @@ async function manejarCambioEstadoUsuario(button) {
               <option value="horas">Horas</option>
             </select>
           </div>
-          <label class="admin-status-option">
-            <input type="radio" name="accionUsuario" value="bloquear">
-            <span>Bloquear permanentemente</span>
-          </label>
           <textarea id="motivoEstadoUsuario" class="legajo-swal-input admin-status-reason" placeholder="Motivo..." aria-label="Motivo"></textarea>
           <div class="admin-status-actions">
             <button type="button" id="confirmarSuspensionUsuario" class="admin-status-action-button suspend">
@@ -425,27 +418,24 @@ async function manejarCambioEstadoUsuario(button) {
       buttonsStyling: false,
       customClass: legajoSwalClasses,
       didOpen: () => {
-        const radios = document.querySelectorAll('input[name="accionUsuario"]');
+        const accionInput = document.getElementById('accionEstadoUsuario');
         const camposSuspension = document.getElementById('camposSuspensionUsuario');
         const botonSuspender = document.getElementById('confirmarSuspensionUsuario');
         const botonBloquear = document.getElementById('confirmarBloqueoUsuario');
         const syncEstado = () => {
-          const accion = document.querySelector('input[name="accionUsuario"]:checked')?.value || 'suspender';
+          const accion = accionInput?.value || 'suspender';
           if (camposSuspension) camposSuspension.style.display = accion === 'suspender' ? 'grid' : 'none';
           botonSuspender?.classList.toggle('is-selected', accion === 'suspender');
           botonBloquear?.classList.toggle('is-selected', accion === 'bloquear');
         };
-        radios.forEach((radio) => radio.addEventListener('change', syncEstado));
         botonSuspender?.addEventListener('click', () => {
-          const radioSuspender = document.querySelector('input[name="accionUsuario"][value="suspender"]');
-          if (radioSuspender) radioSuspender.checked = true;
+          if (accionInput) accionInput.value = 'suspender';
           syncEstado();
           const payload = leerPayloadEstadoUsuario();
           if (payload) Swal.clickConfirm();
         });
         botonBloquear?.addEventListener('click', () => {
-          const radioBloquear = document.querySelector('input[name="accionUsuario"][value="bloquear"]');
-          if (radioBloquear) radioBloquear.checked = true;
+          if (accionInput) accionInput.value = 'bloquear';
           syncEstado();
           const payload = leerPayloadEstadoUsuario();
           if (payload) Swal.clickConfirm();

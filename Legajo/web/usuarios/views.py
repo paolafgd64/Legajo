@@ -353,6 +353,8 @@ def api_usuarios(request):
     telefono = str(data.get('telefono')).strip()
     if not telefono.isdigit():
         return JsonResponse({'message': 'El telefono debe contener solo numeros.'}, status=400)
+    if len(telefono) < 10:
+        return JsonResponse({'message': 'El telefono debe tener al menos 10 numeros.'}, status=400)
 
     user = existing_user or User(email=email)
     user.nombre1 = data.get('primerNombre', '').strip()
@@ -488,6 +490,8 @@ def api_me(request):
 
         if not telefono.isdigit():
             return JsonResponse({'message': 'El telefono debe contener solo numeros.'}, status=400)
+        if len(telefono) < 10:
+            return JsonResponse({'message': 'El telefono debe tener al menos 10 numeros.'}, status=400)
 
         if User.objects.exclude(id=user.id).filter(email=email).exists():
             return JsonResponse({'message': 'Ya existe un usuario registrado con ese correo.'}, status=400)
