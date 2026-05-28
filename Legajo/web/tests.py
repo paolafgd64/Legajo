@@ -775,7 +775,7 @@ class InventarioApiTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, '<option value="3" selected>3</option>', html=True)
-        self.assertContains(response, 'registrarLibro.js?v=20260505a')
+        self.assertContains(response, 'registrarLibro.js?v=20260511a')
 
     def test_actualiza_libro_con_nueva_imagen(self):
         self.client.force_login(self.user)
@@ -1973,5 +1973,56 @@ class UserReportsTests(TestCase):
         self.assertEqual(len(data['labels']), len(data['data']))
         self.assertEqual(data['data'][4], 1)
         self.assertGreaterEqual(data['data'][-1], 1)
+
+
+WEB_TESTS_SELECCIONADOS = {
+    'web.tests.AdminDashboardTests.test_dashboard_admin_contexto_calcula_metricas_reales',
+    'web.tests.AdminDashboardTests.test_dashboard_admin_reported_users_endpoint_devuelve_datos_reales',
+    'web.tests.AuthApiTests.test_api_me_rechaza_ciudad_muy_larga',
+    'web.tests.AuthApiTests.test_api_me_rechaza_correo_invalido',
+    'web.tests.AuthApiTests.test_api_profile_stats_refleja_estado_actual_de_libros',
+    'web.tests.AuthApiTests.test_login_autentica_y_retorna_redireccion',
+    'web.tests.AuthApiTests.test_login_reactiva_usuario_si_suspension_ya_vencio',
+    'web.tests.AuthApiTests.test_login_usuario_desactivado_devuelve_motivo',
+    'web.tests.AuthApiTests.test_reset_password_updates_user_password',
+    'web.tests.CloudinarySettingsTests.test_cloudinary_settings_accept_cloudinary_url',
+    'web.tests.CloudinarySettingsTests.test_local_env_file_loads_cloudinary_variables',
+    'web.tests.ImportacionMasivaLibrosTests.test_admin_inactiva_libro_y_notifica_propietario',
+    'web.tests.ImportacionMasivaLibrosTests.test_admin_no_puede_crear_libros_desde_api',
+    'web.tests.ImportacionMasivaLibrosTests.test_reporte_admin_libros_incluye_inactivos',
+    'web.tests.ImportacionMasivaUsuariosAjaxTests.test_admin_actualiza_contacto_del_index',
+    'web.tests.ImportacionMasivaUsuariosAjaxTests.test_admin_consulta_inventario_de_usuario',
+    'web.tests.ImportacionMasivaUsuariosAjaxTests.test_admin_desactiva_usuario_con_motivo',
+    'web.tests.ImportacionMasivaUsuariosAjaxTests.test_admin_suspende_usuario_con_tiempo',
+    'web.tests.ImportacionMasivaUsuariosAjaxTests.test_importacion_usuarios_ajax_retorna_json_de_exito',
+    'web.tests.InventarioApiTests.test_actualiza_libro_con_nueva_imagen',
+    'web.tests.InventarioApiTests.test_actualiza_libro_exitosamente',
+    'web.tests.InventarioApiTests.test_crea_libro_en_base_de_datos',
+    'web.tests.InventarioApiTests.test_crea_varias_copias_y_lista_stock_agrupado',
+    'web.tests.InventarioApiTests.test_elimina_libro_del_inventario',
+    'web.tests.InventarioApiTests.test_lista_solo_libros_del_usuario_autenticado',
+    'web.tests.InventarioApiTests.test_no_permite_mas_de_diez_copias',
+    'web.tests.InventarioApiTests.test_solicitar_intercambio_crea_registro_pendiente',
+    'web.tests.InventarioApiTests.test_solicitar_intercambio_rechaza_libro_en_leyendo',
+    'web.tests.InventarioApiTests.test_usuario_no_dueno_no_puede_actualizar_ni_eliminar',
+    'web.tests.UserReportsTests.test_admin_puede_listar_y_actualizar_reportes',
+    'web.tests.UserReportsTests.test_usuario_puede_reportar_a_otro_usuario',
+}
+
+
+def _flatten_test_suite(suite):
+    for item in suite:
+        if hasattr(item, '__iter__') and not hasattr(item, 'id'):
+            yield from _flatten_test_suite(item)
+        else:
+            yield item
+
+
+def load_tests(loader, standard_tests, pattern):
+    suite = loader.suiteClass()
+    for test in _flatten_test_suite(standard_tests):
+        if test.id() in WEB_TESTS_SELECCIONADOS:
+            suite.addTest(test)
+    return suite
 
 

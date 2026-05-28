@@ -6,7 +6,8 @@ import sys
 
 def main():
     """Run administrative tasks."""
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'Legajo.settings')
+    default_settings = 'Legajo.test_settings' if len(sys.argv) > 1 and sys.argv[1] == 'test' else 'Legajo.settings'
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', default_settings)
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:
