@@ -704,6 +704,22 @@ header {
     padding: 12px 16px;
 }
 
+.btn-confirmar-intercambio:disabled {
+    cursor: default;
+    opacity: 0.92;
+}
+
+.btn-confirmar-intercambio:disabled:hover {
+    transform: none;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.pin-confirmacion .btn-confirmar-intercambio {
+    width: 100%;
+    min-width: min(220px, 100%);
+    max-width: 280px;
+}
+
 .intercambio-completado {
     display: inline-flex;
     align-items: center;

@@ -47,19 +47,3 @@ class Autor(models.Model):
 
     def __str__(self):
         return f"{self.nombre1} {self.apellido1}"
-
-
-class CalificacionLibro(models.Model):
-    calificacion = models.IntegerField()
-    comentario = models.TextField()
-    fecha = models.DateTimeField(auto_now_add=True)
-    usuario = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-    )
-    libro = models.ForeignKey(
-        Libro,
-        on_delete=models.CASCADE,
-    )
-    activo = models.BooleanField(default=True)

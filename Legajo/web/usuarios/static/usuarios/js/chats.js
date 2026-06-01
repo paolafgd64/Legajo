@@ -147,7 +147,7 @@ async function cargarIntercambios() {
                   : 'La otra persona aun no confirma.'}</p>
               </div>
               ${intercambio.confirmoActual
-                ? '<button class="btn-verde" type="button" disabled>Ya confirmaste</button>'
+                ? '<button class="btn-verde btn-confirmar-intercambio" type="button" disabled>Ya confirmaste</button>'
                 : `<button class="btn-verde btn-confirmar-intercambio" data-intercambio-id="${intercambio.id}">Marcar intercambio completado</button>`}
             </div>
           ` : ''}

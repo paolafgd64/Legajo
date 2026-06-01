@@ -2,7 +2,7 @@
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
-from django.db.models import Avg, Count, Q
+from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.http.multipartparser import MultiPartParser, MultiPartParserError
 from django.shortcuts import redirect, render
@@ -28,7 +28,7 @@ from ..views.helpers import (
     _service_error_response,
     _unauthorized_response,
 )
-from .models import CalificacionLibro, Libro
+from .models import Libro
 
 
 User = get_user_model()
@@ -135,10 +135,6 @@ def _admin_books_report_queryset():
         Libro.objects.all()
         .select_related('usuario_propietario')
         .prefetch_related('autores', 'generos')
-        .annotate(
-            promedio_calificacion=Avg('calificacionlibro__calificacion', filter=Q(calificacionlibro__activo=True), distinct=True),
-            total_calificaciones=Count('calificacionlibro', filter=Q(calificacionlibro__activo=True), distinct=True),
-        )
     )
 
 
@@ -307,10 +303,6 @@ def reporte_libros_pdf(request):
         Libro.objects.all()
         .select_related('usuario_propietario')
         .prefetch_related('autores', 'generos')
-        .annotate(
-            promedio_calificacion=Avg('calificacionlibro__calificacion', filter=Q(calificacionlibro__activo=True), distinct=True),
-            total_calificaciones=Count('calificacionlibro', filter=Q(calificacionlibro__activo=True), distinct=True),
-        )
         .order_by('-id')
     )
 
@@ -319,7 +311,6 @@ def reporte_libros_pdf(request):
     usuario = (request.GET.get('usuario') or '').strip()
     genero = (request.GET.get('genero') or '').strip()
     estado = (request.GET.get('estado') or '').strip()
-    calificacion_min = (request.GET.get('calificacion_min') or '').strip()
 
     if titulo:
         libros = libros.filter(titulo__icontains=titulo)
@@ -343,12 +334,6 @@ def reporte_libros_pdf(request):
         libros = libros.filter(generos__nombre__icontains=genero).distinct()
     if estado:
         libros = libros.filter(estado__iexact=estado)
-    if calificacion_min:
-        try:
-            libros = libros.filter(promedio_calificacion__gte=float(calificacion_min))
-        except ValueError:
-            pass
-
     libros = libros.distinct()
 
     filtros = {
@@ -357,15 +342,12 @@ def reporte_libros_pdf(request):
         'Usuario': usuario or 'Todos',
         'Genero': genero or 'Todos',
         'Estado': estado or 'Todos',
-        'Calificacion minima': f'{calificacion_min}/5' if calificacion_min else 'Sin restriccion',
     }
 
     total_libros = libros.count()
     total_usuarios = libros.exclude(usuario_propietario_id__isnull=True).values('usuario_propietario_id').distinct().count()
     total_generos = libros.exclude(generos__id__isnull=True).values('generos__id').distinct().count()
 
-    calificaciones = CalificacionLibro.objects.filter(activo=True, libro__in=libros)
-    resumen_calificaciones = calificaciones.aggregate(promedio=Avg('calificacion'), total=Count('id'))
     consulta_estados = list(libros.values('estado').annotate(total=Count('id')).order_by('-total', 'estado'))
     consulta_generos = list(
         libros.exclude(generos__nombre__isnull=True).values('generos__nombre').annotate(total=Count('id')).order_by('-total', 'generos__nombre')[:5]
@@ -382,12 +364,9 @@ def reporte_libros_pdf(request):
         .annotate(total=Count('id'))
         .order_by('-total', 'usuario_propietario__nombre1', 'usuario_propietario__apellido1')[:5]
     )
-    distribucion_calificaciones = list(calificaciones.values('calificacion').annotate(total=Count('id')).order_by('-calificacion'))
-
     genero_dominante = consulta_generos[0] if consulta_generos else None
     estado_dominante = consulta_estados[0] if consulta_estados else None
     usuario_mayor_inventario = consulta_usuarios[0] if consulta_usuarios else None
-    promedio_calificacion = resumen_calificaciones['promedio'] or 0
 
     hallazgos = [f"Se analizaron {total_libros} libros publicados por {total_usuarios} usuarios activos bajo los filtros configurados."]
     if genero_dominante:
@@ -409,14 +388,6 @@ def reporte_libros_pdf(request):
             )
         ).strip() or usuario_mayor_inventario['usuario_propietario__email']
         hallazgos.append(f"El usuario con mayor inventario en la consulta es {nombre_usuario} con {usuario_mayor_inventario['total']} libros.")
-    if resumen_calificaciones['total']:
-        hallazgos.append(
-            f"La calificacion promedio de los libros filtrados es {promedio_calificacion:.1f}/5 basada en {resumen_calificaciones['total']} resenas activas."
-        )
-    else:
-        hallazgos.append(
-            'No hay resenas activas en el subconjunto filtrado, por lo que conviene incentivar calificaciones para fortalecer el analisis de satisfaccion.'
-        )
 
     report_context = {
         'filters_lines': [f'{clave}: {valor}' for clave, valor in filtros.items()],
@@ -424,7 +395,6 @@ def reporte_libros_pdf(request):
             {'label': 'Libros filtrados', 'value': str(total_libros)},
             {'label': 'Usuarios involucrados', 'value': str(total_usuarios)},
             {'label': 'Generos presentes', 'value': str(total_generos)},
-            {'label': 'Promedio calificacion', 'value': f'{promedio_calificacion:.1f}/5' if resumen_calificaciones['total'] else 'Sin datos'},
         ],
         'stat_sections': [
             {'title': 'Consulta estadistica por estado', 'headers': ['Estado', 'Total'], 'rows': [[item['estado'], item['total']] for item in consulta_estados]},
@@ -437,7 +407,6 @@ def reporte_libros_pdf(request):
                     item['total'],
                 ] for item in consulta_usuarios],
             },
-            {'title': 'Consulta estadistica de calificaciones', 'headers': ['Estrellas', 'Total resenas'], 'rows': [[f"{item['calificacion']}/5", item['total']] for item in distribucion_calificaciones]},
         ],
         'insights': hallazgos,
     }
@@ -452,7 +421,6 @@ def reporte_libros_pdf(request):
             serialized['genero'],
             serialized['estado'],
             'Activo' if serialized['activo'] else 'Desactivado',
-            f"{serialized['calificacion']:.1f}/5" if serialized['totalCalificaciones'] else 'Sin resenas',
         ])
 
     return _build_pdf_response(
@@ -460,5 +428,5 @@ def reporte_libros_pdf(request):
         rows,
         'reporte_libros.pdf',
         report_context=report_context,
-        columns=[('Usuario', 92), ('Titulo', 120), ('Autor', 92), ('Genero', 70), ('Estado', 54), ('Activo', 48), ('Calif.', 48)],
+        columns=[('Usuario', 100), ('Titulo', 130), ('Autor', 100), ('Genero', 80), ('Estado', 60), ('Activo', 60)],
     )

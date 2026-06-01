@@ -57,28 +57,6 @@
             </div>
         </section>
 
-        <!-- Modal de CalificaciÃ³n -->
-        <div id="modalCalificacion" class="modal-calificacion">
-            <div class="modal-calificacion-content">
-                <button onclick="cerrarModalCalificacion()" class="btn-cerrar-modal">x</button>
-                <h2>Califica tu libro</h2>
-                <p class="subtitulo-modal">Selecciona las estrellas</p>
-                
-                <div class="contenedor-estrellas">
-                    <span class="estrella" onclick="seleccionarEstrella(1)" onmouseover="previewEstrella(1)" onmouseout="limpiarPreviewEstrella()">â˜…</span>
-                    <span class="estrella" onclick="seleccionarEstrella(2)" onmouseover="previewEstrella(2)" onmouseout="limpiarPreviewEstrella()">â˜…</span>
-                    <span class="estrella" onclick="seleccionarEstrella(3)" onmouseover="previewEstrella(3)" onmouseout="limpiarPreviewEstrella()">â˜…</span>
-                    <span class="estrella" onclick="seleccionarEstrella(4)" onmouseover="previewEstrella(4)" onmouseout="limpiarPreviewEstrella()">â˜…</span>
-                    <span class="estrella" onclick="seleccionarEstrella(5)" onmouseover="previewEstrella(5)" onmouseout="limpiarPreviewEstrella()">â˜…</span>
-                </div>
-                
-                <div class="botones-modal">
-                    <button onclick="enviarCalificacion()" class="btn-enviar-calificacion">Enviar CalificaciÃ³n</button>
-                    <button onclick="cerrarModalCalificacion()" class="btn-cancelar-calificacion">Cancelar</button>
-                </div>
-            </div>
-        </div>
-
         <!-- Modal para Ver Detalles del Libro -->
         <div id="modal" class="modal" style="display: none;">
             <div class="modal-content">
@@ -94,7 +72,6 @@
     </main>
     <script src="{% static 'usuarios/js/script.js' %}?v=20260511a"></script>
     <script src="{% static 'gestion_libros/js/inventario.js' %}?v=20260430a"></script>
-    <script src="{% static 'gestion_libros/js/calificaciones.js' %}"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="{% static 'usuarios/js/swal-theme.js' %}?v=20260430a"></script>
 

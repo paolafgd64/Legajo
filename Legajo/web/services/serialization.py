@@ -3,8 +3,6 @@ def serialize_book(libro):
     generos = list(libro.generos.all())
     autor_nombre = str(autores[0]) if autores else ''
     propietario = libro.usuario_propietario
-    promedio_calificacion = getattr(libro, 'promedio_calificacion', None)
-    total_calificaciones = getattr(libro, 'total_calificaciones', 0) or 0
 
     return {
         'id': libro.id,
@@ -23,7 +21,7 @@ def serialize_book(libro):
         'ciudadPropietario': propietario.ciudad if propietario else '',
         'ciudad': propietario.ciudad if propietario else '',
         'activo': bool(libro.activo),
-        'calificacion': round(promedio_calificacion, 1) if promedio_calificacion is not None else 0,
-        'totalCalificaciones': total_calificaciones,
+        'calificacion': 0,
+        'totalCalificaciones': 0,
         'stock': getattr(libro, 'stock', 1),
     }

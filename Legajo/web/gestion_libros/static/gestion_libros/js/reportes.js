@@ -40,7 +40,6 @@ async function cargarLibros() {
   const usuario = document.getElementById('filtroUsuario')?.value.trim() || '';
   const genero = document.getElementById('filtroGenero')?.value || '';
   const estado = document.getElementById('filtroEstado')?.value || '';
-  const calificacionMin = document.getElementById('filtroCalificacion')?.value || '';
 
   const params = new URLSearchParams();
   if (titulo) params.append('titulo', titulo);
@@ -54,11 +53,7 @@ async function cargarLibros() {
   try {
     const res = await fetch(url);
     if (!res.ok) throw new Error(`Error en peticion: ${res.status}`);
-    let libros = await res.json();
-
-    if (calificacionMin) {
-      libros = libros.filter((libro) => (libro.calificacion || 0) >= parseFloat(calificacionMin));
-    }
+    const libros = await res.json();
 
     mostrarEnTabla(libros);
   } catch (err) {
@@ -263,7 +258,6 @@ function abrirModal(libro) {
   document.getElementById('modalAutor').innerText = libro.autor || '';
   document.getElementById('modalGenero').innerText = libro.genero || '';
   document.getElementById('modalUsuario').innerText = libro.usuario || '';
-  document.getElementById('modalCalificacion').innerText = libro.calificacion ?? 'N/A';
   document.getElementById('modalEstado').innerText = libro.estado || '';
   document.getElementById('modalDescripcion').innerText = libro.sinopsis || libro.descripcion || '';
   if (modal) {
@@ -288,7 +282,6 @@ document.getElementById('filtroAutor')?.addEventListener('input', cargarLibros);
 document.getElementById('filtroUsuario')?.addEventListener('input', cargarLibros);
 document.getElementById('filtroGenero')?.addEventListener('change', cargarLibros);
 document.getElementById('filtroEstado')?.addEventListener('change', cargarLibros);
-document.getElementById('filtroCalificacion')?.addEventListener('change', cargarLibros);
 
 document.getElementById('btnLimpiar')?.addEventListener('click', () => {
   document.getElementById('filtroTitulo').value = '';
@@ -296,7 +289,6 @@ document.getElementById('btnLimpiar')?.addEventListener('click', () => {
   document.getElementById('filtroUsuario').value = '';
   document.getElementById('filtroGenero').value = '';
   document.getElementById('filtroEstado').value = '';
-  document.getElementById('filtroCalificacion').value = '';
   cargarLibros();
 });
 
@@ -306,7 +298,6 @@ document.getElementById('btnGenerarPDF')?.addEventListener('click', () => {
   const usuario = document.getElementById('filtroUsuario')?.value.trim() || '';
   const genero = document.getElementById('filtroGenero')?.value || '';
   const estado = document.getElementById('filtroEstado')?.value || '';
-  const calificacionMin = document.getElementById('filtroCalificacion')?.value || '';
 
   const params = new URLSearchParams();
   if (titulo) params.append('titulo', titulo);
@@ -314,7 +305,6 @@ document.getElementById('btnGenerarPDF')?.addEventListener('click', () => {
   if (usuario) params.append('usuario', usuario);
   if (genero) params.append('genero', genero);
   if (estado) params.append('estado', estado);
-  if (calificacionMin) params.append('calificacion_min', calificacionMin);
 
   const url = params.toString() ? `/libros/reporte/pdf?${params.toString()}` : '/libros/reporte/pdf';
   window.location.href = url;

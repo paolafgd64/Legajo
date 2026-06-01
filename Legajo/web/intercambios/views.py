@@ -7,6 +7,7 @@ Manejan el ciclo completo del intercambio:
 - confirmacion final por ambas partes
 """
 
+from django.http import JsonResponse
 from django.db import DatabaseError, transaction
 from django.db.models import Q
 from django.utils import timezone

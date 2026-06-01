@@ -12,7 +12,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import DatabaseError
-from django.db.models import Avg, Count, Q
+from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
@@ -375,10 +375,6 @@ def api_admin_user_inventory(request, user_id):
     libros = (
         Libro.objects.filter(usuario_propietario=usuario, activo=True)
         .prefetch_related('autores', 'generos')
-        .annotate(
-            promedio_calificacion=Avg('calificacionlibro__calificacion', filter=Q(calificacionlibro__activo=True), distinct=True),
-            total_calificaciones=Count('calificacionlibro', filter=Q(calificacionlibro__activo=True), distinct=True),
-        )
         .order_by('-id')
     )
 

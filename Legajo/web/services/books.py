@@ -5,7 +5,7 @@ mantener los endpoints mas pequeños y faciles de entender.
 """
 
 from django.db import DatabaseError, transaction
-from django.db.models import Avg, Case, Count, IntegerField, Q, Value, When
+from django.db.models import Case, IntegerField, Q, Value, When
 from django.utils import timezone
 
 from ..administracion.models import NotificacionUsuario
@@ -85,18 +85,6 @@ def _books_queryset():
         Libro.objects.filter(activo=True)
         .select_related('usuario_propietario')
         .prefetch_related('autores', 'generos')
-        .annotate(
-            promedio_calificacion=Avg(
-                'calificacionlibro__calificacion',
-                filter=Q(calificacionlibro__activo=True),
-                distinct=True,
-            ),
-            total_calificaciones=Count(
-                'calificacionlibro',
-                filter=Q(calificacionlibro__activo=True),
-                distinct=True,
-            ),
-        )
     )
 
 

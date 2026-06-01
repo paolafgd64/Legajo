@@ -6,14 +6,13 @@ La implementacion real vive dentro de los modulos de dominio.
 """
 
 from .administracion.models import ConfiguracionContacto, NotificacionUsuario, ReporteUsuario
-from .gestion_libros.models import Autor, CalificacionLibro, Genero, Libro
+from .gestion_libros.models import Autor, Genero, Libro
 from .intercambios.models import Intercambio
 from .usuarios.models import Usuario, UsuarioManager
 
 
 __all__ = [
     'Autor',
-    'CalificacionLibro',
     'ConfiguracionContacto',
     'Genero',
     'Intercambio',
