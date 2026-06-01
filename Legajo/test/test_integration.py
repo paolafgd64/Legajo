@@ -3,7 +3,7 @@ import json
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
-from web.models import Libro
+from web.models import Intercambio, Libro
 
 
 class AuthIntegrationTests(TestCase):
@@ -60,3 +60,43 @@ class BookInventoryIntegrationTests(TestCase):
         self.assertEqual(creacion.status_code, 201)
         self.assertEqual(listado.status_code, 200)
         self.assertEqual(listado.json()[0]['stock'], 2)
+
+
+class ExchangeIntegrationTests(TestCase):
+    def test_solicitar_intercambio_por_api_crea_registro_pendiente(self):
+        user_model = get_user_model()
+        propietario = user_model.objects.create_user(
+            email='propietario.integracion@example.com',
+            password='Segura123!@#',
+            nombre1='Propietario',
+            apellido1='Integracion',
+            direccion='Calle 20',
+            ciudad='Bogota',
+            telefono=3004444444,
+        )
+        solicitante = user_model.objects.create_user(
+            email='solicitante.integracion@example.com',
+            password='Segura123!@#',
+            nombre1='Solicitante',
+            apellido1='Integracion',
+            direccion='Calle 21',
+            ciudad='Bogota',
+            telefono=3005555555,
+        )
+        libro = Libro.objects.create(
+            titulo='Libro para intercambio',
+            sinopsis='Disponible para solicitudes.',
+            estado=Libro.Estado.PUBLICADO,
+            url_imagen='/static/gestion_libros/imgs/libropredeterminado1.png',
+            usuario_propietario=propietario,
+        )
+        self.client.force_login(solicitante)
+
+        response = self.client.post(
+            '/api/intercambios/request',
+            data=json.dumps({'libroId': libro.id}),
+            content_type='application/json',
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(Intercambio.objects.get().estado, Intercambio.Estado.PENDIENTE)

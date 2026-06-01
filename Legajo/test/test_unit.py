@@ -1,7 +1,8 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
-from web.models import Libro
+from web.models import Intercambio, Libro
+from web.services.exchanges import request_exchange
 from web.services.users import import_users_from_payload
 from web.validators.books import validate_book_payload
 
@@ -35,3 +36,40 @@ class UserImportServiceUnitTests(TestCase):
 
         self.assertEqual(resultado['creados'], 1)
         self.assertTrue(get_user_model().objects.filter(email='lectora@example.com').exists())
+
+
+class ExchangeServiceUnitTests(TestCase):
+    def test_request_exchange_crea_solicitud_pendiente(self):
+        user_model = get_user_model()
+        propietario = user_model.objects.create_user(
+            email='propietario.unitario@example.com',
+            password='Segura123!@#',
+            nombre1='Propietario',
+            apellido1='Unitario',
+            direccion='Calle 2',
+            ciudad='Bogota',
+            telefono=3002222222,
+        )
+        solicitante = user_model.objects.create_user(
+            email='solicitante.unitario@example.com',
+            password='Segura123!@#',
+            nombre1='Solicitante',
+            apellido1='Unitario',
+            direccion='Calle 3',
+            ciudad='Bogota',
+            telefono=3003333333,
+        )
+        libro = Libro.objects.create(
+            titulo='Libro intercambiable',
+            sinopsis='Disponible para intercambio.',
+            estado=Libro.Estado.PUBLICADO,
+            url_imagen='/static/gestion_libros/imgs/libropredeterminado1.png',
+            usuario_propietario=propietario,
+        )
+
+        resultado = request_exchange(solicitante, {'libroId': libro.id})
+
+        intercambio = Intercambio.objects.get(id=resultado['idIntercambio'])
+        self.assertEqual(intercambio.estado, Intercambio.Estado.PENDIENTE)
+        self.assertEqual(intercambio.usuario_solicitante, solicitante)
+        self.assertEqual(intercambio.usuario_receptor, propietario)
