@@ -336,7 +336,6 @@ def api_admin_users(request):
     nombre = (request.GET.get('nombre') or '').strip()
     correo = (request.GET.get('correo') or '').strip()
     ciudad = (request.GET.get('ciudad') or '').strip()
-    rol = (request.GET.get('rol') or '').strip()
     estado = (request.GET.get('estado') or '').strip()
 
     if nombre:
@@ -350,8 +349,6 @@ def api_admin_users(request):
         usuarios = usuarios.filter(email__icontains=correo)
     if ciudad:
         usuarios = usuarios.filter(ciudad__icontains=ciudad)
-    if rol:
-        usuarios = usuarios.filter(rol=rol)
     if estado == 'activo':
         usuarios = usuarios.filter(activo=True, is_active=True)
     elif estado == 'inactivo':

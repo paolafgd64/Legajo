@@ -103,14 +103,12 @@ async function cargarUsuariosAdmin() {
   const nombre = document.getElementById('filtroNombreUsuario')?.value.trim() || '';
   const correo = document.getElementById('filtroCorreoUsuario')?.value.trim() || '';
   const ciudad = document.getElementById('filtroCiudadUsuario')?.value.trim() || '';
-  const rol = document.getElementById('filtroRolUsuario')?.value || '';
   const estado = document.getElementById('filtroEstadoUsuario')?.value || '';
 
   const params = new URLSearchParams();
   if (nombre) params.append('nombre', nombre);
   if (correo) params.append('correo', correo);
   if (ciudad) params.append('ciudad', ciudad);
-  if (rol) params.append('rol', rol);
   if (estado) params.append('estado', estado);
 
   const url = params.toString() ? `${API_USUARIOS_ADMIN}?${params.toString()}` : API_USUARIOS_ADMIN;
@@ -592,7 +590,6 @@ async function enviarImportacionUsuarios(event) {
 document.getElementById('filtroNombreUsuario')?.addEventListener('input', cargarUsuariosAdmin);
 document.getElementById('filtroCorreoUsuario')?.addEventListener('input', cargarUsuariosAdmin);
 document.getElementById('filtroCiudadUsuario')?.addEventListener('input', cargarUsuariosAdmin);
-document.getElementById('filtroRolUsuario')?.addEventListener('change', cargarUsuariosAdmin);
 document.getElementById('filtroEstadoUsuario')?.addEventListener('change', cargarUsuariosAdmin);
 tablaUsuariosAdmin?.addEventListener('click', (event) => {
   const button = event.target.closest('.estado-usuario-boton');
@@ -605,7 +602,6 @@ document.getElementById('btnLimpiarUsuarios')?.addEventListener('click', () => {
   document.getElementById('filtroNombreUsuario').value = '';
   document.getElementById('filtroCorreoUsuario').value = '';
   document.getElementById('filtroCiudadUsuario').value = '';
-  document.getElementById('filtroRolUsuario').value = '';
   document.getElementById('filtroEstadoUsuario').value = '';
   cargarUsuariosAdmin();
 });
