@@ -7,11 +7,13 @@ Manejan el ciclo completo del intercambio:
 - confirmacion final por ambas partes
 """
 
-from django.http import JsonResponse
+from django.contrib.auth.decorators import login_required
 from django.db import DatabaseError, transaction
 from django.db.models import Q
 from django.http import JsonResponse
+from django.shortcuts import render
 from django.utils import timezone
+from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods
 
 from ..administracion.models import NotificacionUsuario, ReporteUsuario
@@ -24,6 +26,12 @@ from ..views.helpers import (
     _unauthorized_response,
 )
 from .models import Intercambio
+
+
+@login_required(login_url='login')
+@never_cache
+def intercambios(request):
+    return render(request, 'intercambios/intercambios.html')
 
 
 @require_http_methods(["GET"])

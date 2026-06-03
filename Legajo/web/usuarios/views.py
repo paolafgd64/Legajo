@@ -263,12 +263,6 @@ def activate_account(request, uidb64, token):
 
 @login_required(login_url='login')
 @never_cache
-def chats(request):
-    return render(request, 'usuarios/chats.html')
-
-
-@login_required(login_url='login')
-@never_cache
 def dashboard_usuario(request):
     # El dashboard reutiliza el serializer de libros para que la UI consuma
     # el mismo formato que los endpoints JSON.

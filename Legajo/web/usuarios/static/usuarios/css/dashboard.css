@@ -387,7 +387,7 @@ header {
 }
 
 /* ==========
-    CHATS
+    INTERCAMBIOS
 ========== */
 
 .intercambios-hero {
@@ -949,7 +949,7 @@ header {
     display: none;
 }
 
-/* chats */
+/* intercambios */
 @media (max-width: 768px) {
     .intercambios-hero {
         grid-template-columns: 1fr;

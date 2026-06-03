@@ -4,6 +4,7 @@ from . import views
 
 
 urlpatterns = [
+    path('intercambios/', views.intercambios, name='intercambios'),
     path('api/notificaciones', views.api_notificaciones, name='api_notificaciones'),
     path('api/notificaciones/marcar-leidas', views.api_marcar_notificaciones_leidas, name='api_marcar_notificaciones_leidas'),
     path('api/intercambios', views.api_intercambios, name='api_intercambios'),

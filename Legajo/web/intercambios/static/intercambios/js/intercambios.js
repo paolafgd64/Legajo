@@ -11,7 +11,7 @@ const legajoSwalOptions = {
   buttonsStyling: false,
   customClass: legajoSwalClasses
 };
-function getCsrfTokenChats() {
+function getCsrfTokenIntercambios() {
   const cookies = document.cookie ? document.cookie.split(';') : [];
   for (const cookie of cookies) {
     const trimmed = cookie.trim();
@@ -23,7 +23,7 @@ function getCsrfTokenChats() {
   return document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
 }
 
-async function parseJsonResponseChats(response) {
+async function parseJsonResponseIntercambios(response) {
   const rawText = await response.text();
   try {
     return JSON.parse(rawText);
@@ -32,7 +32,7 @@ async function parseJsonResponseChats(response) {
   }
 }
 
-async function obtenerUsuarioActualChats() {
+async function obtenerUsuarioActualIntercambios() {
   const res = await fetch('/api/auth/me', {
     headers: {
       Accept: 'application/json'
@@ -56,7 +56,7 @@ async function cargarIntercambios() {
   if (!lista) return;
 
   try {
-    const usuario = await obtenerUsuarioActualChats();
+    const usuario = await obtenerUsuarioActualIntercambios();
     if (!usuario) return;
 
     const nombreUsuario = document.getElementById('nombreUsuarioIntercambios');
@@ -70,7 +70,7 @@ async function cargarIntercambios() {
       }
     });
 
-    const intercambios = await parseJsonResponseChats(res);
+    const intercambios = await parseJsonResponseIntercambios(res);
     if (!res.ok) {
       throw new Error(intercambios.message || 'No se pudieron cargar los intercambios.');
     }
@@ -203,12 +203,12 @@ async function cancelarIntercambio(intercambioId) {
       credentials: 'same-origin',
       headers: {
         'Content-Type': 'application/json',
-        'X-CSRFToken': getCsrfTokenChats()
+        'X-CSRFToken': getCsrfTokenIntercambios()
       },
       body: JSON.stringify({})
     });
 
-    const data = await parseJsonResponseChats(response);
+    const data = await parseJsonResponseIntercambios(response);
     if (!response.ok) {
       throw new Error(data.message || 'No se pudo cancelar el intercambio.');
     }
@@ -251,12 +251,12 @@ async function confirmarIntercambio(intercambioId) {
       credentials: 'same-origin',
       headers: {
         'Content-Type': 'application/json',
-        'X-CSRFToken': getCsrfTokenChats()
+        'X-CSRFToken': getCsrfTokenIntercambios()
       },
       body: JSON.stringify({})
     });
 
-    const data = await parseJsonResponseChats(response);
+    const data = await parseJsonResponseIntercambios(response);
     if (!response.ok) {
       throw new Error(data.message || 'No se pudo confirmar el intercambio.');
     }
