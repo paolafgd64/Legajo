@@ -10,12 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 import os
-from urllib.parse import urlparse
-
-import pymysql  # pyright: ignore[reportMissingModuleSource]
-pymysql.version_info = (2, 2, 8, "final", 0)
-pymysql.__version__ = "2.2.8"
-pymysql.install_as_MySQLdb()
+from urllib.parse import parse_qs, unquote, urlparse
 
 from pathlib import Path
 
@@ -64,16 +59,76 @@ def _get_cloudinary_settings():
 _load_local_env_file()
 
 
+def _env_bool(name, default=False):
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
+def _env_list(name, default=None):
+    value = os.environ.get(name, '')
+    items = [item.strip() for item in value.split(',') if item.strip()]
+    return items or (default or [])
+
+
+def _get_database_settings():
+    database_url = os.environ.get('DATABASE_URL', '').strip()
+    if not database_url:
+        return {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.environ.get('POSTGRES_DB', 'legajodb'),
+            'USER': os.environ.get('POSTGRES_USER', 'postgres'),
+            'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'legajo'),
+            'HOST': os.environ.get('POSTGRES_HOST', 'localhost'),
+            'PORT': os.environ.get('POSTGRES_PORT', '5432'),
+        }
+
+    parsed = urlparse(database_url)
+    database = {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': unquote(parsed.path.lstrip('/')),
+        'USER': unquote(parsed.username or ''),
+        'PASSWORD': unquote(parsed.password or ''),
+        'HOST': parsed.hostname or '',
+        'PORT': str(parsed.port or ''),
+    }
+
+    query = parse_qs(parsed.query)
+    sslmode = query.get('sslmode', [''])[0]
+    if sslmode:
+        database['OPTIONS'] = {'sslmode': sslmode}
+
+    return database
+
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-!-baxdgkz2r2m31=#g-4_e%474o#x!a@3f&vo^hbz4bp%g)pmw'
+SECRET_KEY = os.environ.get(
+    'DJANGO_SECRET_KEY',
+    'django-insecure-!-baxdgkz2r2m31=#g-4_e%474o#x!a@3f&vo^hbz4bp%g)pmw',
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = _env_bool('DJANGO_DEBUG', default=not os.environ.get('RAILWAY_ENVIRONMENT'))
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = _env_list('DJANGO_ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
+if os.environ.get('RAILWAY_ENVIRONMENT'):
+    ALLOWED_HOSTS.extend(['.up.railway.app', '.railway.app'])
+
+CSRF_TRUSTED_ORIGINS = _env_list('DJANGO_CSRF_TRUSTED_ORIGINS')
+if os.environ.get('RAILWAY_ENVIRONMENT'):
+    CSRF_TRUSTED_ORIGINS.extend(['https://*.up.railway.app', 'https://*.railway.app'])
+
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_SSL_REDIRECT = _env_bool('DJANGO_SECURE_SSL_REDIRECT', default=not DEBUG)
+SESSION_COOKIE_SECURE = _env_bool('DJANGO_SESSION_COOKIE_SECURE', default=not DEBUG)
+CSRF_COOKIE_SECURE = _env_bool('DJANGO_CSRF_COOKIE_SECURE', default=not DEBUG)
+SECURE_HSTS_SECONDS = int(os.environ.get('DJANGO_SECURE_HSTS_SECONDS', '0' if DEBUG else '3600'))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = _env_bool('DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS', default=not DEBUG)
+SECURE_HSTS_PRELOAD = _env_bool('DJANGO_SECURE_HSTS_PRELOAD', default=False)
 
 
 # Application definition
@@ -93,6 +148,7 @@ AUTH_USER_MODEL = 'web.Usuario'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -131,14 +187,7 @@ WSGI_APPLICATION = 'Legajo.wsgi.application'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'Legajo.mysql_backend',
-        'NAME': 'LegajoDB',
-        'USER': 'root',
-        'PASSWORD': '',
-        'HOST': 'localhost',
-        'PORT': '3306',
-    }
+    'default': _get_database_settings()
 }
 
 
@@ -175,12 +224,24 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [
     BASE_DIR / 'web' / 'usuarios' / 'static',
     BASE_DIR / 'web' / 'administracion' / 'static',
     BASE_DIR / 'web' / 'gestion_libros' / 'static',
     BASE_DIR / 'web' / 'intercambios' / 'static',
 ]
+STORAGES = {
+    'default': {
+        'BACKEND': 'django.core.files.storage.FileSystemStorage',
+    },
+    'staticfiles': {
+        'BACKEND': os.environ.get(
+            'DJANGO_STATICFILES_STORAGE',
+            'whitenoise.storage.CompressedStaticFilesStorage',
+        ),
+    },
+}
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')

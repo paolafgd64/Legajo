@@ -4,9 +4,9 @@ Cada include delega a un modulo funcional distinto para evitar volver a un
 `urls.py` monolitico.
 """
 
-from django.http import HttpResponse
 from django.urls import include, path
-from .views import ping
+
+from Legajo.views import ping
 
 
 urlpatterns = [
