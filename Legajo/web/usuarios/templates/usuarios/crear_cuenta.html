@@ -225,6 +225,17 @@
                         return;
                     }
 
+                    if (data.auto_activated) {
+                        await Swal.fire({
+                            icon: 'success',
+                            title: 'Registro completado',
+                            text: 'Tu cuenta fue creada. Ya puedes iniciar sesion.',
+                            confirmButtonText: 'Continuar'
+                        });
+                        window.location.href = "{% url 'login' %}";
+                        return;
+                    }
+
                     if (data.activation_link) {
                         await Swal.fire({
                             icon: 'info',

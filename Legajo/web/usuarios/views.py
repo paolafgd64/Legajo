@@ -359,7 +359,8 @@ def api_usuarios(request):
     user.ciudad = ciudad
     user.telefono = int(telefono)
     user.rol = User.Rol.USUARIO
-    user.is_active = False
+    email_configured = getattr(settings, 'LEGAJO_EMAIL_CONFIGURED', False)
+    user.is_active = not email_configured
     user.activo = True
 
     try:
@@ -369,6 +370,12 @@ def api_usuarios(request):
 
     user.set_password(password)
     user.save()
+
+    if not email_configured:
+        return JsonResponse(
+            {'mensaje': 'Usuario registrado. Ya puedes iniciar sesion.', 'auto_activated': True},
+            status=201,
+        )
 
     try:
         _send_account_activation_email(request, user)
