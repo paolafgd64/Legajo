@@ -361,7 +361,9 @@ def _send_resend_email_message(subject, text_body, recipients, html_body=None):
         method='POST',
         headers={
             'Authorization': f'Bearer {settings.RESEND_API_KEY}',
+            'Accept': 'application/json',
             'Content-Type': 'application/json',
+            'User-Agent': 'Legajo/1.0',
         },
     )
 
