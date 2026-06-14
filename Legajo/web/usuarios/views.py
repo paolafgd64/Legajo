@@ -7,6 +7,7 @@ Aqui viven:
 - reportes que un usuario envia a administracion
 """
 
+import logging
 from datetime import timedelta
 
 from django.contrib.auth import authenticate, get_user_model, login as auth_login, logout as auth_logout
@@ -44,6 +45,7 @@ from ..views.helpers import (
 
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 def _profile_activity_time(fecha):
@@ -380,6 +382,7 @@ def api_usuarios(request):
     try:
         _send_account_activation_email(request, user)
     except Exception:
+        logger.exception('Failed to send account activation email.')
         if settings.DEBUG:
             return JsonResponse(
                 {
