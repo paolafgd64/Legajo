@@ -7,6 +7,8 @@ import datetime
 import json
 import textwrap
 import unicodedata
+from urllib import error as urlerror
+from urllib import request as urlrequest
 
 from django.conf import settings
 from django.contrib.auth.tokens import default_token_generator
@@ -327,6 +329,10 @@ def _send_password_reset_email(request, user):
 
 
 def _send_email_message(subject, text_body, recipients, html_body=None):
+    if getattr(settings, 'RESEND_API_KEY', ''):
+        _send_resend_email_message(subject, text_body, recipients, html_body)
+        return
+
     message = EmailMultiAlternatives(
         subject=subject,
         body=text_body,
@@ -336,6 +342,39 @@ def _send_email_message(subject, text_body, recipients, html_body=None):
     if html_body:
         message.attach_alternative(html_body, 'text/html')
     message.send(fail_silently=False)
+
+
+def _send_resend_email_message(subject, text_body, recipients, html_body=None):
+    payload = {
+        'from': settings.RESEND_FROM_EMAIL,
+        'to': recipients,
+        'subject': subject,
+        'text': text_body,
+    }
+    if html_body:
+        payload['html'] = html_body
+
+    data = json.dumps(payload).encode('utf-8')
+    request = urlrequest.Request(
+        'https://api.resend.com/emails',
+        data=data,
+        method='POST',
+        headers={
+            'Authorization': f'Bearer {settings.RESEND_API_KEY}',
+            'Content-Type': 'application/json',
+        },
+    )
+
+    try:
+        with urlrequest.urlopen(request, timeout=settings.EMAIL_TIMEOUT) as response:
+            if response.status >= 400:
+                details = response.read().decode('utf-8', 'ignore')
+                raise RuntimeError(f'Resend rejected the email request: {response.status} {details}')
+    except urlerror.HTTPError as exc:
+        details = exc.read().decode('utf-8', 'ignore')
+        raise RuntimeError(f'Resend rejected the email request: {exc.code} {details}') from exc
+    except urlerror.URLError as exc:
+        raise RuntimeError(f'Could not connect to Resend: {exc.reason}') from exc
 
 
 def _get_password_reset_user(uidb64):
