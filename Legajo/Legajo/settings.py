@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 import os
 from urllib.parse import parse_qs, unquote, urlparse
 
+from django.core.exceptions import ImproperlyConfigured
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -75,6 +76,11 @@ def _env_list(name, default=None):
 def _get_database_settings():
     database_url = os.environ.get('DATABASE_URL', '').strip()
     if not database_url:
+        if os.environ.get('RAILWAY_ENVIRONMENT'):
+            raise ImproperlyConfigured(
+                'DATABASE_URL must be configured with the Railway PostgreSQL connection URL.'
+            )
+
         return {
             'ENGINE': 'django.db.backends.postgresql',
             'NAME': os.environ.get('POSTGRES_DB', 'legajodb'),
@@ -85,6 +91,11 @@ def _get_database_settings():
         }
 
     parsed = urlparse(database_url)
+    if os.environ.get('RAILWAY_ENVIRONMENT') and parsed.hostname in {'localhost', '127.0.0.1'}:
+        raise ImproperlyConfigured(
+            'DATABASE_URL points to localhost. Use the Railway PostgreSQL connection URL instead.'
+        )
+
     database = {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': unquote(parsed.path.lstrip('/')),
