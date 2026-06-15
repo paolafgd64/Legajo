@@ -329,6 +329,10 @@ def _send_password_reset_email(request, user):
 
 
 def _send_email_message(subject, text_body, recipients, html_body=None):
+    if getattr(settings, 'LEGAJO_EMAIL_WEBHOOK_URL', ''):
+        _send_webhook_email_message(subject, text_body, recipients, html_body)
+        return
+
     if getattr(settings, 'RESEND_API_KEY', ''):
         _send_resend_email_message(subject, text_body, recipients, html_body)
         return
@@ -342,6 +346,41 @@ def _send_email_message(subject, text_body, recipients, html_body=None):
     if html_body:
         message.attach_alternative(html_body, 'text/html')
     message.send(fail_silently=False)
+
+
+def _send_webhook_email_message(subject, text_body, recipients, html_body=None):
+    payload = {
+        'secret': settings.LEGAJO_EMAIL_WEBHOOK_SECRET,
+        'from': settings.DEFAULT_FROM_EMAIL,
+        'to': recipients,
+        'subject': subject,
+        'text': text_body,
+        'html': html_body or text_body,
+    }
+    data = json.dumps(payload).encode('utf-8')
+    request = urlrequest.Request(
+        settings.LEGAJO_EMAIL_WEBHOOK_URL,
+        data=data,
+        method='POST',
+        headers={
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'User-Agent': 'Legajo/1.0',
+        },
+    )
+
+    try:
+        with urlrequest.urlopen(request, timeout=settings.EMAIL_TIMEOUT) as response:
+            body = response.read().decode('utf-8', 'ignore')
+            if response.status >= 400:
+                raise RuntimeError(f'Email webhook rejected the request: {response.status} {body}')
+            if body and '"ok":true' not in body.replace(' ', '').lower():
+                raise RuntimeError(f'Email webhook returned an unexpected response: {body}')
+    except urlerror.HTTPError as exc:
+        details = exc.read().decode('utf-8', 'ignore')
+        raise RuntimeError(f'Email webhook rejected the request: {exc.code} {details}') from exc
+    except urlerror.URLError as exc:
+        raise RuntimeError(f'Could not connect to email webhook: {exc.reason}') from exc
 
 
 def _send_resend_email_message(subject, text_body, recipients, html_body=None):

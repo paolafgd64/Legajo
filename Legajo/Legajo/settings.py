@@ -270,8 +270,10 @@ EMAIL_USE_TLS = os.environ.get('LEGAJO_EMAIL_USE_TLS', 'true').strip().lower() =
 EMAIL_USE_SSL = os.environ.get('LEGAJO_EMAIL_USE_SSL', 'false').strip().lower() == 'true'
 EMAIL_TIMEOUT = int(os.environ.get('LEGAJO_EMAIL_TIMEOUT', '10'))
 DEFAULT_FROM_EMAIL = os.environ.get('LEGAJO_DEFAULT_FROM_EMAIL', EMAIL_HOST_USER or 'no-reply@legajo.local')
+LEGAJO_EMAIL_WEBHOOK_URL = os.environ.get('LEGAJO_EMAIL_WEBHOOK_URL', '').strip()
+LEGAJO_EMAIL_WEBHOOK_SECRET = os.environ.get('LEGAJO_EMAIL_WEBHOOK_SECRET', '').strip()
 RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '').strip()
 RESEND_FROM_EMAIL = os.environ.get('RESEND_FROM_EMAIL', DEFAULT_FROM_EMAIL).strip()
-LEGAJO_EMAIL_CONFIGURED = bool(RESEND_API_KEY) or EMAIL_BACKEND != 'django.core.mail.backends.smtp.EmailBackend' or (
+LEGAJO_EMAIL_CONFIGURED = bool(LEGAJO_EMAIL_WEBHOOK_URL) or bool(RESEND_API_KEY) or EMAIL_BACKEND != 'django.core.mail.backends.smtp.EmailBackend' or (
     bool(EMAIL_HOST_USER) and bool(EMAIL_HOST_PASSWORD)
 )
