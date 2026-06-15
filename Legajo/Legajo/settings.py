@@ -261,7 +261,7 @@ LEGAJO_CLOUDINARY = _get_cloudinary_settings()
 
 
 # Email (SMTP Gmail)
-EMAIL_BACKEND = os.environ.get('LEGAJO_EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
+EMAIL_BACKEND = os.environ.get('LEGAJO_EMAIL_BACKEND', 'web.email_backends.IPv4SMTPEmailBackend')
 EMAIL_HOST = os.environ.get('LEGAJO_EMAIL_HOST', 'smtp.gmail.com')
 EMAIL_PORT = int(os.environ.get('LEGAJO_EMAIL_PORT', 587))
 EMAIL_HOST_USER = os.environ.get('LEGAJO_EMAIL_HOST_USER', '').strip()
